@@ -1,0 +1,98 @@
+{
+  "@@locale": "fr",
+
+  "appName": "SteryMed",
+  "@appName": {
+    "description": "Nom de l'application"
+  },
+
+  "welcome": "Bienvenue",
+  "@welcome": {
+    "description": "Titre de la page de connexion"
+  },
+
+  "loginSubtitle": "Connectez-vous pour accéder à votre espace cabinet.",
+  "@loginSubtitle": {
+    "description": "Sous-titre de la page de connexion"
+  },
+
+  "tenantSlugLabel": "Identifiant du cabinet",
+  "@tenantSlugLabel": {
+    "description": "Label du champ identifiant du cabinet"
+  },
+
+  "tenantSlugHint": "ex. cabinet-martin",
+  "@tenantSlugHint": {
+    "description": "Placeholder du champ identifiant du cabinet"
+  },
+
+  "emailLabel": "Adresse e-mail",
+  "@emailLabel": {
+    "description": "Label du champ e-mail"
+  },
+
+  "emailHint": "vous@cabinet.fr",
+  "@emailHint": {
+    "description": "Placeholder du champ e-mail"
+  },
+
+  "passwordLabel": "Mot de passe",
+  "@passwordLabel": {
+    "description": "Label du champ mot de passe"
+  },
+
+  "loginButton": "Se connecter",
+  "@loginButton": {
+    "description": "Bouton de connexion"
+  },
+
+  "logoutButton": "Se déconnecter",
+  "@logoutButton": {
+    "description": "Bouton de déconnexion"
+  },
+
+  "retry": "Réessayer",
+  "@retry": {
+    "description": "Bouton réessayer en cas d'erreur"
+  },
+
+  "loading": "Chargement...",
+  "@loading": {
+    "description": "Indicateur de chargement"
+  },
+
+  "fieldRequired": "Ce champ est obligatoire.",
+  "@fieldRequired": {
+    "description": "Erreur de validation : champ vide"
+  },
+
+  "emailInvalid": "Adresse e-mail invalide.",
+  "@emailInvalid": {
+    "description": "Erreur de validation : e-mail invalide"
+  },
+
+  "passwordTooShort": "Au moins 8 caractères.",
+  "@passwordTooShort": {
+    "description": "Erreur de validation : mot de passe trop court"
+  },
+
+  "loggedOutPreviously": "Enregistré précédemment.",
+  "@loggedOutPreviously": {
+    "description": "Message affiché lorsqu'un enregistrement a déjà été effectué"
+  },
+
+  "offline": "Mode hors ligne",
+  "@offline": {
+    "description": "Bannière mode hors ligne"
+  },
+
+  "syncPending": "{count} en attente",
+  "@syncPending": {
+    "description": "Nombre d'éléments en attente de synchronisation",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+}
