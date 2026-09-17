@@ -37,8 +37,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final name = session.userName ?? 'Utilisateur';
     final email = session.userEmail ?? '';
     final role = session.role ?? 'staff';
-    final isOwner = role == 'owner' || role == 'admin';
-
+    final isOwner = session.isOwner;
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       body: SafeArea(
@@ -57,9 +56,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   onRetry: () => context.read<DashboardCubit>().load(),
                 );
               }
-
               final data = state is DashboardLoaded ? state.data : null;
-
               return ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
@@ -82,9 +79,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     const SizedBox(height: AppSpacing.lg),
                   ],
                   SectionHeader(
-                    title: isOwner
-                        ? 'Centre de gouvernance'
-                        : 'Accès rapides',
+                    title: isOwner ? 'Centre de gouvernance' : 'Accès rapides',
                   ),
                   _GovernanceMenu(isOwner: isOwner),
                   const SizedBox(height: AppSpacing.xxl),
@@ -124,10 +119,8 @@ class _Header extends StatelessWidget {
                 style: AppTypography.pageTitle.copyWith(fontSize: 22),
               ),
               const SizedBox(height: 2),
-              const Text(
-                'Voici la situation du cabinet',
-                style: AppTypography.caption,
-              ),
+              const Text('Voici la situation du cabinet',
+                  style: AppTypography.caption),
             ],
           ),
         ),
@@ -195,19 +188,10 @@ class _AttentionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg, icon) = switch (item.severity) {
-      'critical' => (
-          AppColors.dangerLight,
-          AppColors.danger,
-          Icons.error_outline
-        ),
-      'warning' => (
-          AppColors.warningLight,
-          AppColors.warning,
-          Icons.warning_amber_outlined
-        ),
+      'critical' => (AppColors.dangerLight, AppColors.danger, Icons.error_outline),
+      'warning' => (AppColors.warningLight, AppColors.warning, Icons.warning_amber_outlined),
       _ => (AppColors.infoLight, AppColors.info, Icons.info_outline),
     };
-
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -224,16 +208,11 @@ class _AttentionTile extends StatelessWidget {
               Icon(icon, color: fg, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(
-                  item.label,
-                  style: AppTypography.bodyStrong.copyWith(color: fg),
-                ),
+                child: Text(item.label,
+                    style: AppTypography.bodyStrong.copyWith(color: fg)),
               ),
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textTertiary,
-                size: 18,
-              ),
+              const Icon(Icons.chevron_right,
+                  color: AppColors.textTertiary, size: 18),
             ],
           ),
         ),
@@ -249,56 +228,42 @@ class _GovernanceMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = <_MenuItem>[
-      const _MenuItem(
-        'Cycles de stérilisation',
-        'Suivi complet des autoclaves',
-        Icons.autorenew,
-        Routes.cycles,
-      ),
-      const _MenuItem(
-        'Stock & Catalogue',
-        'Produits, lots, mouvements et inventaire',
-        Icons.inventory_2_outlined,
-        Routes.stock,
-      ),
-      const _MenuItem(
-        'Gestion des patients',
-        'Fiches patients et historiques',
-        Icons.people_outline,
-        Routes.patients,
-      ),
-      const _MenuItem(
-        'Non-Conformités & Rappels',
-        'Registre des incidents et quarantaines',
-        Icons.warning_amber_outlined,
-        Routes.nonConformities,
-      ),
-      const _MenuItem(
-        'Journal d\'Audit',
-        'Traces immuables et événements cliniques',
-        Icons.verified_user_outlined,
-        Routes.audit,
-      ),
+      // Operations
+      const _MenuItem('Cycles de stérilisation', 'Suivi complet des autoclaves',
+          Icons.autorenew, Routes.cycles),
+      const _MenuItem('Stock & Catalogue', 'Niveaux, mouvements et alertes',
+          Icons.inventory_2_outlined, Routes.stock),
+      const _MenuItem('Lots', 'Lots, DLC et traçabilité',
+          Icons.inventory_outlined, Routes.batches),
+      // Catalog
+      const _MenuItem('Catalogue produits', 'Consommables et références',
+          Icons.category_outlined, Routes.products),
+      const _MenuItem('Fournisseurs', 'Contacts et références fournisseurs',
+          Icons.local_shipping_outlined, Routes.suppliers),
+      const _MenuItem('Commandes & Réceptions', 'Bons de commande et réceptions',
+          Icons.shopping_cart_outlined, Routes.purchases),
+      // Clinical
+      const _MenuItem('Gestion des patients', 'Fiches patients et historiques',
+          Icons.people_outline, Routes.patients),
+      const _MenuItem('Non-Conformités & Rappels', 'Incidents et quarantaines',
+          Icons.warning_amber_outlined, Routes.nonConformities),
+      const _MenuItem('Journal d\'Audit', 'Traces immuables',
+          Icons.verified_user_outlined, Routes.audit),
+      // Admin only
       if (isOwner)
-        const _MenuItem(
-          'Équipe & Droits',
-          'Comptes du personnel et permissions',
-          Icons.person_add_alt_outlined,
-          Routes.team,
-        ),
+        const _MenuItem('Équipe & Droits', 'Comptes du personnel',
+            Icons.person_add_alt_outlined, Routes.team),
       if (isOwner)
-        const _MenuItem(
-          'Sites & Salles',
-          'Fauteuils, zones stériles et stockage',
-          Icons.meeting_room_outlined,
-          Routes.sites,
-        ),
-      const _MenuItem(
-        'Export Données',
-        'Portabilité RGPD / ARS',
-        Icons.download_outlined,
-        Routes.dataExports,
-      ),
+        const _MenuItem('Sites & Espaces', 'Fauteuils et zones stériles',
+            Icons.meeting_room_outlined, Routes.sites),
+      if (isOwner)
+        const _MenuItem('Appareils & Programmes', 'Autoclaves et presets',
+            Icons.precision_manufacturing_outlined, Routes.devices),
+      if (isOwner)
+        const _MenuItem('Règles DLU', 'Durées limite d\'utilisation',
+            Icons.timer_outlined, Routes.dluRules),
+      const _MenuItem('Export Données', 'Portabilité RGPD / ARS',
+          Icons.download_outlined, Routes.dataExports),
     ];
 
     return Column(
@@ -339,8 +304,7 @@ class _ActionRow extends StatelessWidget {
                   color: AppColors.brandPrimaryLight,
                   borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child:
-                    Icon(item.icon, size: 18, color: AppColors.brandPrimary),
+                child: Icon(item.icon, size: 18, color: AppColors.brandPrimary),
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
@@ -353,11 +317,8 @@ class _ActionRow extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppColors.textTertiary),
             ],
           ),
         ),

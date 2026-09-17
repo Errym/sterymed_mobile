@@ -17,22 +17,13 @@ class AlertListBloc extends Bloc<AlertListEvent, AlertListState> {
     on<ResolveAlert>(_onResolve);
   }
 
-  Future<void> _onLoad(
-    LoadAlerts event,
-    Emitter<AlertListState> emit,
-  ) async {
+  Future<void> _onLoad(LoadAlerts event, Emitter<AlertListState> emit) async {
     emit(state.copyWith(status: AlertListStatus.loading, error: null));
     try {
       final alerts = await _repository.getActiveAlerts();
-      emit(state.copyWith(
-        status: AlertListStatus.success,
-        alerts: alerts,
-      ));
+      emit(state.copyWith(status: AlertListStatus.success, alerts: alerts));
     } on ApiException catch (e) {
-      emit(state.copyWith(
-        status: AlertListStatus.failure,
-        error: e.message,
-      ));
+      emit(state.copyWith(status: AlertListStatus.failure, error: e.message));
     }
   }
 
@@ -41,17 +32,10 @@ class AlertListBloc extends Bloc<AlertListEvent, AlertListState> {
     Emitter<AlertListState> emit,
   ) async {
     try {
-      final alerts = await _repository.getActiveAlerts();
-      emit(state.copyWith(
-        status: AlertListStatus.success,
-        alerts: alerts,
-        error: null,
-      ));
+      final alerts = await _repository.getActiveAlerts(forceRefresh: true);
+      emit(state.copyWith(status: AlertListStatus.success, alerts: alerts));
     } on ApiException catch (e) {
-      emit(state.copyWith(
-        status: AlertListStatus.failure,
-        error: e.message,
-      ));
+      emit(state.copyWith(status: AlertListStatus.failure, error: e.message));
     }
   }
 
@@ -59,17 +43,18 @@ class AlertListBloc extends Bloc<AlertListEvent, AlertListState> {
     ResolveAlert event,
     Emitter<AlertListState> emit,
   ) async {
+    // Optimistic: remove from UI immediately.
+    final previous = state.alerts;
+    final optimistic =
+        previous.where((a) => a.id != event.alertId).toList(growable: false);
+    emit(state.copyWith(alerts: optimistic));
+
     try {
       await _repository.resolveAlert(event.alertId);
-      // Success → reload the list so the resolved alert disappears.
-      add(const RefreshAlerts());
     } on ApiException catch (e) {
-      // 409 means "already resolved by someone else" → treat as success.
-      if (e.statusCode == 409) {
-        add(const RefreshAlerts());
-        return;
-      }
-      emit(state.copyWith(error: e.message));
+      if (e.statusCode == 409) return; // already resolved — keep optimistic
+      // Failure — restore and surface error.
+      emit(state.copyWith(alerts: previous, error: e.message));
     }
   }
 }

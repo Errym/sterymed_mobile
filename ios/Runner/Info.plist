@@ -8,7 +8,12 @@
 <string>SteryMed utilise la caméra pour scanner les étiquettes de stérilisation.</string>
 <key>NSPhotoLibraryUsageDescription</key>
 <string>SteryMed utilise votre photothèque pour joindre des photos aux dossiers.</string>
+	<key>NSCameraUsageDescription</key>
+<string>SteryMed utilise la caméra pour scanner les étiquettes de stérilisation.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>SteryMed utilise votre photothèque pour joindre des photos aux dossiers.</string>
 	<key>CFBundleDevelopmentRegion</key>
+	
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>Sterymed </string>

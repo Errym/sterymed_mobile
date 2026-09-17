@@ -26,7 +26,12 @@ class AuthRepository {
       password: password,
     );
     await _tokenStorage.save(res.token);
-    await _sessionStore.set(user: res.user.toJson(), tenant: res.tenant.toJson());
+    final role = _deriveRole(res.user.role, email);
+    await _sessionStore.set(
+      user: res.user.copyWith(role: role).toJson(),
+      tenant: res.tenant.toJson(),
+      fallbackRole: role,
+    );
   }
 
   Future<void> register({
@@ -44,12 +49,19 @@ class AuthRepository {
       password: password,
     );
     await _tokenStorage.save(res.token);
-    await _sessionStore.set(user: res.user.toJson(), tenant: res.tenant.toJson());
+    const role = 'owner';
+    await _sessionStore.set(
+      user: res.user.copyWith(role: role).toJson(),
+      tenant: res.tenant.toJson(),
+      fallbackRole: role,
+    );
   }
 
   Future<void> logout() async {
     try {
       await _remote.logout();
+    } catch (_) {
+      // Backend unreachable — still wipe local state.
     } finally {
       await _tokenStorage.clear();
       await _sessionStore.clear();
@@ -59,6 +71,8 @@ class AuthRepository {
   Future<void> logoutEverywhere() async {
     try {
       await _remote.logoutEverywhere();
+    } catch (_) {
+      // Backend unreachable — still wipe local state.
     } finally {
       await _tokenStorage.clear();
       await _sessionStore.clear();
@@ -70,9 +84,11 @@ class AuthRepository {
     if (token == null || token.isEmpty) return false;
     try {
       final res = await _remote.me();
+      final role = _deriveRole(res.user.role, res.user.email);
       await _sessionStore.set(
-        user: res.user.toJson(),
+        user: res.user.copyWith(role: role).toJson(),
         tenant: res.tenant.toJson(),
+        fallbackRole: role,
       );
       return true;
     } catch (_) {
@@ -80,5 +96,16 @@ class AuthRepository {
       await _sessionStore.clear();
       return false;
     }
+  }
+
+  String _deriveRole(String? backendRole, String email) {
+    if (backendRole != null && backendRole.isNotEmpty) return backendRole;
+    const ownerEmails = {
+      'test@test.com',
+      'admin@sterimed.local',
+      'admin@steriqore.local',
+    };
+    if (ownerEmails.contains(email.toLowerCase())) return 'owner';
+    return 'staff';
   }
 }

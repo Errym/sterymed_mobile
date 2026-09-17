@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/utils/idempotency_key.dart';
 import '../models/device_data.dart';
 
 class DeviceRemoteDatasource {
@@ -19,6 +20,38 @@ class DeviceRemoteDatasource {
           .whereType<Map>()
           .map((e) => DeviceData.fromJson(e.cast<String, dynamic>()))
           .toList();
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  Future<DeviceData> create({
+    required String siteId,
+    required String name,
+    required String serialNumber,
+    required String kind,
+    String? manufacturer,
+    String? model,
+    String? notes,
+  }) async {
+    try {
+      final res = await _dio.post(
+        '/v1/devices',
+        data: {
+          'site_id': siteId,
+          'name': name,
+          'serial_number': serialNumber,
+          'kind': kind,
+          'status': 'active',
+          if (manufacturer != null) 'manufacturer': manufacturer,
+          if (model != null) 'model': model,
+          if (notes != null) 'notes': notes,
+        },
+        options: Options(
+          headers: {'Idempotency-Key': generateIdempotencyKey()},
+        ),
+      );
+      return DeviceData.fromJson((res.data as Map).cast<String, dynamic>());
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

@@ -11,27 +11,35 @@ class PatientData extends Equatable {
 
   const PatientData({
     required this.id,
-    required this.firstName,
-    required this.lastName,
+    this.firstName = '',
+    this.lastName = '',
     this.reference,
     this.birthDate,
     this.phone,
     this.email,
   });
 
-  String get fullName => '$firstName $lastName'.trim();
-
-  String get initials {
-    final f = firstName.isNotEmpty ? firstName[0] : '';
-    final l = lastName.isNotEmpty ? lastName[0] : '';
-    return '$f$l'.toUpperCase();
-  }
-
   factory PatientData.fromJson(Map<String, dynamic> json) {
+    var first = json['first_name']?.toString() ?? '';
+    var last = json['last_name']?.toString() ?? '';
+
+    if (first.isEmpty && last.isEmpty) {
+      final full = (json['full_name'] ?? json['name'])?.toString() ?? '';
+      if (full.isNotEmpty) {
+        final parts = full.trim().split(RegExp(r'\s+'));
+        if (parts.length == 1) {
+          first = parts.first;
+        } else {
+          first = parts.first;
+          last = parts.sublist(1).join(' ');
+        }
+      }
+    }
+
     return PatientData(
       id: json['id']?.toString() ?? '',
-      firstName: json['first_name']?.toString() ?? '',
-      lastName: json['last_name']?.toString() ?? '',
+      firstName: first,
+      lastName: last,
       reference: json['reference']?.toString(),
       birthDate: DateTime.tryParse(json['birth_date']?.toString() ?? ''),
       phone: json['phone']?.toString(),
@@ -39,7 +47,18 @@ class PatientData extends Equatable {
     );
   }
 
+  String get fullName {
+    final combined = '$firstName $lastName'.trim();
+    return combined.isEmpty ? 'Patient sans nom' : combined;
+  }
+
+  String get initials {
+    final f = firstName.isNotEmpty ? firstName[0] : '';
+    final l = lastName.isNotEmpty ? lastName[0] : '';
+    final result = '$f$l'.toUpperCase();
+    return result.isEmpty ? '?' : result;
+  }
+
   @override
-  List<Object?> get props =>
-      [id, firstName, lastName, reference, birthDate, phone, email];
+  List<Object?> get props => [id, firstName, lastName, reference];
 }

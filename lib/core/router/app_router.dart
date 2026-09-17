@@ -1,11 +1,20 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+// Alerts
 import '../../features/alerts/presentation/screens/alert_list_screen.dart';
+// Auth
 import '../../features/auth/presentation/screens/camera_permission_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
+// Batches
+import '../../features/batches/presentation/screens/batch_list_screen.dart';
+// Catalog
+import '../../features/catalog/presentation/screens/product_list_screen.dart';
+// Compliance
 import '../../features/compliance/presentation/screens/non_conformities_screen.dart';
+// Cycles
 import '../../features/cycles/presentation/screens/cycle_attachments_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_control_tests_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_create_screen.dart';
@@ -13,28 +22,59 @@ import '../../features/cycles/presentation/screens/cycle_detail_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_items_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_list_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_release_screen.dart';
+// Dashboard
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+// Devices
+import '../../features/devices/presentation/screens/device_list_screen.dart';
+// DLU
+import '../../features/dlu/presentation/screens/dlu_rules_screen.dart';
+// History
 import '../../features/history/presentation/screens/audit_list_screen.dart';
+// Identity
 import '../../features/identity/presentation/screens/team_detail_screen.dart';
 import '../../features/identity/presentation/screens/team_list_screen.dart';
+// Labels
 import '../../features/labels/presentation/screens/label_blocked_screen.dart';
 import '../../features/labels/presentation/screens/label_detail_screen.dart';
 import '../../features/labels/presentation/screens/label_usage_form_screen.dart';
+// Locations
+import '../../features/locations/presentation/screens/location_list_screen.dart';
+// Patients
 import '../../features/patients/presentation/screens/patient_search_screen.dart';
+// Purchases
+import '../../features/purchases/presentation/screens/goods_receipt_screen.dart';
+import '../../features/purchases/presentation/screens/purchase_order_detail_screen.dart';
+import '../../features/purchases/presentation/screens/purchase_order_list_screen.dart';
+// Reporting
 import '../../features/reporting/presentation/screens/data_export_request_screen.dart';
+// Scanner
 import '../../features/scanner/presentation/screens/scanner_screen.dart';
+// Settings
 import '../../features/settings/presentation/screens/about_screen.dart';
 import '../../features/settings/presentation/screens/settings_screen.dart';
+// Shell
 import '../../features/shell/presentation/screens/shell_screen.dart';
+// Sites
+import '../../features/sites/presentation/screens/site_list_screen.dart';
+// Stock
 import '../../features/stock/presentation/screens/stock_adjust_screen.dart';
 import '../../features/stock/presentation/screens/stock_issue_screen.dart';
 import '../../features/stock/presentation/screens/stock_level_list_screen.dart';
 import '../../features/stock/presentation/screens/stock_transfer_screen.dart';
+// Suppliers
+import '../../features/suppliers/presentation/screens/supplier_list_screen.dart';
+// Sync
 import '../../features/sync/presentation/screens/sync_queue_screen.dart';
-import '../../features/tenancy/presentation/screens/site_list_screen.dart';
 
 import 'route_names.dart';
 import 'routes.dart';
+
+Page<void> _fade(GoRouterState state, Widget child) => CustomTransitionPage<void>(
+      key: state.pageKey,
+      child: child,
+      transitionsBuilder: (_, animation, __, c) =>
+          FadeTransition(opacity: animation, child: c),
+    );
 
 class AppRouter {
   final bool Function() isAuthenticated;
@@ -53,7 +93,6 @@ class AppRouter {
           loc == Routes.login ||
           loc == Routes.register ||
           loc == Routes.cameraPermission;
-
       if (isPublic) return null;
       if (isAuthenticated()) return null;
       if (await hasStoredToken()) return null;
@@ -63,22 +102,22 @@ class AppRouter {
       GoRoute(
         path: Routes.splash,
         name: RouteNames.splash,
-        builder: (_, __) => const SplashScreen(),
+        pageBuilder: (_, s) => _fade(s, const SplashScreen()),
       ),
       GoRoute(
         path: Routes.login,
         name: RouteNames.login,
-        builder: (_, __) => const LoginScreen(),
+        pageBuilder: (_, s) => _fade(s, const LoginScreen()),
       ),
       GoRoute(
         path: Routes.register,
         name: RouteNames.register,
-        builder: (_, __) => const RegisterScreen(),
+        pageBuilder: (_, s) => _fade(s, const RegisterScreen()),
       ),
       GoRoute(
         path: Routes.cameraPermission,
         name: RouteNames.cameraPermission,
-        builder: (_, __) => const CameraPermissionScreen(),
+        pageBuilder: (_, s) => _fade(s, const CameraPermissionScreen()),
       ),
       ShellRoute(
         builder: (context, state, child) => ShellScreen(child: child),
@@ -86,146 +125,200 @@ class AppRouter {
           GoRoute(
             path: Routes.dashboard,
             name: RouteNames.dashboard,
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: DashboardScreen()),
+            pageBuilder: (_, s) => _fade(s, const DashboardScreen()),
           ),
           GoRoute(
             path: Routes.scanner,
             name: RouteNames.scanner,
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: ScannerScreen()),
+            pageBuilder: (_, s) => _fade(s, const ScannerScreen()),
           ),
           GoRoute(
             path: Routes.cycles,
             name: RouteNames.cycles,
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: CycleListScreen()),
+            pageBuilder: (_, s) => _fade(s, const CycleListScreen()),
           ),
           GoRoute(
             path: Routes.alerts,
             name: RouteNames.alerts,
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: AlertListScreen()),
+            pageBuilder: (_, s) => _fade(s, const AlertListScreen()),
           ),
           GoRoute(
             path: Routes.settings,
             name: RouteNames.settings,
-            pageBuilder: (_, __) =>
-                const NoTransitionPage(child: SettingsScreen()),
+            pageBuilder: (_, s) => _fade(s, const SettingsScreen()),
           ),
           GoRoute(
             path: Routes.stock,
             name: RouteNames.stock,
-            builder: (_, __) => const StockLevelListScreen(),
+            pageBuilder: (_, s) => _fade(s, const StockLevelListScreen()),
           ),
           GoRoute(
             path: Routes.stockIssue,
             name: RouteNames.stockIssue,
-            builder: (_, __) => const StockIssueScreen(),
+            pageBuilder: (_, s) => _fade(s, const StockIssueScreen()),
           ),
           GoRoute(
             path: Routes.stockAdjust,
             name: RouteNames.stockAdjust,
-            builder: (_, __) => const StockAdjustScreen(),
+            pageBuilder: (_, s) => _fade(s, const StockAdjustScreen()),
           ),
           GoRoute(
             path: Routes.stockTransfer,
             name: RouteNames.stockTransfer,
-            builder: (_, __) => const StockTransferScreen(),
+            pageBuilder: (_, s) => _fade(s, const StockTransferScreen()),
           ),
           GoRoute(
             path: Routes.patients,
             name: RouteNames.patients,
-            builder: (_, __) => const PatientSearchScreen(),
+            pageBuilder: (_, s) => _fade(s, const PatientSearchScreen()),
           ),
           GoRoute(
             path: Routes.cyclesCreate,
             name: RouteNames.cyclesCreate,
-            builder: (_, __) => const CycleCreateScreen(),
+            pageBuilder: (_, s) => _fade(s, const CycleCreateScreen()),
           ),
           GoRoute(
             path: '/app/cycles/:id',
             name: RouteNames.cyclesDetail,
-            builder: (_, state) =>
-                CycleDetailScreen(cycleId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              CycleDetailScreen(cycleId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/app/cycles/:id/items',
-            name: RouteNames.cyclesItems,
-            builder: (_, state) =>
-                CycleItemsScreen(cycleId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              CycleItemsScreen(cycleId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/app/cycles/:id/control-tests',
-            name: RouteNames.cyclesControlTests,
-            builder: (_, state) => CycleControlTestsScreen(
-                cycleId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              CycleControlTestsScreen(cycleId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/app/cycles/:id/attachments',
-            name: RouteNames.cyclesAttachments,
-            builder: (_, state) => CycleAttachmentsScreen(
-                cycleId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              CycleAttachmentsScreen(cycleId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/app/cycles/:id/release',
-            name: RouteNames.cyclesRelease,
-            builder: (_, state) =>
-                CycleReleaseScreen(cycleId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              CycleReleaseScreen(cycleId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: '/app/labels/:code',
             name: RouteNames.labelsDetail,
-            builder: (_, state) =>
-                LabelDetailScreen(code: state.pathParameters['code']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              LabelDetailScreen(code: s.pathParameters['code']!),
+            ),
           ),
           GoRoute(
             path: '/app/labels/:code/blocked',
             name: RouteNames.labelsBlocked,
-            builder: (_, state) =>
-                LabelBlockedScreen(code: state.pathParameters['code']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              LabelBlockedScreen(code: s.pathParameters['code']!),
+            ),
           ),
           GoRoute(
             path: '/app/labels/:labelId/usage',
             name: RouteNames.labelsUsage,
-            builder: (_, state) => LabelUsageFormScreen(
-                labelId: state.pathParameters['labelId']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              LabelUsageFormScreen(labelId: s.pathParameters['labelId']!),
+            ),
           ),
           GoRoute(
             path: Routes.team,
-            builder: (_, __) => const TeamListScreen(),
+            pageBuilder: (_, s) => _fade(s, const TeamListScreen()),
           ),
           GoRoute(
             path: '/app/team/:id',
-            builder: (_, state) =>
-                TeamDetailScreen(memberId: state.pathParameters['id']!),
+            pageBuilder: (_, s) => _fade(
+              s,
+              TeamDetailScreen(memberId: s.pathParameters['id']!),
+            ),
           ),
           GoRoute(
             path: Routes.sites,
-            builder: (_, __) => const SiteListScreen(),
+            pageBuilder: (_, s) => _fade(s, const SiteListScreen()),
+          ),
+          GoRoute(
+            path: '/app/sites/:siteId/locations',
+            pageBuilder: (_, s) => _fade(
+              s,
+              LocationListScreen(siteId: s.pathParameters['siteId']!),
+            ),
+          ),
+          GoRoute(
+            path: Routes.batches,
+            pageBuilder: (_, s) => _fade(s, const BatchListScreen()),
           ),
           GoRoute(
             path: Routes.nonConformities,
-            builder: (_, __) => const NonConformitiesScreen(),
+            pageBuilder: (_, s) => _fade(s, const NonConformitiesScreen()),
           ),
           GoRoute(
             path: Routes.dataExports,
-            builder: (_, __) => const DataExportRequestScreen(),
+            pageBuilder: (_, s) => _fade(s, const DataExportRequestScreen()),
           ),
           GoRoute(
             path: Routes.audit,
             name: RouteNames.audit,
-            builder: (_, __) => const AuditListScreen(),
+            pageBuilder: (_, s) => _fade(s, const AuditListScreen()),
           ),
           GoRoute(
             path: Routes.sync,
             name: RouteNames.sync,
-            builder: (_, __) => const SyncQueueScreen(),
+            pageBuilder: (_, s) => _fade(s, const SyncQueueScreen()),
           ),
           GoRoute(
             path: Routes.about,
             name: RouteNames.about,
-            builder: (_, __) => const AboutScreen(),
+            pageBuilder: (_, s) => _fade(s, const AboutScreen()),
+          ),
+          GoRoute(
+            path: Routes.devices,
+            pageBuilder: (_, s) => _fade(s, const DeviceListScreen()),
+          ),
+          GoRoute(
+            path: Routes.products,
+            pageBuilder: (_, s) => _fade(s, const ProductListScreen()),
+          ),
+          GoRoute(
+            path: Routes.suppliers,
+            pageBuilder: (_, s) => _fade(s, const SupplierListScreen()),
+          ),
+          GoRoute(
+            path: Routes.purchases,
+            pageBuilder: (_, s) => _fade(s, const PurchaseOrderListScreen()),
+          ),
+          GoRoute(
+            path: '/app/purchases/:id',
+            pageBuilder: (_, s) => _fade(
+              s,
+              PurchaseOrderDetailScreen(poId: s.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: '/app/purchases/:id/receive',
+            pageBuilder: (_, s) => _fade(
+              s,
+              GoodsReceiptScreen(poId: s.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: Routes.dluRules,
+            pageBuilder: (_, s) => _fade(s, const DluRulesScreen()),
           ),
         ],
       ),

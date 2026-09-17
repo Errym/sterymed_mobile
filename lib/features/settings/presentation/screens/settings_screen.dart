@@ -54,8 +54,10 @@ class SettingsScreen extends StatelessWidget {
                 confirmLabel: 'Se déconnecter',
                 isDestructive: true,
               );
-              if (ok && context.mounted) {
-                context.read<AuthBloc>().add(const AuthLogoutRequested());
+              if (!ok || !context.mounted) return;
+              context.read<AuthBloc>().add(const AuthLogoutRequested());
+              if (context.mounted) {
+                context.go(Routes.login);
               }
             },
           ),
@@ -71,15 +73,19 @@ class SettingsScreen extends StatelessWidget {
                 confirmLabel: 'Confirmer',
                 isDestructive: true,
               );
-              if (ok && context.mounted) {
-                context
-                    .read<AuthBloc>()
-                    .add(const AuthLogoutEverywhereRequested());
+              if (!ok || !context.mounted) return;
+              context
+                  .read<AuthBloc>()
+                  .add(const AuthLogoutEverywhereRequested());
+              if (context.mounted) {
+                context.go(Routes.login);
               }
             },
           ),
           const SizedBox(height: AppSpacing.lg),
           const _SectionHeader('Application'),
+          // ignore: prefer_const_constructors
+          // ignore: prefer_const_constructors
           _InfoTile(
             icon: Icons.info_outline,
             label: 'Version',
@@ -108,6 +114,7 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           const _SectionHeader('Support'),
+          // ignore: prefer_const_constructors
           _LinkTile(
             icon: Icons.help_outline,
             label: 'À propos de SteryMed',
@@ -144,7 +151,6 @@ class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final String value;
-
   const _InfoTile({
     required this.icon,
     required this.label,
@@ -171,7 +177,6 @@ class _LinkTile extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-
   const _LinkTile({
     required this.icon,
     required this.label,
@@ -190,11 +195,8 @@ class _LinkTile extends StatelessWidget {
             Icon(icon, size: 18, color: AppColors.brandPrimary),
             const SizedBox(width: AppSpacing.sm),
             Expanded(child: Text(label, style: AppTypography.bodyStrong)),
-            const Icon(
-              Icons.chevron_right,
-              size: 18,
-              color: AppColors.textTertiary,
-            ),
+            const Icon(Icons.chevron_right,
+                size: 18, color: AppColors.textTertiary),
           ],
         ),
       ),

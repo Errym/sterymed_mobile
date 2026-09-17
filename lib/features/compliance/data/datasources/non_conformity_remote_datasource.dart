@@ -29,6 +29,31 @@ class NonConformityRemoteDatasource {
     }
   }
 
+  Future<NonConformityData> create({
+    required String subjectType,
+    required String subjectId,
+    required String description,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiEndpoints.nonConformities,
+        data: {
+          'subject_type': subjectType,
+          'subject_id': subjectId,
+          'description': description,
+        },
+        options: Options(
+          headers: {'Idempotency-Key': generateIdempotencyKey()},
+        ),
+      );
+      return NonConformityData.fromJson(
+        (res.data as Map).cast<String, dynamic>(),
+      );
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
   Future<void> resolve(String id, {required String resolution}) async {
     try {
       await _dio.post(

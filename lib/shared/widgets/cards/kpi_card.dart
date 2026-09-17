@@ -51,17 +51,16 @@ class KpiCard extends StatelessWidget {
                       color: AppColors.brandPrimaryLight,
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 16,
-                      color: AppColors.brandPrimary,
-                    ),
+                    child: Icon(icon, size: 16, color: AppColors.brandPrimary),
                   ),
                 ],
               ),
               Text(
                 value,
-                style: AppTypography.kpiNumber.copyWith(fontSize: 32),
+                style: AppTypography.kpiNumber.copyWith(
+                  fontSize: 32,
+                  color: AppColors.brandPrimary,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

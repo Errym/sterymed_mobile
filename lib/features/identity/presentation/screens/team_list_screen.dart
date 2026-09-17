@@ -1,141 +1,132 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
+import '../../../../shared/widgets/feedback/empty_view.dart';
+import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/media/app_avatar.dart';
+import '../../data/models/team_member_data.dart';
+import '../../data/repositories/team_repository.dart';
+import '../bloc/team_list_bloc.dart';
+import '../widgets/team_invite_sheet.dart';
 
-class TeamListScreen extends StatefulWidget {
+class TeamListScreen extends StatelessWidget {
   const TeamListScreen({super.key});
 
   @override
-  State<TeamListScreen> createState() => _TeamListScreenState();
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => TeamListBloc(getIt<TeamRepository>())
+        ..add(const LoadTeam()),
+      child: const _TeamListView(),
+    );
+  }
 }
 
-class _TeamListScreenState extends State<TeamListScreen> {
-  String? _role;
+class _TeamListView extends StatelessWidget {
+  const _TeamListView();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
-        title: 'Cabinet Staff Members',
+        title: 'Équipe & Droits',
         actions: [
-          IconButton(icon: const Icon(Icons.refresh), onPressed: () {}),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: FilledButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.person_add_alt_outlined, size: 16),
-              label: const Text('Add User'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.brandPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
-                ),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.person_add_alt_outlined),
+            tooltip: 'Inviter un membre',
+            onPressed: () async {
+              final ok = await TeamInviteSheet.show(context);
+              if (ok == true && context.mounted) {
+                context.read<TeamListBloc>().add(const LoadTeam());
+              }
+            },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: AppSearchField(
-              hint: 'Search by staff name, email, or chair...',
-              onChanged: (_) {},
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          FilterChipRow<String?>(
-            selected: _role,
-            onSelected: (v) => setState(() => _role = v),
-            options: const [
-              FilterChipOption(value: null, label: 'All Staff'),
-              FilterChipOption(value: 'practitioner', label: 'Practitioners'),
-              FilterChipOption(value: 'stock_manager', label: 'Stock Managers'),
+      body: BlocBuilder<TeamListBloc, TeamListState>(
+        builder: (context, state) {
+          if (state.status == TeamStatus.loading && state.members.isEmpty) {
+            return const LoadingView();
+          }
+          if (state.status == TeamStatus.failure) {
+            return ErrorView(message: state.error ?? 'Erreur');
+          }
+          if (state.members.isEmpty) {
+            return EmptyView(
+              title: 'Aucun membre',
+              message: 'Invitez votre première collaboratrice.',
+              icon: Icons.group_outlined,
+              action: FilledButton.icon(
+                onPressed: () async {
+                  final ok = await TeamInviteSheet.show(context);
+                  if (ok == true && context.mounted) {
+                    context.read<TeamListBloc>().add(const LoadTeam());
+                  }
+                },
+                icon: const Icon(Icons.person_add_alt_outlined, size: 18),
+                label: const Text('Inviter un membre'),
+              ),
+            );
+          }
+          return Column(
+            children: [
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                child: AppSearchField(
+                  hint: 'Rechercher par nom, e-mail...',
+                  onChanged: (_) {},
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              FilterChipRow<String?>(
+                selected: state.roleFilter,
+                onSelected: (v) =>
+                    context.read<TeamListBloc>().add(FilterTeam(v)),
+                options: const [
+                  FilterChipOption(value: null, label: 'Tous'),
+                  FilterChipOption(value: 'owner', label: 'Direction'),
+                  FilterChipOption(
+                      value: 'practitioner', label: 'Praticiens'),
+                  FilterChipOption(
+                      value: 'stock_manager', label: 'Stock'),
+                  FilterChipOption(value: 'reception', label: 'Accueil'),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  itemCount: state.filtered.length,
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSpacing.sm),
+                  itemBuilder: (_, i) =>
+                      _StaffCard(member: state.filtered[i]),
+                ),
+              ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: const [
-                _StaffCard(
-                  initials: 'A',
-                  name: 'Admin',
-                  email: 'admin@steriqore.local',
-                  role: 'OWNER / DIRECTION',
-                  roleTone: BadgeTone.purple,
-                  location: 'Direction & Supervision',
-                ),
-                _StaffCard(
-                  initials: 'DJ',
-                  name: 'Dr. Julien Dupont',
-                  email: 'practitioner@steriqore.local',
-                  role: 'PRACTITIONER',
-                  roleTone: BadgeTone.green,
-                  location: 'Fauteuil 1 - Chirurgie & Soins',
-                ),
-                _StaffCard(
-                  initials: 'CM',
-                  name: 'Claire Martin',
-                  email: 'assistant@steriqore.local',
-                  role: 'STOCK MANAGER',
-                  roleTone: BadgeTone.blue,
-                  location: 'Stérilisation Centrale & S...',
-                ),
-                _StaffCard(
-                  initials: 'SB',
-                  name: 'Sophie Bernard',
-                  email: 'quality@steriqore.local',
-                  role: 'QUALITY MANAGER',
-                  roleTone: BadgeTone.purple,
-                  location: 'Assurance Qualité & C...',
-                ),
-                _StaffCard(
-                  initials: 'CR',
-                  name: 'Camille Réception',
-                  email: 'reception@steriqore.local',
-                  role: 'RÉCEPTION',
-                  roleTone: BadgeTone.purple,
-                  location: 'Accueil & Règlements',
-                ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
 }
 
 class _StaffCard extends StatelessWidget {
-  final String initials;
-  final String name;
-  final String email;
-  final String role;
-  final BadgeTone roleTone;
-  final String location;
-
-  const _StaffCard({
-    required this.initials,
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.roleTone,
-    required this.location,
-  });
+  final TeamMemberData member;
+  const _StaffCard({required this.member});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
@@ -144,28 +135,19 @@ class _StaffCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          AppAvatar(initials: initials, size: 44),
+          AppAvatar(initials: member.initials, size: 44),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name, style: AppTypography.bodyStrong),
+                Text(member.name, style: AppTypography.bodyStrong),
                 const SizedBox(height: 2),
-                Text(email, style: AppTypography.caption),
+                Text(member.email, style: AppTypography.caption),
                 const SizedBox(height: 6),
-                Row(
-                  children: [
-                    TypeBadge(label: role, tone: roleTone),
-                    const SizedBox(width: AppSpacing.sm),
-                    Flexible(
-                      child: Text(
-                        '· $location',
-                        style: AppTypography.caption,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                TypeBadge(
+                  label: member.role.toUpperCase(),
+                  tone: _toneFor(member.role),
                 ),
               ],
             ),
@@ -178,5 +160,21 @@ class _StaffCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  BadgeTone _toneFor(String role) {
+    switch (role) {
+      case 'owner':
+      case 'admin':
+        return BadgeTone.purple;
+      case 'practitioner':
+        return BadgeTone.green;
+      case 'stock_manager':
+        return BadgeTone.blue;
+      case 'reception':
+        return BadgeTone.orange;
+      default:
+        return BadgeTone.gray;
+    }
   }
 }

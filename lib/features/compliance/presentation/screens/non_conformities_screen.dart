@@ -11,6 +11,8 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/non_conformity_data.dart';
 import '../../data/repositories/non_conformity_repository.dart';
 import '../bloc/non_conformity_list_bloc.dart';
+import '../widgets/nc_create_sheet.dart';
+import '../widgets/nc_resolve_dialog.dart';
 
 class NonConformitiesScreen extends StatelessWidget {
   const NonConformitiesScreen({super.key});
@@ -20,13 +22,13 @@ class NonConformitiesScreen extends StatelessWidget {
     return BlocProvider(
       create: (_) => NonConformityListBloc(getIt<NonConformityRepository>())
         ..add(const LoadNonConformities()),
-      child: const _NonConformitiesView(),
+      child: const _NcView(),
     );
   }
 }
 
-class _NonConformitiesView extends StatelessWidget {
-  const _NonConformitiesView();
+class _NcView extends StatelessWidget {
+  const _NcView();
 
   @override
   Widget build(BuildContext context) {
@@ -36,125 +38,53 @@ class _NonConformitiesView extends StatelessWidget {
         title: 'Non-Conformités & Rappels',
         actions: [
           IconButton(
-            icon: const Icon(Icons.notification_important_outlined,
-                color: AppColors.danger),
-            onPressed: () {},
+            icon: const Icon(Icons.add),
+            onPressed: () async {
+              final ok = await NcCreateSheet.show(context);
+              if (ok == true && context.mounted) {
+                context
+                    .read<NonConformityListBloc>()
+                    .add(const LoadNonConformities());
+              }
+            },
           ),
         ],
       ),
       body: BlocBuilder<NonConformityListBloc, NonConformityListState>(
         builder: (context, state) {
-          return Column(
-            children: [
-              const SizedBox(height: AppSpacing.sm),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                child: Row(
-                  children: [
-                    _Chip(
-                      label: 'Toutes (${state.items.length})',
-                      selected: state.statusFilter == null,
-                      onTap: () => context
-                          .read<NonConformityListBloc>()
-                          .add(const FilterNonConformities(null)),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    _Chip(
-                      label: 'En cours',
-                      selected: state.statusFilter == 'open',
-                      onTap: () => context
-                          .read<NonConformityListBloc>()
-                          .add(const FilterNonConformities('open')),
-                    ),
-                    const SizedBox(width: AppSpacing.xs),
-                    _Chip(
-                      label: 'Résolues',
-                      selected: state.statusFilter == 'resolved',
-                      onTap: () => context
-                          .read<NonConformityListBloc>()
-                          .add(const FilterNonConformities('resolved')),
-                    ),
-                  ],
-                ),
+          if (state.status == NonConformityStatus.loading &&
+              state.items.isEmpty) {
+            return const LoadingView();
+          }
+          if (state.status == NonConformityStatus.failure) {
+            return ErrorView(message: state.error ?? 'Erreur');
+          }
+          if (state.items.isEmpty) {
+            return EmptyView(
+              title: 'Aucune non-conformité',
+              message: 'Aucun incident enregistré.',
+              icon: Icons.verified_outlined,
+              action: FilledButton.icon(
+                onPressed: () async {
+                  final ok = await NcCreateSheet.show(context);
+                  if (ok == true && context.mounted) {
+                    context
+                        .read<NonConformityListBloc>()
+                        .add(const LoadNonConformities());
+                  }
+                },
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nouvelle non-conformité'),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Expanded(
-                child: _Body(state: state),
-              ),
-            ],
+            );
+          }
+          return ListView.separated(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            itemCount: state.items.length,
+            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
+            itemBuilder: (_, i) => _NcCard(item: state.items[i]),
           );
         },
-      ),
-    );
-  }
-}
-
-class _Body extends StatelessWidget {
-  final NonConformityListState state;
-  const _Body({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    if (state.status == NonConformityStatus.loading && state.items.isEmpty) {
-      return const LoadingView();
-    }
-    if (state.status == NonConformityStatus.failure && state.items.isEmpty) {
-      return ErrorView(message: state.error ?? 'Erreur');
-    }
-    if (state.items.isEmpty) {
-      return const EmptyView(
-        title: 'Aucune non-conformité',
-        message: 'Aucun incident enregistré.',
-        icon: Icons.verified_outlined,
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      itemCount: state.items.length,
-      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-      itemBuilder: (_, i) => _NcCard(item: state.items[i]),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _Chip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.pill),
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.brandPrimary : AppColors.backgroundSubtle,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          border: Border.all(
-            color: selected ? AppColors.brandPrimary : AppColors.borderLight,
-          ),
-        ),
-        child: Text(
-          label,
-          style: AppTypography.bodyStrong.copyWith(
-            color: selected
-                ? AppColors.textOnBrand
-                : AppColors.textSecondary,
-            fontSize: 13,
-          ),
-        ),
       ),
     );
   }
@@ -203,35 +133,22 @@ class _NcCard extends StatelessWidget {
           Text(item.title, style: AppTypography.bodyStrong),
           const SizedBox(height: AppSpacing.xs),
           Text(item.description, style: AppTypography.body),
-          if (item.batchNumber != null || item.cycleNumber != null) ...[
+          if (item.isOpen) ...[
             const SizedBox(height: AppSpacing.sm),
-            Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
-              children: [
-                if (item.cycleNumber != null)
-                  _Tag(
-                    icon: Icons.autorenew,
-                    label: 'Cycle ${item.cycleNumber}',
-                  ),
-                if (item.batchNumber != null)
-                  _Tag(
-                    icon: Icons.inventory_2_outlined,
-                    label: 'Lot ${item.batchNumber}',
-                  ),
-                if (item.sachetsAffected != null)
-                  _Tag(
-                    icon: Icons.numbers,
-                    label: '${item.sachetsAffected} sachet(s)',
-                  ),
-              ],
-            ),
-          ],
-          if (item.openedBy != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              'Ouvert le ${item.openedAt.day.toString().padLeft(2, '0')}/${item.openedAt.month.toString().padLeft(2, '0')}/${item.openedAt.year} par ${item.openedBy}',
-              style: AppTypography.caption,
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final ok = await NcResolveDialog.show(context, ncId: item.id);
+                  if (ok == true && context.mounted) {
+                    context
+                        .read<NonConformityListBloc>()
+                        .add(const LoadNonConformities());
+                  }
+                },
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text('Résoudre'),
+              ),
             ),
           ],
           if (item.resolution != null) ...[
@@ -261,34 +178,6 @@ class _NcCard extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _Tag({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 4,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSubtle,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: AppColors.textSecondary),
-          const SizedBox(width: 4),
-          Text(label, style: AppTypography.caption),
         ],
       ),
     );

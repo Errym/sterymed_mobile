@@ -1,4 +1,5 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../../core/errors/api_exception.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_event.dart';
@@ -49,7 +50,11 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutRequested event,
     Emitter<AuthState> emit,
   ) async {
-    await _repository.logout();
+    try {
+      await _repository.logout().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Backend unreachable — still wipe local state.
+    }
     emit(const AuthUnauthenticated());
   }
 
@@ -57,9 +62,14 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     AuthLogoutEverywhereRequested event,
     Emitter<AuthState> emit,
   ) async {
-    await _repository.logoutEverywhere();
+    try {
+      await _repository.logoutEverywhere().timeout(const Duration(seconds: 5));
+    } catch (_) {
+      // Backend unreachable — still wipe local state.
+    }
     emit(const AuthUnauthenticated());
   }
+
   Future<void> _onRegisterSubmitted(
     AuthRegisterSubmitted event,
     Emitter<AuthState> emit,
