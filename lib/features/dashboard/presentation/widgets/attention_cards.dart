@@ -39,7 +39,7 @@ class AttentionCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'Nécessite votre attention',
           style: AppTypography.sectionTitle,
         ),

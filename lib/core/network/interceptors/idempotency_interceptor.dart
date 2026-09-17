@@ -3,17 +3,14 @@ import 'package:dio/dio.dart';
 import '../../utils/idempotency_key.dart';
 
 class IdempotencyInterceptor extends Interceptor {
-  /// Every POST to these namespaces gets an `Idempotency-Key` header.
-  /// The backend's `EnsureIdempotency` middleware rejects POSTs without one,
-  /// so the list must cover every POST path we hit.
   static const _queuablePaths = <String>[
     '/auth/',
     '/labels/',
     '/stock-movements/',
-    '/purchase-orders/',
     '/cycles/',
-    '/prosthetic-cases/',
     '/tenants',
+    '/invitations',
+    '/non-conformities/',
   ];
 
   @override
@@ -26,7 +23,5 @@ class IdempotencyInterceptor extends Interceptor {
     handler.next(options);
   }
 
-  bool _isQueuable(String path) {
-    return _queuablePaths.any(path.contains);
-  }
+  bool _isQueuable(String path) => _queuablePaths.any(path.contains);
 }

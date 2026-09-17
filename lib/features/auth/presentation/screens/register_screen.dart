@@ -53,7 +53,7 @@ class RegisterScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.md),
                 const Center(child: AppLogo(height: 48)),
                 const SizedBox(height: AppSpacing.xxl),
-                Text(
+                const Text(
                   'Créer votre cabinet',
                   style: AppTypography.pageTitle,
                 ),

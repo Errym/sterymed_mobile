@@ -2,28 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../data/models/patient_data.dart';
+import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_search_bloc.dart';
 import 'patient_tile.dart';
 
 class PatientPickerSheet extends StatelessWidget {
   const PatientPickerSheet({super.key});
 
-  /// Show this sheet and return the selected patient, or null.
   static Future<PatientData?> show(BuildContext context) {
     return showModalBottomSheet<PatientData>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColors.backgroundApp,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (_) => BlocProvider(
-        create: (ctx) => PatientSearchBloc(ctx.read()),
+        create: (_) => PatientSearchBloc(getIt<PatientRepository>()),
         child: const PatientPickerSheet(),
       ),
     );
@@ -53,7 +55,7 @@ class PatientPickerSheet extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               child: Row(
                 children: [
-                  Expanded(
+                  const Expanded(
                     child: Text(
                       'Sélectionner un patient',
                       style: AppTypography.sectionTitle,

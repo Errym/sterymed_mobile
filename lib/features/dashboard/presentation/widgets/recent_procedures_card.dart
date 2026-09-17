@@ -27,7 +27,7 @@ class RecentProceduresCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Actes récents',
                   style: AppTypography.sectionTitle,

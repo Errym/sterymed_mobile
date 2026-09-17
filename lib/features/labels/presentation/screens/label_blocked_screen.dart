@@ -25,15 +25,34 @@ class _BlockedView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(title: const Text('Étiquette bloquée')),
+      appBar: AppBar(
+        title: const Text('Étiquette bloquée'),
+        backgroundColor: AppColors.dangerLight,
+        foregroundColor: AppColors.danger,
+      ),
       body: BlocBuilder<LabelDetailBloc, LabelDetailState>(
         builder: (context, state) {
+          if (state.status == LabelDetailStatus.failure) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.xl),
+                child: Text(
+                  state.error ?? 'Impossible de charger l\'étiquette.',
+                  style: AppTypography.body,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
           if (state.status != LabelDetailStatus.success ||
               state.result == null) {
             return const LoadingView();
           }
+
           final r = state.result!;
           final isExpired = r.status.name == 'expired';
+          final isRecalled = r.status.name == 'recalled';
+
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
             child: Column(
@@ -52,26 +71,43 @@ class _BlockedView extends StatelessWidget {
                   child: Column(
                     children: [
                       Icon(
-                        isExpired ? Icons.timer_off_outlined : Icons.block,
-                        size: 56,
+                        isExpired
+                            ? Icons.timer_off_outlined
+                            : isRecalled
+                                ? Icons.report_gmailerrorred_outlined
+                                : Icons.block,
+                        size: 64,
                         color: AppColors.danger,
                       ),
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        isExpired ? 'Étiquette expirée' : 'Étiquette rappelée',
+                        isExpired
+                            ? 'Étiquette expirée'
+                            : isRecalled
+                                ? 'Étiquette rappelée'
+                                : 'Étiquette bloquée',
                         style: AppTypography.sectionTitle
                             .copyWith(color: AppColors.danger),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: AppSpacing.xs),
+                      const SizedBox(height: AppSpacing.sm),
                       Text(
                         r.reason ??
                             'Cette étiquette ne peut pas être utilisée. '
-                                'Contactez le responsable.',
+                                'Contactez le responsable de la stérilisation.',
                         style: AppTypography.body,
                         textAlign: TextAlign.center,
                       ),
                     ],
+                  ),
+                ),
+                const Spacer(),
+                const Padding(
+                  padding: EdgeInsets.only(bottom: AppSpacing.lg),
+                  child: Text(
+                    'Retournez à l\'écran précédent pour scanner une autre étiquette.',
+                    style: AppTypography.caption,
+                    textAlign: TextAlign.center,
                   ),
                 ),
               ],

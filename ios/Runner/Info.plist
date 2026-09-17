@@ -4,10 +4,14 @@
 <dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+<string>SteryMed utilise la caméra pour scanner les étiquettes de stérilisation.</string>
+<key>NSPhotoLibraryUsageDescription</key>
+<string>SteryMed utilise votre photothèque pour joindre des photos aux dossiers.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Sterymed Mobile</string>
+	<string>Sterymed </string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

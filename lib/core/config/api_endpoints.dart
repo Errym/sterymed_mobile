@@ -8,9 +8,6 @@ abstract final class ApiEndpoints {
   static const logoutEverywhere = '$_v1/auth/tokens';
   static const me = '$_v1/me';
 
-  // Dashboard
-  static const dashboard = '$_v1/dashboard';
-
   // Alerts
   static const alerts = '$_v1/alerts';
   static String alertResolve(String id) => '$_v1/alerts/$id/resolve';
@@ -21,6 +18,7 @@ abstract final class ApiEndpoints {
 
   // Patients
   static const patients = '$_v1/patients';
+  static String patient(String id) => '$_v1/patients/$id';
 
   // Cycles
   static const cycles = '$_v1/cycles';
@@ -43,26 +41,20 @@ abstract final class ApiEndpoints {
   static const stockAdjust = '$_v1/stock-movements/adjust';
   static const stockTransfer = '$_v1/stock-movements/transfer';
 
-  // Purchases
-  static const purchaseOrders = '$_v1/purchase-orders';
-  static String purchaseOrder(String id) => '$_v1/purchase-orders/$id';
-  static String purchaseOrderReceipts(String id) =>
-      '$_v1/purchase-orders/$id/receipts';
-
   // Audit
   static const auditEvents = '$_v1/audit-events';
 
-  // Prosthetic
-  static const prostheticCases = '$_v1/prosthetic-cases';
-  static String prostheticCase(String id) => '$_v1/prosthetic-cases/$id';
-  static String prostheticCaseStatus(String id) =>
-      '$_v1/prosthetic-cases/$id/status';
-  static String prostheticCaseAttachments(String id) =>
-      '$_v1/prosthetic-cases/$id/attachments';
-  static String prostheticCasePayments(String id) =>
-      '$_v1/prosthetic-cases/$id/payments';
-  static const prostheticWaitingPlacement =
-      '$_v1/prosthetic-cases/waiting-placement';
-  static const prostheticDashboard = '$_v1/prosthetic-dashboard';
-  static const laboratories = '$_v1/laboratories';
+  // Compliance
+  static const nonConformities = '$_v1/non-conformities';
+  static String nonConformity(String id) => '$_v1/non-conformities/$id';
+  static String nonConformityResolve(String id) =>
+      '$_v1/non-conformities/$id/resolve';
+
+  // Sites
+  static const sites = '$_v1/sites';
+
+  // Team
+  static const invitations = '$_v1/invitations';
+  static String invitation(String id) => '$_v1/invitations/$id';
+  static String member(String tenantUserId) => '$_v1/members/$tenantUserId';
 }

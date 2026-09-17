@@ -74,6 +74,8 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
       ),
     );
     if (ok != true) return;
+    if (!mounted) return; // ← ADD THIS
+
     try {
       await context.read<CycleRepository>().addItem(widget.cycleId, {
         'description': descCtrl.text.trim(),

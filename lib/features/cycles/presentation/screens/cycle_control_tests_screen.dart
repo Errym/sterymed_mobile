@@ -96,6 +96,8 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
       ),
     );
     if (ok != true) return;
+    if (!mounted) return; // ← ADD THIS
+
     try {
       await context.read<CycleRepository>().addControlTest(widget.cycleId, {
         'type': _typeToString(type),

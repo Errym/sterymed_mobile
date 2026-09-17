@@ -1,11 +1,9 @@
 abstract final class RouteNames {
   static const splash = 'splash';
-  static const onboarding = 'onboarding';
   static const login = 'login';
-  static const register = 'register'; 
+  static const register = 'register';
   static const cameraPermission = 'camera-permission';
 
-  static const shell = 'shell';
   static const dashboard = 'dashboard';
   static const scanner = 'scanner';
   static const cycles = 'cycles';
@@ -22,21 +20,13 @@ abstract final class RouteNames {
   static const stockAdjust = 'stock-adjust';
   static const stockTransfer = 'stock-transfer';
 
-  static const purchases = 'purchases';
-  static const purchaseDetail = 'purchase-detail';
-  static const goodsReceipt = 'goods-receipt';
-  static const receiptPhoto = 'receipt-photo';
-
   static const labelsDetail = 'labels-detail';
   static const labelsBlocked = 'labels-blocked';
   static const labelsUsage = 'labels-usage';
 
   static const patients = 'patients';
-
   static const audit = 'audit';
-
   static const settings = 'settings';
   static const about = 'about';
-
   static const sync = 'sync';
 }

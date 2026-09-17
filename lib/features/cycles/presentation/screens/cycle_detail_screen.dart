@@ -8,6 +8,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
+import '../../data/models/cycle_data.dart';
 import '../bloc/cycle_detail_bloc.dart';
 import '../bloc/cycle_transition_bloc.dart';
 import '../widgets/control_test_row.dart';
@@ -50,6 +51,9 @@ class _CycleDetailView extends StatelessWidget {
         listener: (context, state) {
           if (state.status == CycleTransitionStatus.success) {
             context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Cycle mis à jour.')),
+            );
           }
           if (state.status == CycleTransitionStatus.failure) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -64,27 +68,28 @@ class _CycleDetailView extends StatelessWidget {
               return const LoadingView();
             }
             if (state.status == CycleDetailStatus.failure) {
-              return ErrorView(message: state.error ?? 'Erreur');
+              return ErrorView(
+                message: state.error ?? 'Erreur',
+                onRetry: () => context
+                    .read<CycleDetailBloc>()
+                    .add(LoadCycleDetail(cycleId)),
+              );
             }
             final c = state.cycle;
             if (c == null) return const SizedBox.shrink();
 
             return RefreshIndicator(
-              onRefresh: () async {
-                context
-                    .read<CycleDetailBloc>()
-                    .add(RefreshCycleDetail(cycleId));
-              },
+              onRefresh: () async => context
+                  .read<CycleDetailBloc>()
+                  .add(RefreshCycleDetail(cycleId)),
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          'Cycle ${c.number}',
-                          style: AppTypography.pageTitle,
-                        ),
+                        child: Text('Cycle ${c.number}',
+                            style: AppTypography.pageTitle),
                       ),
                       CycleStatusBadge(status: c.status),
                     ],
@@ -103,7 +108,7 @@ class _CycleDetailView extends StatelessWidget {
                     ),
                   ),
                   if (state.items.isEmpty)
-                    Text('Aucun instrument enregistré.',
+                    const Text('Aucun instrument enregistré.',
                         style: AppTypography.caption)
                   else
                     ...state.items.map((i) => CycleItemRow(item: i)),
@@ -117,7 +122,7 @@ class _CycleDetailView extends StatelessWidget {
                     ),
                   ),
                   if (state.controlTests.isEmpty)
-                    Text('Aucun contrôle enregistré.',
+                    const Text('Aucun contrôle enregistré.',
                         style: AppTypography.caption)
                   else
                     ...state.controlTests.map((t) => ControlTestRow(test: t)),
@@ -142,7 +147,7 @@ class _CycleDetailView extends StatelessWidget {
     );
   }
 
-  Widget _infoCard(dynamic c) {
+  Widget _infoCard(CycleData c) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
@@ -153,12 +158,12 @@ class _CycleDetailView extends StatelessWidget {
       child: Column(
         children: [
           _row(Icons.precision_manufacturing_outlined, 'Appareil',
-              c.deviceName as String),
+              c.deviceName),
           if (c.programName != null)
             _row(Icons.settings_suggest_outlined, 'Programme',
-                c.programName as String),
+                c.programName!),
           if (c.operatorName != null)
-            _row(Icons.person_outline, 'Opérateur', c.operatorName as String),
+            _row(Icons.person_outline, 'Opérateur', c.operatorName!),
         ],
       ),
     );

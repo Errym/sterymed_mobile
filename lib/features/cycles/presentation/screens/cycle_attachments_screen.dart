@@ -46,6 +46,8 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
     final picker = ImagePicker();
     final file = await picker.pickImage(source: ImageSource.camera);
     if (file == null) return;
+    if (!mounted) return; // ← ADD THIS
+
     try {
       await context.read<CycleRepository>().uploadAttachment(
             widget.cycleId,

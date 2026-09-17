@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/inputs/app_search_field.dart';
+import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../bloc/cycle_list_bloc.dart';
-import '../widgets/cycle_tile.dart';
 
 class CycleListScreen extends StatelessWidget {
   const CycleListScreen({super.key});
@@ -25,57 +28,62 @@ class CycleListScreen extends StatelessWidget {
 class _CycleListView extends StatelessWidget {
   const _CycleListView();
 
-  static const _tabs = <_Tab>[
-    _Tab('Tous', null),
-    _Tab('Créés', 'created'),
-    _Tab('En cours', 'in_progress'),
-    _Tab('Terminés', 'completed'),
-    _Tab('Libérés', 'released'),
-  ];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
-        title: const Text('Cycles'),
+        title: const Text('Cycles de Stérilisation'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => context.go(Routes.cyclesCreate),
+            icon: const Icon(Icons.refresh),
+            onPressed: () =>
+                context.read<CycleListBloc>().add(const RefreshCycles()),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: AppSpacing.sm),
+            child: FilledButton.icon(
+              onPressed: () => context.go(Routes.cyclesCreate),
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Nouveau Cycle'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.brandPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: Column(
         children: [
-          SizedBox(
-            height: 44,
-            child: BlocBuilder<CycleListBloc, CycleListState>(
-              builder: (context, state) {
-                return ListView.separated(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xs,
-                  ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _tabs.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(width: AppSpacing.xs),
-                  itemBuilder: (_, i) {
-                    final t = _tabs[i];
-                    final selected = state.selectedStatus == t.status;
-                    return ChoiceChip(
-                      label: Text(t.label),
-                      selected: selected,
-                      onSelected: (_) => context
-                          .read<CycleListBloc>()
-                          .add(FilterCycles(t.status)),
-                    );
-                  },
-                );
-              },
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            child: AppSearchField(
+              hint: 'Rechercher cycle par ID, lot, autoclave...',
+              onChanged: (_) {},
             ),
           ),
+          const SizedBox(height: AppSpacing.sm),
+          BlocBuilder<CycleListBloc, CycleListState>(
+            builder: (context, state) {
+              return FilterChipRow<String?>(
+                selected: state.selectedStatus,
+                onSelected: (v) =>
+                    context.read<CycleListBloc>().add(FilterCycles(v)),
+                options: const [
+                  FilterChipOption(value: null, label: 'Tous les cycles'),
+                  FilterChipOption(value: 'in_progress', label: 'En cours'),
+                  FilterChipOption(
+                      value: 'awaiting_release', label: 'Attente Libération'),
+                  FilterChipOption(value: 'released', label: 'Conformes'),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: BlocBuilder<CycleListBloc, CycleListState>(
               builder: (context, state) {
@@ -109,7 +117,7 @@ class _CycleListView extends StatelessWidget {
                         const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (_, i) {
                       final c = filtered[i];
-                      return CycleTile(
+                      return _CycleCard(
                         cycle: c,
                         onTap: () => context.go(Routes.cyclesDetail(c.id)),
                       );
@@ -125,8 +133,84 @@ class _CycleListView extends StatelessWidget {
   }
 }
 
-class _Tab {
-  final String label;
-  final String? status;
-  const _Tab(this.label, this.status);
+class _CycleCard extends StatelessWidget {
+  final dynamic cycle;
+  final VoidCallback onTap;
+
+  const _CycleCard({required this.cycle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final statusBadge = _statusBadgeFor(cycle.status);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.borderLight),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Cycle #${cycle.number} · LOT-${cycle.number}',
+                      style: AppTypography.bodyStrong,
+                    ),
+                  ),
+                  statusBadge,
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                cycle.deviceName ?? 'Appareil',
+                style: AppTypography.caption,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Row(
+                children: [
+                  Text(
+                    DateFormat('dd/MM/yyyy HH:mm')
+                        .format(cycle.createdAt as DateTime),
+                    style: AppTypography.caption,
+                  ),
+                  const Spacer(),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: AppColors.textTertiary,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _statusBadgeFor(String status) {
+    switch (status) {
+      case 'released':
+        return const TypeBadge(
+            label: 'Libéré / Conforme', tone: BadgeTone.green);
+      case 'in_progress':
+        return const TypeBadge(
+            label: 'En cours de cycle', tone: BadgeTone.blue);
+      case 'awaiting_release':
+        return const TypeBadge(
+            label: 'Contrôles saisis', tone: BadgeTone.yellow);
+      case 'rejected':
+        return const TypeBadge(label: 'Rejeté', tone: BadgeTone.red);
+      default:
+        return const TypeBadge(label: 'Créé', tone: BadgeTone.gray);
+    }
+  }
 }

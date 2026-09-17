@@ -27,7 +27,7 @@ class TodayCyclesCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
+              const Expanded(
                 child: Text(
                   'Cycles du jour',
                   style: AppTypography.sectionTitle,

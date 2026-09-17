@@ -19,16 +19,14 @@ class LabelDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (ctx) =>
-          LabelDetailBloc(ctx.read())..add(LoadLabel(code)),
-      child: _LabelDetailView(code: code),
+      create: (ctx) => LabelDetailBloc(ctx.read())..add(LoadLabel(code)),
+      child: const _LabelDetailView(),
     );
   }
 }
 
 class _LabelDetailView extends StatelessWidget {
-  final String code;
-  const _LabelDetailView({required this.code});
+  const _LabelDetailView();
 
   @override
   Widget build(BuildContext context) {
@@ -41,24 +39,11 @@ class _LabelDetailView extends StatelessWidget {
             return const LoadingView(message: 'Chargement de l\'étiquette...');
           }
           if (state.status == LabelDetailStatus.failure) {
-            return ErrorView(
-              message: state.error ?? 'Étiquette introuvable.',
-              onRetry: () =>
-                  context.read<LabelDetailBloc>().add(LoadLabel(code)),
-            );
+            return ErrorView(message: state.error ?? 'Étiquette introuvable.');
           }
 
           final result = state.result;
           if (result == null) return const SizedBox.shrink();
-
-          if (result.isBlocked) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (context.mounted) {
-                context.go(Routes.labelsBlocked(result.code));
-              }
-            });
-            return const SizedBox.shrink();
-          }
 
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -70,10 +55,9 @@ class _LabelDetailView extends StatelessWidget {
               PrimaryButton(
                 label: 'Enregistrer utilisation',
                 icon: Icons.assignment_turned_in_outlined,
-                onPressed: result.label == null
+                onPressed: result.label == null || result.isBlocked
                     ? null
-                    : () =>
-                        context.go(Routes.labelsUsage(result.label!.id)),
+                    : () => context.go(Routes.labelsUsage(result.label!.id)),
               ),
             ],
           );

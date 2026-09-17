@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+
 import '../../config/app_config.dart';
 import '../../errors/api_exception.dart';
 import 'outbox_item.dart';
@@ -12,8 +13,8 @@ class SyncEngine {
 
   SyncEngine(this._store, this._dio);
 
-  /// Attempt to flush all pending items in order.
-  /// Returns the number of items successfully synced.
+  /// Flush every pending item, in order, one at a time.
+  /// Returns the number of items that succeeded (success + conflict).
   Future<int> flush() async {
     final pending = _store.pending();
     int synced = 0;
@@ -40,19 +41,30 @@ class SyncEngine {
         ),
       );
 
-      await _store.update(item.copyWith(status: OutboxStatus.synced));
       await _store.remove(item.id);
       return SyncResult.success;
     } on DioException catch (e) {
       final api = e.error;
 
+      // 409 → already recorded. Backend idempotency replay.
       if (api is ApiException && api.statusCode == 409) {
-        // Already recorded — treat as success
-        await _store.update(item.copyWith(status: OutboxStatus.synced));
         await _store.remove(item.id);
         return SyncResult.conflict;
       }
 
+      // 422 / 403 → hard errors, keep for manual review.
+      if (api is ApiException &&
+          (api.statusCode == 422 || api.statusCode == 403)) {
+        await _store.update(
+          item.copyWith(
+            status: OutboxStatus.manualReview,
+            lastError: api.message,
+          ),
+        );
+        return SyncResult.manualReview;
+      }
+
+      // 5xx or network → retry with backoff.
       final nextRetry = item.retryCount + 1;
       if (nextRetry >= AppConfig.maxOutboxRetries) {
         await _store.update(
@@ -76,12 +88,17 @@ class SyncEngine {
     } catch (e) {
       await _store.update(
         item.copyWith(
-          retryCount: item.retryCount + 1,
           status: OutboxStatus.manualReview,
           lastError: e.toString(),
         ),
       );
       return SyncResult.manualReview;
     }
+  }
+
+  /// Manually retry one item (from the queue screen).
+  Future<SyncResult> retryOne(String id) async {
+    final item = _store.all().firstWhere((i) => i.id == id);
+    return _syncOne(item);
   }
 }

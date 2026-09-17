@@ -30,7 +30,7 @@ class CameraPermissionScreen extends StatelessWidget {
               color: AppColors.brandPrimary,
             ),
             const SizedBox(height: AppSpacing.xl),
-            Text(
+            const Text(
               'Accès à la caméra',
               textAlign: TextAlign.center,
               style: AppTypography.sectionTitle,

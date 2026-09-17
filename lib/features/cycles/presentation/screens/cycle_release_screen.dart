@@ -29,10 +29,10 @@ class CycleReleaseScreen extends StatelessWidget {
                 color: AppColors.brandPrimary,
               ),
               const SizedBox(height: AppSpacing.md),
-              Text('Cycle prêt pour libération',
+              const Text('Cycle prêt pour libération',
                   style: AppTypography.sectionTitle),
               const SizedBox(height: AppSpacing.xs),
-              Text(
+              const Text(
                 'Prenez la décision de conformité pour ce cycle.',
                 textAlign: TextAlign.center,
                 style: AppTypography.body,
@@ -42,6 +42,8 @@ class CycleReleaseScreen extends StatelessWidget {
                 onPressed: () async {
                   final result = await ReleaseDecisionSheet.show(context);
                   if (result == null) return;
+                  if (!context.mounted) return; // ← ADD THIS
+
                   try {
                     final CycleReleaseData release =
                         await context.read<CycleRepository>().release(

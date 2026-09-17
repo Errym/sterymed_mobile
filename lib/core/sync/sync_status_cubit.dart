@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../storage/outbox/outbox_store.dart';
 import '../storage/outbox/sync_engine.dart';
 import 'connectivity_service.dart';
@@ -23,7 +24,6 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
   Future<void> start() async {
     final online = await _connectivity.isConnected;
     _refresh(online: online);
-
     _sub = _connectivity.onStatusChange.listen((online) async {
       _refresh(online: online);
       if (online) {
@@ -41,9 +41,7 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
     ));
   }
 
-  Future<void> refreshNow() async {
-    _refresh();
-  }
+  Future<void> refreshNow() async => _refresh();
 
   @override
   Future<void> close() async {

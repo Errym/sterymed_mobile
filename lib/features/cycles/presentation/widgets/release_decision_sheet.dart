@@ -64,7 +64,7 @@ class _ReleaseDecisionSheetState extends State<ReleaseDecisionSheet> {
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Décision de libération', style: AppTypography.sectionTitle),
+            const Text('Décision de libération', style: AppTypography.sectionTitle),
             const SizedBox(height: AppSpacing.md),
             _option(
               title: 'Conforme — libérer le cycle',

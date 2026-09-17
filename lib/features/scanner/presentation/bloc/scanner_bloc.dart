@@ -4,50 +4,72 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config/app_config.dart';
+import '../../../../core/errors/api_exception.dart';
+import '../../../labels/data/models/label_scan_result.dart';
+import '../../../labels/data/repositories/label_repository.dart';
 
 part 'scanner_event.dart';
 part 'scanner_state.dart';
 
 class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
+  final LabelRepository _labels;
   Timer? _cooldownTimer;
 
-  ScannerBloc() : super(const ScannerState()) {
-    on<ScanDetected>(_onScanDetected);
+  ScannerBloc(this._labels) : super(const ScannerState()) {
+    on<ScanDetected>(_onScan);
     on<ScannerCooldownExpired>(_onCooldownExpired);
-    on<TorchToggled>(_onTorchToggled);
+    on<TorchToggled>(_onTorch);
     on<ScannerReset>(_onReset);
   }
 
-  void _onScanDetected(ScanDetected event, Emitter<ScannerState> emit) {
+  Future<void> _onScan(ScanDetected e, Emitter<ScannerState> emit) async {
     if (state.status == ScannerStatus.cooling ||
         state.status == ScannerStatus.resolving) {
       return;
     }
     emit(state.copyWith(
-      status: ScannerStatus.cooling,
-      lastCode: event.rawValue,
+      status: ScannerStatus.resolving,
+      lastCode: e.rawValue,
       error: null,
     ));
+    try {
+      final result = await _labels.getByCode(e.rawValue);
+      emit(state.copyWith(status: ScannerStatus.resolved, result: result));
+      _startCooldown();
+    } on ApiException catch (ex) {
+      emit(state.copyWith(status: ScannerStatus.error, error: ex.message));
+      _startCooldown();
+    } catch (ex) {
+      emit(state.copyWith(
+        status: ScannerStatus.error,
+        error: 'Erreur de lecture : ${ex.toString()}',
+      ));
+      _startCooldown();
+    }
+  }
+
+  void _startCooldown() {
     _cooldownTimer?.cancel();
     _cooldownTimer = Timer(AppConfig.scanCooldown, () {
       add(const ScannerCooldownExpired());
     });
   }
 
-  void _onCooldownExpired(
-    ScannerCooldownExpired event,
-    Emitter<ScannerState> emit,
-  ) {
-    if (state.status == ScannerStatus.cooling) {
-      emit(state.copyWith(status: ScannerStatus.resolved));
+  void _onCooldownExpired(ScannerCooldownExpired e, Emitter<ScannerState> emit) {
+    if (state.status == ScannerStatus.resolved ||
+        state.status == ScannerStatus.error) {
+      emit(state.copyWith(
+        status: ScannerStatus.scanning,
+        clearResult: true,
+      ));
     }
   }
 
-  void _onTorchToggled(TorchToggled event, Emitter<ScannerState> emit) {
+  void _onTorch(TorchToggled e, Emitter<ScannerState> emit) {
     emit(state.copyWith(torchOn: !state.torchOn));
   }
 
-  void _onReset(ScannerReset event, Emitter<ScannerState> emit) {
+  void _onReset(ScannerReset e, Emitter<ScannerState> emit) {
     _cooldownTimer?.cancel();
     emit(const ScannerState());
   }

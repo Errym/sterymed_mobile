@@ -3,17 +3,15 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/tokens.dart';
 
 class ActionCard extends StatelessWidget {
-  final String title;
-  final String? subtitle;
+  final String label;
   final IconData icon;
   final VoidCallback onTap;
 
   const ActionCard({
     super.key,
-    required this.title,
+    required this.label,
     required this.icon,
     required this.onTap,
-    this.subtitle,
   });
 
   @override
@@ -33,30 +31,26 @@ class ActionCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.sm),
+                width: 36,
+                height: 36,
                 decoration: BoxDecoration(
                   color: AppColors.brandPrimaryLight,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
-                child: Icon(icon, color: AppColors.brandPrimary, size: 20),
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: AppColors.brandPrimary,
+                ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: AppTypography.bodyStrong),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: 2),
-                      Text(subtitle!, style: AppTypography.caption),
-                    ],
-                  ],
+                child: Text(
+                  label,
+                  style: AppTypography.bodyStrong,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.textTertiary,
-                size: 20,
               ),
             ],
           ),

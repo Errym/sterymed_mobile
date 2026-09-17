@@ -4,22 +4,40 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/router/app_router.dart';
+import 'core/sync/sync_status_cubit.dart';
 import 'core/theme/app_theme.dart';
 import 'di/di.dart';
+import 'features/alerts/data/repositories/alert_repository.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
+import 'features/cycles/data/repositories/cycle_repository.dart';
 import 'features/dashboard/presentation/cubit/dashboard_cubit.dart';
+import 'features/labels/data/repositories/label_repository.dart';
+import 'features/labels/data/repositories/label_usage_repository.dart';
+import 'features/patients/data/repositories/patient_repository.dart';
+import 'features/stock/data/repositories/stock_repository.dart';
 
 class SteryMedApp extends StatelessWidget {
   const SteryMedApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
+    return MultiRepositoryProvider(
       providers: [
-        BlocProvider<AuthBloc>(create: (_) => getIt<AuthBloc>()),
-        BlocProvider<DashboardCubit>(create: (_) => getIt<DashboardCubit>()),
+        RepositoryProvider<AlertRepository>(create: (_) => getIt()),
+        RepositoryProvider<LabelRepository>(create: (_) => getIt()),
+        RepositoryProvider<LabelUsageRepository>(create: (_) => getIt()),
+        RepositoryProvider<PatientRepository>(create: (_) => getIt()),
+        RepositoryProvider<CycleRepository>(create: (_) => getIt()),
+        RepositoryProvider<StockRepository>(create: (_) => getIt()),
       ],
-      child: const _AppView(),
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<AuthBloc>(create: (_) => getIt()),
+          BlocProvider<DashboardCubit>(create: (_) => getIt()),
+          BlocProvider<SyncStatusCubit>.value(value: getIt()),
+        ],
+        child: const _AppView(),
+      ),
     );
   }
 }
@@ -30,7 +48,6 @@ class _AppView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final router = getIt<AppRouter>().router;
-
     return MaterialApp.router(
       title: AppConstants.appName,
       debugShowCheckedModeBanner: false,

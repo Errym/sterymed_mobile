@@ -32,7 +32,7 @@ class PhotoCapture extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text('Ajouter une photo', style: AppTypography.bodyStrong),
+          const Text('Ajouter une photo', style: AppTypography.bodyStrong),
           const SizedBox(height: AppSpacing.md),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

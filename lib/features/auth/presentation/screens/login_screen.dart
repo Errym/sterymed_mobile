@@ -50,7 +50,7 @@ class LoginScreen extends StatelessWidget {
                         const SizedBox(height: AppSpacing.xxxl),
                         const Center(child: AppLogo(height: 56)),
                         const SizedBox(height: AppSpacing.xxxl),
-                        Text('Bienvenue', style: AppTypography.pageTitle),
+                        const Text('Bienvenue', style: AppTypography.pageTitle),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           'Connectez-vous pour accéder à votre espace cabinet.',

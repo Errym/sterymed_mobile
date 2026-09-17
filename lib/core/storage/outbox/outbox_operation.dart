@@ -16,19 +16,19 @@ extension OutboxOperationLabel on OutboxOperation {
       case OutboxOperation.labelUsage:
         return 'Utilisation étiquette';
       case OutboxOperation.stockIssue:
-        return 'Sortie stock';
+        return 'Sortie de stock';
       case OutboxOperation.stockAdjust:
-        return 'Ajustement stock';
+        return 'Ajustement de stock';
       case OutboxOperation.stockTransfer:
-        return 'Transfert stock';
+        return 'Transfert de stock';
       case OutboxOperation.goodsReceipt:
         return 'Réception marchandise';
       case OutboxOperation.cycleTransition:
         return 'Transition cycle';
       case OutboxOperation.prostheticTransition:
-        return 'Transition dossier';
+        return 'Transition dossier prothétique';
       case OutboxOperation.prostheticAttachment:
-        return 'Pièce jointe dossier';
+        return 'Pièce jointe prothèse';
       case OutboxOperation.payment:
         return 'Paiement';
     }
