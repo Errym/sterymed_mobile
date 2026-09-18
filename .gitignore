@@ -51,3 +51,14 @@ project_dump.txt
 *.phase1.bak
 *.tmp
 Thumbs.db
+
+# One-shot automation scripts (never commit)
+/*.sh
+!/scripts/*.sh
+
+# Source dumps
+project_dump.txt
+*.dump
+
+# Temp files
+*.tmp

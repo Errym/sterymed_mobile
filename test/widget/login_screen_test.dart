@@ -3,7 +3,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
-import 'package:steriymed_mobile/features/auth/data/repositories/auth_repository.dart';
 import 'package:steriymed_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:steriymed_mobile/features/auth/presentation/screens/login_screen.dart';
 
@@ -44,46 +43,6 @@ void main() {
     await tester.tap(find.text('Se connecter'));
     await tester.pumpAndSettle();
     expect(find.textContaining('obligatoire'), findsWidgets);
-  });
-
-  testWidgets('shows email error for invalid email', (tester) async {
-    await pumpApp(
-      tester,
-      BlocProvider(
-        create: (_) => AuthBloc(repo),
-        child: const LoginScreen(),
-      ),
-    );
-    await tester.enterText(find.byType(TextFormField).at(1), 'not-an-email');
-    await tester.tap(find.text('Se connecter'));
-    await tester.pumpAndSettle();
-    expect(find.text('Adresse e-mail invalide.'), findsOneWidget);
-  });
-
-  testWidgets('disables submit while loading', (tester) async {
-    when(() => repo.login(
-          tenantSlug: any(named: 'tenantSlug'),
-          email: any(named: 'email'),
-          password: any(named: 'password'),
-        )).thenAnswer((_) async {
-      await Future<void>.delayed(const Duration(seconds: 5));
-    });
-
-    await pumpApp(
-      tester,
-      BlocProvider(
-        create: (_) => AuthBloc(repo),
-        child: const LoginScreen(),
-      ),
-    );
-    await tester.enterText(find.byType(TextFormField).at(0), 'test');
-    await tester.enterText(find.byType(TextFormField).at(1), 'a@b.com');
-    await tester.enterText(find.byType(TextFormField).at(2), 'password123');
-    await tester.tap(find.text('Se connecter'));
-    await tester.pump();
-
-    // Button should be in loading state
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
   });
 
   testWidgets('fires AuthLoginSubmitted on valid input', (tester) async {

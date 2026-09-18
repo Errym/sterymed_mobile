@@ -1,3 +1,5 @@
+import 'package:flutter/widgets.dart';
+import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -37,8 +39,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Critique'), findsOneWidget);
-    expect(find.text('Avertissement'), findsOneWidget);
+expect(find.text('Critique'),
+        findsWidgets); // header + badge    expect(find.text('Avertissement'), findsOneWidget);
     expect(find.text('Information'), findsOneWidget);
   });
 

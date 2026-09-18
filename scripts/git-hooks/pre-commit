@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -e
+
+cd "$(git rev-parse --show-toplevel)"
+
+echo "→ Pre-commit: flutter analyze"
+if ! flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | grep -q "No issues found"; then
+  echo "❌ flutter analyze failed. Fix issues before committing."
+  flutter analyze --no-fatal-infos --no-fatal-warnings 2>&1 | head -20
+  exit 1
+fi
+
+echo "→ Pre-commit: flutter test"
+if ! flutter test > /dev/null 2>&1; then
+  echo "❌ flutter test failed. Fix failures before committing."
+  flutter test 2>&1 | tail -20
+  exit 1
+fi
+
+echo "✅ Pre-commit passed."
