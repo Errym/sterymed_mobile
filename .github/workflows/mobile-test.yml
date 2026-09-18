@@ -1,0 +1,25 @@
+name: Flutter Test
+on:
+  push:
+    branches: [main, develop, 'phase-*']
+  pull_request:
+    branches: [main, develop]
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.x'
+          channel: 'stable'
+          cache: true
+      - run: flutter pub get
+      - run: flutter test --coverage --reporter expanded
+      - uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          file: coverage/lcov.info
+          fail_ci_if_error: false

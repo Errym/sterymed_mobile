@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:steriymed_mobile/features/alerts/data/repositories/alert_repository.dart';
 import 'package:steriymed_mobile/features/alerts/presentation/bloc/alert_list_bloc.dart';
 import 'package:steriymed_mobile/features/alerts/presentation/screens/alert_list_screen.dart';
