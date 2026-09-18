@@ -8,6 +8,8 @@ class PatientData extends Equatable {
   final DateTime? birthDate;
   final String? phone;
   final String? email;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const PatientData({
     required this.id,
@@ -17,16 +19,31 @@ class PatientData extends Equatable {
     this.birthDate,
     this.phone,
     this.email,
+    this.createdAt,
+    this.updatedAt,
   });
 
   factory PatientData.fromJson(Map<String, dynamic> json) {
-    var first = json['first_name']?.toString() ?? '';
-    var last = json['last_name']?.toString() ?? '';
+    // Field name candidates — the backend hasn't always returned the same
+    // shape, so we try several keys before giving up.
+    String? pick(List<String> keys) {
+      for (final k in keys) {
+        final v = json[k];
+        if (v != null && v.toString().trim().isNotEmpty) {
+          return v.toString().trim();
+        }
+      }
+      return null;
+    }
 
+    var first = pick(['first_name', 'firstName', 'given_name']) ?? '';
+    var last = pick(['last_name', 'lastName', 'family_name', 'surname']) ?? '';
+
+    // Fallback: split full_name / name
     if (first.isEmpty && last.isEmpty) {
-      final full = (json['full_name'] ?? json['name'])?.toString() ?? '';
+      final full = pick(['full_name', 'name', 'display_name']) ?? '';
       if (full.isNotEmpty) {
-        final parts = full.trim().split(RegExp(r'\s+'));
+        final parts = full.split(RegExp(r'\s+'));
         if (parts.length == 1) {
           first = parts.first;
         } else {
@@ -37,14 +54,21 @@ class PatientData extends Equatable {
     }
 
     return PatientData(
-      id: json['id']?.toString() ?? '',
+      id: pick(['id', 'uuid']) ?? '',
       firstName: first,
       lastName: last,
-      reference: json['reference']?.toString(),
-      birthDate: DateTime.tryParse(json['birth_date']?.toString() ?? ''),
-      phone: json['phone']?.toString(),
-      email: json['email']?.toString(),
+      reference: pick(['reference', 'file_number', 'dossier_ref']),
+      birthDate: _parseDate(pick(['birth_date', 'birthdate', 'date_of_birth'])),
+      phone: pick(['phone', 'phone_number', 'mobile', 'telephone']),
+      email: pick(['email', 'email_address']),
+      createdAt: _parseDate(pick(['created_at'])),
+      updatedAt: _parseDate(pick(['updated_at'])),
     );
+  }
+
+  static DateTime? _parseDate(String? s) {
+    if (s == null || s.isEmpty) return null;
+    return DateTime.tryParse(s);
   }
 
   String get fullName {
@@ -59,6 +83,27 @@ class PatientData extends Equatable {
     return result.isEmpty ? '?' : result;
   }
 
+  PatientData copyWith({
+    String? firstName,
+    String? lastName,
+    String? reference,
+    String? phone,
+    String? email,
+  }) {
+    return PatientData(
+      id: id,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      reference: reference ?? this.reference,
+      birthDate: birthDate,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
+
   @override
-  List<Object?> get props => [id, firstName, lastName, reference];
+  List<Object?> get props =>
+      [id, firstName, lastName, reference, phone, email];
 }

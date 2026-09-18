@@ -14,12 +14,43 @@ class DeviceRemoteDatasource {
         '/v1/devices',
         queryParameters: {'per_page': 100},
       );
+
       final raw = res.data;
-      if (raw is! Map || raw['data'] is! List) return const [];
-      return (raw['data'] as List)
-          .whereType<Map>()
-          .map((e) => DeviceData.fromJson(e.cast<String, dynamic>()))
-          .toList();
+
+      // Tolerate: {data: [...]}
+      if (raw is Map && raw['data'] is List) {
+        return (raw['data'] as List)
+            .whereType<Map>()
+            .map((e) => DeviceData.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+
+      // Tolerate: bare array
+      if (raw is List) {
+        return raw
+            .whereType<Map>()
+            .map((e) => DeviceData.fromJson(e.cast<String, dynamic>()))
+            .toList();
+      }
+
+      // Tolerate: {items: [...]} or {devices: [...]}
+      if (raw is Map) {
+        for (final key in ['items', 'devices', 'results']) {
+          final v = raw[key];
+          if (v is List) {
+            return v
+                .whereType<Map>()
+                .map((e) => DeviceData.fromJson(e.cast<String, dynamic>()))
+                .toList();
+          }
+        }
+      }
+
+      // No idea what this is — but tell the caller instead of pretending
+      // we got an empty list. They can see the actual response in the UI.
+      throw FormatException(
+        'Réponse inattendue du serveur (devices): ${raw.runtimeType}',
+      );
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
@@ -51,7 +82,13 @@ class DeviceRemoteDatasource {
           headers: {'Idempotency-Key': generateIdempotencyKey()},
         ),
       );
-      return DeviceData.fromJson((res.data as Map).cast<String, dynamic>());
+      final raw = res.data;
+      if (raw is Map && raw['data'] is Map) {
+        return DeviceData.fromJson(
+          (raw['data'] as Map).cast<String, dynamic>(),
+        );
+      }
+      return DeviceData.fromJson((raw as Map).cast<String, dynamic>());
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

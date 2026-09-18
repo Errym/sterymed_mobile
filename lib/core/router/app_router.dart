@@ -9,7 +9,6 @@ import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 // Batches
-import '../../features/batches/presentation/screens/batch_list_screen.dart';
 // Catalog
 import '../../features/catalog/presentation/screens/product_list_screen.dart';
 // Compliance
@@ -38,7 +37,6 @@ import '../../features/labels/presentation/screens/label_blocked_screen.dart';
 import '../../features/labels/presentation/screens/label_detail_screen.dart';
 import '../../features/labels/presentation/screens/label_usage_form_screen.dart';
 // Locations
-import '../../features/locations/presentation/screens/location_list_screen.dart';
 // Patients
 import '../../features/patients/presentation/screens/patient_search_screen.dart';
 // Purchases
@@ -65,7 +63,7 @@ import '../../features/stock/presentation/screens/stock_transfer_screen.dart';
 import '../../features/suppliers/presentation/screens/supplier_list_screen.dart';
 // Sync
 import '../../features/sync/presentation/screens/sync_queue_screen.dart';
-
+import '../../features/devices/presentation/screens/device_detail_screen.dart';
 import 'route_names.dart';
 import 'routes.dart';
 
@@ -253,17 +251,6 @@ class AppRouter {
             pageBuilder: (_, s) => _fade(s, const SiteListScreen()),
           ),
           GoRoute(
-            path: '/app/sites/:siteId/locations',
-            pageBuilder: (_, s) => _fade(
-              s,
-              LocationListScreen(siteId: s.pathParameters['siteId']!),
-            ),
-          ),
-          GoRoute(
-            path: Routes.batches,
-            pageBuilder: (_, s) => _fade(s, const BatchListScreen()),
-          ),
-          GoRoute(
             path: Routes.nonConformities,
             pageBuilder: (_, s) => _fade(s, const NonConformitiesScreen()),
           ),
@@ -289,6 +276,15 @@ class AppRouter {
           GoRoute(
             path: Routes.devices,
             pageBuilder: (_, s) => _fade(s, const DeviceListScreen()),
+            routes: [
+              GoRoute(
+                path: ':id',
+                pageBuilder: (_, s) => _fade(
+                  s,
+                  DeviceDetailScreen(deviceId: s.pathParameters['id']!),
+                ),
+              ),
+            ],
           ),
           GoRoute(
             path: Routes.products,
@@ -319,6 +315,19 @@ class AppRouter {
           GoRoute(
             path: Routes.dluRules,
             pageBuilder: (_, s) => _fade(s, const DluRulesScreen()),
+          ),
+          GoRoute(
+            path: Routes.devices,
+            pageBuilder: (_, s) => _fade(s, const DeviceListScreen()),
+            routes: [
+              GoRoute(
+                path: ':id',
+                pageBuilder: (_, s) => _fade(
+                  s,
+                  DeviceDetailScreen(deviceId: s.pathParameters['id']!),
+                ),
+              ),
+            ],
           ),
         ],
       ),

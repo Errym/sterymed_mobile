@@ -21,21 +21,4 @@ class SiteRepository {
     }
     return fresh;
   }
-
-  Future<SiteData> create({
-    required String name,
-    String? addressLine1,
-    String? city,
-    bool isPrimary = false,
-  }) async {
-    final s = await _remote.create(
-      name: name,
-      addressLine1: addressLine1,
-      city: city,
-      isPrimary: isPrimary,
-    );
-    _cache.invalidate('sites');
-    _cache.invalidateAll();
-    return s;
-  }
 }

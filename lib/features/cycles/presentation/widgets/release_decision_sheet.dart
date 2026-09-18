@@ -5,7 +5,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 
 class ReleaseDecisionResult {
-  final String decision;
+  final String decision; // 'compliant' | 'rejected'
   final String? reason;
   ReleaseDecisionResult({required this.decision, this.reason});
 }
@@ -54,17 +54,19 @@ class _ReleaseDecisionSheetState extends State<ReleaseDecisionSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: AppSpacing.sm),
-            Container(
-              width: 40,
-              height: 4,
-              margin: const EdgeInsets.symmetric(horizontal: 160),
-              decoration: BoxDecoration(
-                color: AppColors.borderMedium,
-                borderRadius: BorderRadius.circular(AppRadius.pill),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderMedium,
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            const Text('Décision de libération', style: AppTypography.sectionTitle),
+            const Text('Décision de libération',
+                style: AppTypography.sectionTitle),
             const SizedBox(height: AppSpacing.md),
             _option(
               title: 'Conforme — libérer le cycle',

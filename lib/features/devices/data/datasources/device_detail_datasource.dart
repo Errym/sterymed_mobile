@@ -23,4 +23,60 @@ class DeviceDetailDatasource {
       throw ErrorMapper.fromDio(e);
     }
   }
+
+  Future<DeviceDetail> show(String id) async {
+    try {
+      final res = await _dio.get('/v1/devices/$id');
+      final raw = res.data;
+      if (raw is Map && raw['data'] is Map) {
+        return DeviceDetail.fromJson(
+          (raw['data'] as Map).cast<String, dynamic>(),
+        );
+      }
+      return DeviceDetail.fromJson((raw as Map).cast<String, dynamic>());
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  Future<DeviceDetail> update({
+    required String id,
+    String? name,
+    String? model,
+    String? serialNumber,
+    String? manufacturer,
+    String? status,
+    String? notes,
+  }) async {
+    try {
+      final res = await _dio.patch(
+        '/v1/devices/$id',
+        data: {
+          if (name != null) 'name': name,
+          if (model != null) 'model': model,
+          if (serialNumber != null) 'serial_number': serialNumber,
+          if (manufacturer != null) 'manufacturer': manufacturer,
+          if (status != null) 'status': status,
+          if (notes != null) 'notes': notes,
+        },
+      );
+      final raw = res.data;
+      if (raw is Map && raw['data'] is Map) {
+        return DeviceDetail.fromJson(
+          (raw['data'] as Map).cast<String, dynamic>(),
+        );
+      }
+      return DeviceDetail.fromJson((raw as Map).cast<String, dynamic>());
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  Future<void> destroy(String id) async {
+    try {
+      await _dio.delete('/v1/devices/$id');
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
 }

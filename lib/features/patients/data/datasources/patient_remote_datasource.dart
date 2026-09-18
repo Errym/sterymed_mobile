@@ -16,15 +16,10 @@ class PatientRemoteDatasource {
         ApiEndpoints.patients,
         queryParameters: {
           if (query.trim().isNotEmpty) 'search': query.trim(),
-          'per_page': 30,
+          'per_page': 100,
         },
       );
-      final raw = res.data;
-      if (raw is! Map || raw['data'] is! List) return const [];
-      return (raw['data'] as List)
-          .whereType<Map>()
-          .map((e) => PatientData.fromJson(e.cast<String, dynamic>()))
-          .toList();
+      return _parseList(res.data);
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
@@ -39,9 +34,7 @@ class PatientRemoteDatasource {
           headers: {'Idempotency-Key': generateIdempotencyKey()},
         ),
       );
-      return PatientData.fromJson(
-        (res.data as Map).cast<String, dynamic>(),
-      );
+      return _parseOne(res.data);
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
@@ -50,9 +43,7 @@ class PatientRemoteDatasource {
   Future<PatientData> show(String id) async {
     try {
       final res = await _dio.get(ApiEndpoints.patient(id));
-      return PatientData.fromJson(
-        (res.data as Map).cast<String, dynamic>(),
-      );
+      return _parseOne(res.data);
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
@@ -64,5 +55,45 @@ class PatientRemoteDatasource {
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
+  }
+
+  // ── tolerant parsers ─────────────────────────────────────────────────
+  List<PatientData> _parseList(dynamic raw) {
+    if (raw is Map && raw['data'] is List) {
+      return (raw['data'] as List)
+          .whereType<Map>()
+          .map((e) => PatientData.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    }
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => PatientData.fromJson(e.cast<String, dynamic>()))
+          .toList();
+    }
+    if (raw is Map) {
+      for (final key in ['items', 'patients', 'results']) {
+        final v = raw[key];
+        if (v is List) {
+          return v
+              .whereType<Map>()
+              .map((e) => PatientData.fromJson(e.cast<String, dynamic>()))
+              .toList();
+        }
+      }
+    }
+    return const [];
+  }
+
+  PatientData _parseOne(dynamic raw) {
+    if (raw is Map && raw['data'] is Map) {
+      return PatientData.fromJson(
+        (raw['data'] as Map).cast<String, dynamic>(),
+      );
+    }
+    if (raw is Map) {
+      return PatientData.fromJson(raw.cast<String, dynamic>());
+    }
+    throw const FormatException('Réponse patient invalide');
   }
 }

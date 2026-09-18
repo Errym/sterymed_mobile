@@ -7,8 +7,14 @@ import '../../data/models/patient_data.dart';
 class PatientTile extends StatelessWidget {
   final PatientData patient;
   final VoidCallback? onTap;
+  final Widget? trailing;
 
-  const PatientTile({super.key, required this.patient, this.onTap});
+  const PatientTile({
+    super.key,
+    required this.patient,
+    this.onTap,
+    this.trailing,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -33,14 +39,41 @@ class PatientTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(patient.fullName, style: AppTypography.bodyStrong),
-                    if (patient.reference != null) ...[
-                      const SizedBox(height: 2),
+                    const SizedBox(height: 2),
+                    if (patient.reference != null)
                       Text(patient.reference!, style: AppTypography.caption),
+                    if (patient.phone != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.phone_outlined,
+                              size: 12, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Text(patient.phone!, style: AppTypography.caption),
+                        ],
+                      ),
+                    ],
+                    if (patient.email != null) ...[
+                      const SizedBox(height: 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.mail_outline,
+                              size: 12, color: AppColors.textSecondary),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(patient.email!,
+                                style: AppTypography.caption,
+                                overflow: TextOverflow.ellipsis),
+                          ),
+                        ],
+                      ),
                     ],
                   ],
                 ),
               ),
-              if (onTap != null)
+              if (trailing != null)
+                trailing!
+              else if (onTap != null)
                 const Icon(Icons.chevron_right,
                     color: AppColors.textTertiary, size: 20),
             ],

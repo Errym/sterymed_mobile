@@ -10,11 +10,14 @@ import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../cycles/data/repositories/device_repository.dart';
 import '../../../sites/data/models/site_data.dart';
 import '../../../sites/data/repositories/site_repository.dart';
+import '../../data/repositories/device_detail_repository.dart';
 
 class DeviceFormSheet extends StatefulWidget {
-  const DeviceFormSheet({super.key});
+  final String? existingId;
 
-  static Future<bool?> show(BuildContext context) {
+  const DeviceFormSheet({super.key, this.existingId});
+
+  static Future<bool?> show(BuildContext context, {String? existingId}) {
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -22,7 +25,7 @@ class DeviceFormSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
-      builder: (_) => const DeviceFormSheet(),
+      builder: (_) => DeviceFormSheet(existingId: existingId),
     );
   }
 
@@ -41,13 +44,16 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
   List<SiteData> _sites = [];
   String? _siteId;
   String _kind = 'autoclave';
+  String _status = 'active';
   bool _loading = true;
   bool _submitting = false;
+
+  bool get _isEdit => widget.existingId != null;
 
   @override
   void initState() {
     super.initState();
-    _loadSites();
+    _load();
   }
 
   @override
@@ -60,16 +66,31 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
     super.dispose();
   }
 
-  Future<void> _loadSites() async {
+  Future<void> _load() async {
     try {
-      // Force fresh — never trust a possibly-empty cache.
       final sites = await getIt<SiteRepository>().list(forceRefresh: true);
       if (!mounted) return;
+
       setState(() {
         _sites = sites;
         _siteId = sites.isNotEmpty ? sites.first.id : null;
-        _loading = false;
       });
+
+      if (_isEdit) {
+        final d = await getIt<DeviceDetailRepository>().show(widget.existingId!);
+        if (!mounted) return;
+        setState(() {
+          _nameCtrl.text = d.name;
+          _serialCtrl.text = d.serialNumber ?? '';
+          _manufacturerCtrl.text = d.manufacturer ?? '';
+          _modelCtrl.text = d.model ?? '';
+          _notesCtrl.text = d.notes ?? '';
+          _status = d.status ?? 'active';
+          _siteId = d.siteId ?? _siteId;
+        });
+      }
+
+      if (mounted) setState(() => _loading = false);
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
@@ -78,28 +99,51 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_siteId == null) {
-      AppSnackbar.show(context, 'Créez d\'abord un site.',
-          kind: SnackKind.warning);
-      return;
-    }
+
     setState(() => _submitting = true);
+
     try {
-      await getIt<DeviceRepository>().create(
-        siteId: _siteId!,
-        name: _nameCtrl.text.trim(),
-        serialNumber: _serialCtrl.text.trim(),
-        kind: _kind,
-        manufacturer: _manufacturerCtrl.text.trim().isEmpty
-            ? null
-            : _manufacturerCtrl.text.trim(),
-        model: _modelCtrl.text.trim().isEmpty ? null : _modelCtrl.text.trim(),
-        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-      );
-      if (!mounted) return;
-      AppSnackbar.show(context, 'Appareil enregistré.',
-          kind: SnackKind.success);
-      Navigator.of(context).pop(true);
+      if (_isEdit) {
+        await getIt<DeviceDetailRepository>().update(
+          id: widget.existingId!,
+          name: _nameCtrl.text.trim(),
+          serialNumber: _serialCtrl.text.trim(),
+          manufacturer: _manufacturerCtrl.text.trim().isEmpty
+              ? null
+              : _manufacturerCtrl.text.trim(),
+          model: _modelCtrl.text.trim().isEmpty ? null : _modelCtrl.text.trim(),
+          status: _status,
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        );
+        // Also invalidate the picker cache so Cycle Create sees the change.
+        getIt<DeviceRepository>().invalidateCache();
+        if (!mounted) return;
+        AppSnackbar.show(context, 'Appareil mis à jour.',
+            kind: SnackKind.success);
+      } else {
+        if (_siteId == null) {
+          AppSnackbar.show(context, 'Créez d\'abord un site.',
+              kind: SnackKind.warning);
+          setState(() => _submitting = false);
+          return;
+        }
+        await getIt<DeviceRepository>().create(
+          siteId: _siteId!,
+          name: _nameCtrl.text.trim(),
+          serialNumber: _serialCtrl.text.trim(),
+          kind: _kind,
+          manufacturer: _manufacturerCtrl.text.trim().isEmpty
+              ? null
+              : _manufacturerCtrl.text.trim(),
+          model: _modelCtrl.text.trim().isEmpty ? null : _modelCtrl.text.trim(),
+          notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+        );
+        if (!mounted) return;
+        AppSnackbar.show(context, 'Appareil enregistré.',
+            kind: SnackKind.success);
+      }
+
+      if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
@@ -127,33 +171,35 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
               child: ListView(
                 shrinkWrap: true,
                 children: [
-                  const Text('Nouvel appareil',
-                      style: AppTypography.sectionTitle),
+                  Text(
+                    _isEdit ? 'Modifier l\'appareil' : 'Nouvel appareil',
+                    style: AppTypography.sectionTitle,
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  if (_sites.isEmpty)
-                    Container(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: AppColors.warningLight,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                      child: const Text(
-                        'Aucun site disponible. Créez d\'abord un site dans '
-                        'Sites & Espaces.',
-                        style: AppTypography.caption,
-                      ),
-                    )
-                  else
-                    AppDropdown<String>(
-                      label: 'Site *',
-                      value: _siteId,
-                      options: _sites
-                          .map((s) =>
-                              AppDropdownOption(value: s.id, label: s.name))
-                          .toList(),
-                      onChanged: (v) => setState(() => _siteId = v),
-                    ),
-                  const SizedBox(height: AppSpacing.md),
+                  if (!_isEdit)
+                    _sites.isEmpty
+                        ? Container(
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: AppColors.warningLight,
+                              borderRadius: BorderRadius.circular(AppRadius.md),
+                            ),
+                            child: const Text(
+                              'Aucun site disponible. Créez d\'abord un site '
+                              'dans Sites & Espaces.',
+                              style: AppTypography.caption,
+                            ),
+                          )
+                        : AppDropdown<String>(
+                            label: 'Site *',
+                            value: _siteId,
+                            options: _sites
+                                .map((s) => AppDropdownOption(
+                                    value: s.id, label: s.name))
+                                .toList(),
+                            onChanged: (v) => setState(() => _siteId = v),
+                          ),
+                  if (!_isEdit) const SizedBox(height: AppSpacing.md),
                   AppTextField(
                     label: 'Nom *',
                     hint: 'Melag Vacuklav 40B+',
@@ -170,21 +216,38 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
                         (v == null || v.trim().isEmpty) ? 'Requis.' : null,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  AppDropdown<String>(
-                    label: 'Type',
-                    value: _kind,
-                    options: const [
-                      AppDropdownOption(
-                          value: 'autoclave', label: 'Autoclave'),
-                      AppDropdownOption(
-                          value: 'washer_disinfector',
-                          label: 'Laveur désinfecteur'),
-                      AppDropdownOption(
-                          value: 'sealer', label: 'Thermoscelleuse'),
-                      AppDropdownOption(value: 'other', label: 'Autre'),
-                    ],
-                    onChanged: (v) => setState(() => _kind = v ?? 'autoclave'),
-                  ),
+                  if (!_isEdit)
+                    AppDropdown<String>(
+                      label: 'Type',
+                      value: _kind,
+                      options: const [
+                        AppDropdownOption(
+                            value: 'autoclave', label: 'Autoclave'),
+                        AppDropdownOption(
+                            value: 'washer_disinfector',
+                            label: 'Laveur désinfecteur'),
+                        AppDropdownOption(
+                            value: 'sealer', label: 'Thermoscelleuse'),
+                        AppDropdownOption(value: 'other', label: 'Autre'),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _kind = v ?? 'autoclave'),
+                    )
+                  else
+                    AppDropdown<String>(
+                      label: 'Statut',
+                      value: _status,
+                      options: const [
+                        AppDropdownOption(
+                            value: 'active', label: 'Actif'),
+                        AppDropdownOption(
+                            value: 'maintenance', label: 'En maintenance'),
+                        AppDropdownOption(
+                            value: 'decommissioned', label: 'Hors service'),
+                      ],
+                      onChanged: (v) =>
+                          setState(() => _status = v ?? 'active'),
+                    ),
                   const SizedBox(height: AppSpacing.md),
                   AppTextField(
                       label: 'Fabricant',
@@ -200,9 +263,11 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
                       label: 'Notes', controller: _notesCtrl, maxLines: 2),
                   const SizedBox(height: AppSpacing.xl),
                   PrimaryButton(
-                    label: 'Enregistrer l\'appareil',
+                    label: _isEdit
+                        ? 'Enregistrer les modifications'
+                        : 'Enregistrer l\'appareil',
                     isLoading: _submitting,
-                    onPressed: _sites.isEmpty ? null : _submit,
+                    onPressed: _submitting ? null : _submit,
                   ),
                 ],
               ),

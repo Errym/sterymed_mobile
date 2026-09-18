@@ -18,10 +18,11 @@ class PatientCreateRequest {
   Map<String, dynamic> toJson() => {
         'first_name': firstName,
         'last_name': lastName,
-        if (reference != null) 'reference': reference,
+        if (reference != null && reference!.trim().isNotEmpty)
+          'reference': reference!.trim(),
         if (birthDate != null)
           'birth_date': birthDate!.toIso8601String().split('T').first,
-        if (phone != null) 'phone': phone,
-        if (email != null) 'email': email,
+        if (phone != null && phone!.trim().isNotEmpty) 'phone': phone!.trim(),
+        if (email != null && email!.trim().isNotEmpty) 'email': email!.trim(),
       };
 }

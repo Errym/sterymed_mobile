@@ -16,12 +16,14 @@ class PatientListBloc extends Bloc<PatientListEvent, PatientListState> {
     on<LoadPatients>(_onLoad);
     on<SearchPatients>(_onSearch);
     on<CreatePatient>(_onCreate);
+    on<UpdatePatient>(_onUpdate);
+    on<DeletePatient>(_onDelete);
   }
 
   Future<void> _onLoad(LoadPatients e, Emitter<PatientListState> emit) async {
     emit(state.copyWith(status: PatientListStatus.loading, error: null));
     try {
-      final list = await _repository.search('');
+      final list = await _repository.search('', forceRefresh: true);
       emit(state.copyWith(status: PatientListStatus.success, patients: list));
     } on ApiException catch (ex) {
       emit(state.copyWith(status: PatientListStatus.failure, error: ex.message));
@@ -41,6 +43,24 @@ class PatientListBloc extends Bloc<PatientListEvent, PatientListState> {
   Future<void> _onCreate(CreatePatient e, Emitter<PatientListState> emit) async {
     try {
       await _repository.create(e.request);
+      add(const LoadPatients());
+    } on ApiException catch (ex) {
+      emit(state.copyWith(error: ex.message));
+    }
+  }
+
+  Future<void> _onUpdate(UpdatePatient e, Emitter<PatientListState> emit) async {
+    try {
+      await _repository.update(id: e.id, req: e.request);
+      add(const LoadPatients());
+    } on ApiException catch (ex) {
+      emit(state.copyWith(error: ex.message));
+    }
+  }
+
+  Future<void> _onDelete(DeletePatient e, Emitter<PatientListState> emit) async {
+    try {
+      await _repository.destroy(e.id);
       add(const LoadPatients());
     } on ApiException catch (ex) {
       emit(state.copyWith(error: ex.message));

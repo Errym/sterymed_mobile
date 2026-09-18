@@ -17,4 +17,33 @@ class DeviceDetailRepository {
     _cache.put('devices', fresh);
     return fresh;
   }
+
+  Future<DeviceDetail> show(String id) => _remote.show(id);
+
+  Future<DeviceDetail> update({
+    required String id,
+    String? name,
+    String? model,
+    String? serialNumber,
+    String? manufacturer,
+    String? status,
+    String? notes,
+  }) async {
+    final d = await _remote.update(
+      id: id,
+      name: name,
+      model: model,
+      serialNumber: serialNumber,
+      manufacturer: manufacturer,
+      status: status,
+      notes: notes,
+    );
+    _cache.invalidateAll();
+    return d;
+  }
+
+  Future<void> destroy(String id) async {
+    await _remote.destroy(id);
+    _cache.invalidateAll();
+  }
 }

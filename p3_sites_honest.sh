@@ -1,3 +1,20 @@
+#!/usr/bin/env bash
+# =============================================================================
+# p3_sites_honest.sh
+# Adds an informational banner explaining that sites are managed on the web.
+# No create/edit UI is offered because the backend does not support it.
+# Run from ~/sterymed_mobile
+# =============================================================================
+set -euo pipefail
+
+ROOT="$(pwd)"
+[[ -f "$ROOT/pubspec.yaml" ]] || { echo "❌ Not project root"; exit 1; }
+
+echo "═══════════════════════════════════════════════════════════════"
+echo "  P3 — Sites read-only banner"
+echo "═══════════════════════════════════════════════════════════════"
+
+cat > lib/features/sites/presentation/screens/site_list_screen.dart << 'DART'
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -170,3 +187,7 @@ class _SiteCard extends StatelessWidget {
     );
   }
 }
+DART
+
+echo "  ✔ site_list_screen.dart — read-only + info banner"
+flutter analyze 2>&1 | tail -10

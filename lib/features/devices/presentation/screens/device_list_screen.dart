@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
@@ -7,6 +8,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../cycles/data/repositories/device_repository.dart';
 import '../../data/models/device_detail.dart';
 import '../../data/repositories/device_detail_repository.dart';
 import '../widgets/device_form_sheet.dart';
@@ -38,7 +40,10 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
   Future<void> _create() async {
     final ok = await DeviceFormSheet.show(context);
-    if (ok == true) _refresh();
+    if (ok == true) {
+      getIt<DeviceRepository>().invalidateCache();
+      _refresh();
+    }
   }
 
   @override
@@ -85,8 +90,17 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
             return ListView.separated(
               padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: devices.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (_, i) => _DeviceCard(device: devices[i]),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (_, i) => _DeviceCard(
+                device: devices[i],
+                onTap: () async {
+                  final changed = await context.push<bool>(
+                    '/app/devices/${devices[i].id}',
+                  );
+                  if (changed == true && mounted) _refresh();
+                },
+              ),
             );
           },
         ),
@@ -97,57 +111,72 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
 class _DeviceCard extends StatelessWidget {
   final DeviceDetail device;
-  const _DeviceCard({required this.device});
+  final VoidCallback? onTap;
+  const _DeviceCard({required this.device, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: AppColors.brandPrimaryLight,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(
-              Icons.precision_manufacturing_outlined,
-              size: 20,
-              color: AppColors.brandPrimary,
-            ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.backgroundCard,
+            borderRadius: BorderRadius.circular(AppRadius.card),
+            border: Border.all(color: AppColors.borderLight),
           ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(device.name, style: AppTypography.bodyStrong),
-                if (device.model != null) ...[
-                  const SizedBox(height: 2),
-                  Text(device.model!, style: AppTypography.caption),
-                ],
-                if (device.serialNumber != null) ...[
-                  const SizedBox(height: 2),
-                  Text('SN: ${device.serialNumber!}',
-                      style: AppTypography.caption),
-                ],
-              ],
-            ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: AppColors.brandPrimaryLight,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
+                ),
+                child: const Icon(
+                  Icons.precision_manufacturing_outlined,
+                  size: 20,
+                  color: AppColors.brandPrimary,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(device.name, style: AppTypography.bodyStrong),
+                    if (device.model != null) ...[
+                      const SizedBox(height: 2),
+                      Text(device.model!, style: AppTypography.caption),
+                    ],
+                    if (device.serialNumber != null) ...[
+                      const SizedBox(height: 2),
+                      Text('SN: ${device.serialNumber!}',
+                          style: AppTypography.caption),
+                    ],
+                  ],
+                ),
+              ),
+              if (device.status != null)
+                TypeBadge(
+                  label: device.status!.toUpperCase(),
+                  tone: device.status == 'active'
+                      ? BadgeTone.green
+                      : BadgeTone.gray,
+                ),
+              const SizedBox(width: AppSpacing.xs),
+              const Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: AppColors.textTertiary,
+              ),
+            ],
           ),
-          if (device.status != null)
-            TypeBadge(
-              label: device.status!.toUpperCase(),
-              tone:
-                  device.status == 'active' ? BadgeTone.green : BadgeTone.gray,
-            ),
-        ],
+        ),
       ),
     );
   }

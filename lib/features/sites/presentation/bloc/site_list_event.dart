@@ -13,18 +13,3 @@ class LoadSites extends SiteListEvent {
 class RefreshSites extends SiteListEvent {
   const RefreshSites();
 }
-
-class CreateSite extends SiteListEvent {
-  final String name;
-  final String? addressLine1;
-  final String? city;
-  final bool isPrimary;
-  const CreateSite({
-    required this.name,
-    this.addressLine1,
-    this.city,
-    this.isPrimary = false,
-  });
-  @override
-  List<Object?> get props => [name];
-}
