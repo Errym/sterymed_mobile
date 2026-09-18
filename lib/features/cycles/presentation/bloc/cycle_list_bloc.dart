@@ -20,7 +20,7 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
   Future<void> _onLoad(LoadCycles event, Emitter<CycleListState> emit) async {
     emit(state.copyWith(status: CycleListStatus.loading, error: null));
     try {
-      final cycles = await _repository.list();
+      final cycles = await _repository.list(forceRefresh: true);
       emit(state.copyWith(status: CycleListStatus.success, cycles: cycles));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CycleListStatus.failure, error: e.message));
@@ -32,7 +32,7 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
     Emitter<CycleListState> emit,
   ) async {
     try {
-      final cycles = await _repository.list();
+      final cycles = await _repository.list(forceRefresh: true);
       emit(state.copyWith(status: CycleListStatus.success, cycles: cycles));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CycleListStatus.failure, error: e.message));
@@ -40,6 +40,11 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
   }
 
   void _onFilter(FilterCycles event, Emitter<CycleListState> emit) {
-    emit(state.copyWith(selectedStatus: event.status));
+    if (event.status == null) {
+      // Explicitly clear the filter — this is the "Tous les cycles" case.
+      emit(state.copyWith(clearStatusFilter: true));
+    } else {
+      emit(state.copyWith(selectedStatus: event.status));
+    }
   }
 }

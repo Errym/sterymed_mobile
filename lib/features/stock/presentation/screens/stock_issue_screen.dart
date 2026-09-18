@@ -1,30 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
-import '../cubit/stock_action_cubit.dart';
+import '../../data/models/stock_option.dart';
+import '../../data/repositories/stock_repository.dart';
+import '../widgets/stock_options_loader.dart';
 
 class StockIssueScreen extends StatelessWidget {
   const StockIssueScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<StockActionCubit>(),
-      child: const _StockIssueForm(),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundApp,
+      appBar: const AppAppBar(title: 'Sortie de stock'),
+      body: StockOptionsLoader(
+        builder: (ctx, batches, locations, reload) {
+          if (batches.isEmpty || locations.isEmpty) {
+            return _NoStockCard(
+              missingBatch: batches.isEmpty,
+              missingLocation: locations.isEmpty,
+              onReload: reload,
+            );
+          }
+          return _StockIssueForm(batches: batches, locations: locations);
+        },
+      ),
     );
   }
 }
 
 class _StockIssueForm extends StatefulWidget {
-  const _StockIssueForm();
+  final List<StockOption> batches;
+  final List<StockOption> locations;
+
+  const _StockIssueForm({required this.batches, required this.locations});
 
   @override
   State<_StockIssueForm> createState() => _StockIssueFormState();
@@ -32,15 +50,21 @@ class _StockIssueForm extends StatefulWidget {
 
 class _StockIssueFormState extends State<_StockIssueForm> {
   final _formKey = GlobalKey<FormState>();
-  final _batchCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
+  String? _batchId;
+  String? _locationId;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _batchId = widget.batches.first.id;
+    _locationId = widget.locations.first.id;
+  }
 
   @override
   void dispose() {
-    _batchCtrl.dispose();
-    _locationCtrl.dispose();
     _qtyCtrl.dispose();
     _reasonCtrl.dispose();
     super.dispose();
@@ -48,84 +72,123 @@ class _StockIssueFormState extends State<_StockIssueForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await context.read<StockActionCubit>().issue(
-          batchId: _batchCtrl.text.trim(),
-          locationId: _locationCtrl.text.trim(),
-          qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
-          reason: _reasonCtrl.text.trim().isEmpty
-              ? null
-              : _reasonCtrl.text.trim(),
-        );
-    if (!mounted) return;
-    if (ok) {
+    if (_batchId == null || _locationId == null) return;
+
+    setState(() => _submitting = true);
+    try {
+      await getIt<StockRepository>().issue(
+        batchId: _batchId!,
+        locationId: _locationId!,
+        qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
+        reason: _reasonCtrl.text.trim().isEmpty
+            ? null
+            : _reasonCtrl.text.trim(),
+      );
+      if (!mounted) return;
       AppSnackbar.show(context, 'Sortie enregistrée.',
           kind: SnackKind.success);
       context.pop();
-    } else {
-      AppSnackbar.show(context, 'Échec de l\'enregistrement.',
-          kind: SnackKind.error);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundApp,
-      appBar: const AppAppBar(title: 'Sortie de stock'),
-      body: BlocBuilder<StockActionCubit, StockActionState>(
-        builder: (context, state) {
-          final isSubmitting = state.status == StockActionStatus.loading;
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              children: [
-                AppTextField(
-                  label: 'Identifiant du lot *',
-                  hint: 'ex. UUID du lot',
-                  controller: _batchCtrl,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Requis.' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Identifiant de l\'emplacement *',
-                  hint: 'ex. UUID du local',
-                  controller: _locationCtrl,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Requis.' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Quantité *',
-                  hint: 'ex. 2',
-                  keyboardType: TextInputType.number,
-                  controller: _qtyCtrl,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Requis.';
-                    final n = int.tryParse(v.trim());
-                    if (n == null || n <= 0) {
-                      return 'Entrez un nombre positif.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextArea(
-                  label: 'Motif (optionnel)',
-                  controller: _reasonCtrl,
-                  maxLines: 2,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                PrimaryButton(
-                  label: 'Enregistrer la sortie',
-                  isLoading: isSubmitting,
-                  onPressed: _submit,
-                ),
-              ],
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          AppDropdown<String>(
+            label: 'Lot *',
+            value: _batchId,
+            options: widget.batches
+                .map((b) => AppDropdownOption(value: b.id, label: b.label))
+                .toList(),
+            onChanged: (v) => setState(() => _batchId = v),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppDropdown<String>(
+            label: 'Emplacement *',
+            value: _locationId,
+            options: widget.locations
+                .map((l) => AppDropdownOption(value: l.id, label: l.label))
+                .toList(),
+            onChanged: (v) => setState(() => _locationId = v),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            label: 'Quantité *',
+            hint: 'ex. 2',
+            keyboardType: TextInputType.number,
+            controller: _qtyCtrl,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Requis.';
+              final n = int.tryParse(v.trim());
+              if (n == null || n <= 0) return 'Entrez un nombre positif.';
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextArea(
+            label: 'Motif (optionnel)',
+            controller: _reasonCtrl,
+            maxLines: 2,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          PrimaryButton(
+            label: 'Enregistrer la sortie',
+            isLoading: _submitting,
+            onPressed: _submitting ? null : _submit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoStockCard extends StatelessWidget {
+  final bool missingBatch;
+  final bool missingLocation;
+  final Future<void> Function() onReload;
+
+  const _NoStockCard({
+    required this.missingBatch,
+    required this.missingLocation,
+    required this.onReload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = missingBatch && missingLocation
+        ? 'Aucun lot ni emplacement en stock.'
+        : missingBatch
+            ? 'Aucun lot en stock. Réceptionnez d\'abord une commande.'
+            : 'Aucun emplacement configuré.';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.inventory_2_outlined,
+                size: 56, color: AppColors.textTertiary),
+            const SizedBox(height: AppSpacing.md),
+            Text(msg,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyStrong),
+            const SizedBox(height: AppSpacing.lg),
+            OutlinedButton.icon(
+              onPressed: () => onReload(),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Réessayer'),
             ),
-          );
-        },
+          ],
+        ),
       ),
     );
   }

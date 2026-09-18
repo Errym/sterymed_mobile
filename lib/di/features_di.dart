@@ -44,7 +44,10 @@ import '../features/compliance/presentation/bloc/non_conformity_list_bloc.dart';
 
 // ── Cycles (sterilization) ──────────────────────────────────────────────────
 import '../features/cycles/data/datasources/cycle_remote_datasource.dart';
+import '../features/cycles/data/local/cycle_notes_cache.dart';
 import '../features/cycles/data/datasources/device_remote_datasource.dart';
+import '../features/cycles/data/datasources/device_program_remote_datasource.dart';
+import '../features/cycles/data/repositories/device_program_repository.dart';
 import '../features/cycles/data/repositories/cycle_repository.dart';
 import '../features/cycles/data/repositories/device_repository.dart';
 import '../features/cycles/presentation/bloc/cycle_list_bloc.dart';
@@ -216,10 +219,7 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<CycleRemoteDatasource>(
     () => CycleRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<CycleRepository>(() => CycleRepository(
-        getIt<CycleRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<CycleNotesCache>(() => CycleNotesCache());
   getIt.registerFactory<CycleListBloc>(
     () => CycleListBloc(getIt<CycleRepository>()),
   );
@@ -254,6 +254,23 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<DeviceRepository>(() => DeviceRepository(
         getIt<DeviceRemoteDatasource>(),
         getIt<AppCache>(),
+      ));
+
+  getIt.registerLazySingleton<DeviceProgramRemoteDatasource>(
+    () => DeviceProgramRemoteDatasource(getIt<DioClient>().dio),
+  );
+  getIt.registerLazySingleton<DeviceProgramRepository>(
+    () => DeviceProgramRepository(
+      getIt<DeviceProgramRemoteDatasource>(),
+      getIt<AppCache>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<CycleRepository>(() => CycleRepository(
+        getIt<CycleRemoteDatasource>(),
+        getIt<AppCache>(),
+        getIt<DeviceRepository>(),
+        getIt<DeviceProgramRepository>(),
       ));
   getIt.registerLazySingleton<DeviceDetailDatasource>(
     () => DeviceDetailDatasource(getIt<DioClient>().dio),

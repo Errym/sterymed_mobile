@@ -28,6 +28,9 @@ class FilterChipRow<T> extends StatelessWidget {
         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.xs),
         itemBuilder: (_, i) {
           final o = options[i];
+          // `selected` may be null and `o.value` may also be null
+          // (the "Tous" chip). Use `==` — in Dart, null == null is true,
+          // and null == 'x' is false. This is the correct behaviour.
           final isSelected = o.value == selected;
           return Material(
             color: Colors.transparent,

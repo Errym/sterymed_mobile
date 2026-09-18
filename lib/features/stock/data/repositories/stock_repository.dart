@@ -2,6 +2,7 @@ import '../../../../core/cache/cache.dart';
 import '../datasources/stock_remote_datasource.dart';
 import '../models/stock_level_data.dart';
 import '../models/stock_movement_data.dart';
+import '../models/stock_option.dart';
 
 class StockRepository {
   final StockRemoteDatasource _remote;
@@ -24,6 +25,20 @@ class StockRepository {
     return fresh;
   }
 
+  Future<({List<StockOption> batches, List<StockOption> locations})>
+      listOptions({bool forceRefresh = false}) async {
+    const key = 'stock_options';
+    if (!forceRefresh) {
+      final cached =
+          _cache.get<({List<StockOption> batches, List<StockOption> locations})>(
+              key);
+      if (cached != null) return cached;
+    }
+    final fresh = await _remote.listOptions();
+    _cache.put(key, fresh);
+    return fresh;
+  }
+
   Future<StockMovementData> issue({
     required String batchId,
     required String locationId,
@@ -37,6 +52,7 @@ class StockRepository {
       reason: reason,
     );
     _cache.invalidate('stock_levels');
+    _cache.invalidate('stock_options');
     _cache.invalidate('dashboard');
     return m;
   }
@@ -54,6 +70,7 @@ class StockRepository {
       reason: reason,
     );
     _cache.invalidate('stock_levels');
+    _cache.invalidate('stock_options');
     _cache.invalidate('dashboard');
     return m;
   }
@@ -73,6 +90,7 @@ class StockRepository {
       reason: reason,
     );
     _cache.invalidate('stock_levels');
+    _cache.invalidate('stock_options');
     _cache.invalidate('dashboard');
     return m;
   }

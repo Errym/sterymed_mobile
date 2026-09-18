@@ -11,6 +11,7 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
+import '../../data/models/cycle_data.dart';
 import '../bloc/cycle_list_bloc.dart';
 
 class CycleListScreen extends StatelessWidget {
@@ -37,6 +38,7 @@ class _CycleListView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Rafraîchir',
             onPressed: () =>
                 context.read<CycleListBloc>().add(const RefreshCycles()),
           ),
@@ -134,14 +136,13 @@ class _CycleListView extends StatelessWidget {
 }
 
 class _CycleCard extends StatelessWidget {
-  final dynamic cycle;
+  final CycleData cycle;
   final VoidCallback onTap;
 
   const _CycleCard({required this.cycle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final statusBadge = _statusBadgeFor(cycle.status);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -157,28 +158,70 @@ class _CycleCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Row 1: cycle number + status ──
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      'Cycle #${cycle.number} · LOT-${cycle.number}',
+                      'Cycle #${cycle.number}',
                       style: AppTypography.bodyStrong,
                     ),
                   ),
-                  statusBadge,
+                  _statusBadgeFor(cycle.status),
                 ],
               ),
               const SizedBox(height: AppSpacing.xs),
-              Text(
-                cycle.deviceName ?? 'Appareil',
-                style: AppTypography.caption,
-              ),
-              const SizedBox(height: AppSpacing.xs),
+
+              // ── Row 2: device + programme ──
               Row(
                 children: [
+                  const Icon(
+                    Icons.precision_manufacturing_outlined,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      cycle.deviceName,
+                      style: AppTypography.caption,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (cycle.programName != null) ...[
+                    const SizedBox(width: AppSpacing.xs),
+                    const Icon(
+                      Icons.thermostat_outlined,
+                      size: 14,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 4),
+                    Flexible(
+                      child: Text(
+                        cycle.programName!,
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.brandPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+
+              // ── Row 3: date + chevron ──
+              Row(
+                children: [
+                  const Icon(
+                    Icons.schedule,
+                    size: 14,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 4),
                   Text(
-                    DateFormat('dd/MM/yyyy HH:mm')
-                        .format(cycle.createdAt as DateTime),
+                    DateFormat('dd/MM/yyyy HH:mm').format(cycle.createdAt),
                     style: AppTypography.caption,
                   ),
                   const Spacer(),
@@ -209,6 +252,9 @@ class _CycleCard extends StatelessWidget {
             label: 'Contrôles saisis', tone: BadgeTone.yellow);
       case 'rejected':
         return const TypeBadge(label: 'Rejeté', tone: BadgeTone.red);
+      case 'completed':
+        return const TypeBadge(
+            label: 'Terminé', tone: BadgeTone.orange);
       default:
         return const TypeBadge(label: 'Créé', tone: BadgeTone.gray);
     }

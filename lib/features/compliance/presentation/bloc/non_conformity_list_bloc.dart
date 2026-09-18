@@ -41,7 +41,11 @@ class NonConformityListBloc
     FilterNonConformities event,
     Emitter<NonConformityListState> emit,
   ) {
-    emit(state.copyWith(statusFilter: event.status));
+    if (event.status == null) {
+      emit(state.copyWith(clearStatusFilter: true));
+    } else {
+      emit(state.copyWith(statusFilter: event.status));
+    }
     add(const LoadNonConformities());
   }
 }

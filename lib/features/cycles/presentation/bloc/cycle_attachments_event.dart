@@ -11,19 +11,24 @@ class LoadAttachments extends CycleAttachmentsEvent {
 }
 
 class UploadAttachment extends CycleAttachmentsEvent {
-  final String filePath;
   final String fileName;
+  final Uint8List bytes;
+  final String? mimeType;
+
   const UploadAttachment({
-    required this.filePath,
     required this.fileName,
+    required this.bytes,
+    this.mimeType,
   });
+
   @override
-  List<Object?> get props => [filePath, fileName];
+  List<Object?> get props => [fileName, mimeType];
 }
 
 class DeleteAttachment extends CycleAttachmentsEvent {
-  final int mediaId;
-  const DeleteAttachment(this.mediaId);
+  /// UUID string — matches what the backend returns and expects.
+  final String attachmentId;
+  const DeleteAttachment(this.attachmentId);
   @override
-  List<Object?> get props => [mediaId];
+  List<Object?> get props => [attachmentId];
 }

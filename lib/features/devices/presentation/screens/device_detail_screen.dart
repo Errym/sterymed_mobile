@@ -11,9 +11,12 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
+import '../../../cycles/data/models/device_program_data.dart';
+import '../../../cycles/data/repositories/device_program_repository.dart';
 import '../../data/models/device_detail.dart';
 import '../../data/repositories/device_detail_repository.dart';
 import '../widgets/device_form_sheet.dart';
+import '../widgets/programme_form_sheet.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
   final String deviceId;
@@ -46,9 +49,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       context,
       existingId: widget.deviceId,
     );
-    if (result == true && mounted) {
-      await _refresh();
-    }
+    if (result == true && mounted) await _refresh();
   }
 
   Future<void> _delete() async {
@@ -62,7 +63,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       isDestructive: true,
     );
     if (!ok || !mounted) return;
-
     try {
       await getIt<DeviceDetailRepository>().destroy(widget.deviceId);
       if (!mounted) return;
@@ -135,10 +135,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              d.name,
-                              style: AppTypography.sectionTitle,
-                            ),
+                            Text(d.name, style: AppTypography.sectionTitle),
                             const SizedBox(height: 4),
                             if (d.status != null)
                               TypeBadge(
@@ -155,14 +152,18 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 ),
                 const SizedBox(height: AppSpacing.lg),
 
-                // ── Identity ──
+                // ── Identification ──
                 const SectionHeader(title: 'Identification'),
                 _Field(label: 'N° de série', value: d.serialNumber),
                 _Field(label: 'Fabricant', value: d.manufacturer),
                 _Field(label: 'Modèle', value: d.model),
                 const SizedBox(height: AppSpacing.lg),
 
-                // ── Location ──
+                // ── Programmes ──
+                _ProgrammesSection(deviceId: widget.deviceId),
+
+                // ── Localisation ──
+                const SizedBox(height: AppSpacing.lg),
                 const SectionHeader(title: 'Localisation'),
                 _Field(label: 'Site', value: d.siteName),
                 const SizedBox(height: AppSpacing.lg),
@@ -199,6 +200,258 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Programme section
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProgrammesSection extends StatefulWidget {
+  final String deviceId;
+  const _ProgrammesSection({required this.deviceId});
+
+  @override
+  State<_ProgrammesSection> createState() => _ProgrammesSectionState();
+}
+
+class _ProgrammesSectionState extends State<_ProgrammesSection> {
+  List<DeviceProgramData> _programs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final programs = await getIt<DeviceProgramRepository>()
+          .list(widget.deviceId, forceRefresh: true);
+      if (!mounted) return;
+      setState(() {
+        _programs = programs;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = e.toString();
+      });
+    }
+  }
+
+  Future<void> _add() async {
+    final ok = await ProgrammeFormSheet.show(
+      context,
+      deviceId: widget.deviceId,
+    );
+    if (ok == true) await _load();
+  }
+
+  Future<void> _edit(DeviceProgramData p) async {
+    final ok = await ProgrammeFormSheet.show(
+      context,
+      deviceId: widget.deviceId,
+      existing: p,
+    );
+    if (ok == true) await _load();
+  }
+
+  Future<void> _delete(DeviceProgramData p) async {
+    final ok = await ConfirmationDialog.show(
+      context,
+      title: 'Supprimer ce programme ?',
+      message: p.displayLabel,
+      confirmLabel: 'Supprimer',
+      isDestructive: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await getIt<DeviceProgramRepository>().destroy(
+        deviceId: widget.deviceId,
+        programId: p.id,
+      );
+      if (!mounted) return;
+      AppSnackbar.show(context, 'Programme supprimé.',
+          kind: SnackKind.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Programmes de stérilisation (${_programs.length})',
+          trailing: IconButton(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Ajouter un programme',
+            onPressed: _loading ? null : _add,
+          ),
+        ),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (_error != null)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.dangerLight,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Text(_error!, style: AppTypography.caption),
+          )
+        else if (_programs.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.warningLight,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Aucun programme défini',
+                  style: AppTypography.bodyStrong,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Ajoutez au moins un programme pour pouvoir créer des '
+                  'cycles avec cet appareil.',
+                  style: AppTypography.caption,
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: _add,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Ajouter un programme'),
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          ..._programs.map((p) => _ProgrammeRow(
+                program: p,
+                onEdit: () => _edit(p),
+                onDelete: () => _delete(p),
+              )),
+      ],
+    );
+  }
+}
+
+class _ProgrammeRow extends StatelessWidget {
+  final DeviceProgramData program;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+
+  const _ProgrammeRow({
+    required this.program,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: AppColors.borderLight),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: program.isActive
+                  ? AppColors.brandPrimaryLight
+                  : AppColors.backgroundMuted,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Icon(
+              Icons.thermostat_outlined,
+              size: 18,
+              color: program.isActive
+                  ? AppColors.brandPrimary
+                  : AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(program.name, style: AppTypography.bodyStrong),
+                const SizedBox(height: 2),
+                Text(
+                  '${program.temperatureCelsius} °C · '
+                  '${program.plateauMinutes} min'
+                  '${program.isActive ? '' : ' · Inactif'}',
+                  style: AppTypography.caption,
+                ),
+              ],
+            ),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert,
+                size: 20, color: AppColors.textSecondary),
+            onSelected: (v) {
+              if (v == 'edit') onEdit();
+              if (v == 'delete') onDelete();
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'edit',
+                child: Row(children: [
+                  Icon(Icons.edit_outlined, size: 18),
+                  SizedBox(width: 8),
+                  Text('Modifier'),
+                ]),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: Row(children: [
+                  Icon(Icons.delete_outline,
+                      size: 18, color: AppColors.danger),
+                  SizedBox(width: 8),
+                  Text('Supprimer',
+                      style: TextStyle(color: AppColors.danger)),
+                ]),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

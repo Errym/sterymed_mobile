@@ -20,12 +20,14 @@ class NonConformityListState extends Equatable {
     List<NonConformityData>? items,
     String? statusFilter,
     String? error,
-    bool clearFilter = false,
+    bool clearStatusFilter = false,
   }) {
     return NonConformityListState(
       status: status ?? this.status,
       items: items ?? this.items,
-      statusFilter: clearFilter ? null : (statusFilter ?? this.statusFilter),
+      statusFilter: clearStatusFilter
+          ? null
+          : (statusFilter ?? this.statusFilter),
       error: error ?? this.error,
     );
   }

@@ -26,3 +26,22 @@ class SubmitCycleForRelease extends CycleTransitionEvent {
   @override
   List<Object> get props => [cycleId];
 }
+
+class ReleaseCycle extends CycleTransitionEvent {
+  final String cycleId;
+  final String decision; // 'compliant' | 'rejected'
+  final String? reason;
+
+  const ReleaseCycle({
+    required this.cycleId,
+    required this.decision,
+    this.reason,
+  });
+
+  @override
+  List<Object?> get props => [cycleId, decision, reason];
+}
+
+class ResetCycleTransition extends CycleTransitionEvent {
+  const ResetCycleTransition();
+}

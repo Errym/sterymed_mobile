@@ -24,11 +24,16 @@ class CycleListState extends Equatable {
     List<CycleData>? cycles,
     String? selectedStatus,
     String? error,
+    bool clearStatusFilter = false,
   }) {
     return CycleListState(
       status: status ?? this.status,
       cycles: cycles ?? this.cycles,
-      selectedStatus: selectedStatus ?? this.selectedStatus,
+      // When clearStatusFilter is true, explicitly null out the filter.
+      // Otherwise, only override if a new value is provided.
+      selectedStatus: clearStatusFilter
+          ? null
+          : (selectedStatus ?? this.selectedStatus),
       error: error ?? this.error,
     );
   }

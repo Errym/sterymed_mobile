@@ -5,6 +5,7 @@ import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/stock_level_data.dart';
 import '../models/stock_movement_data.dart';
+import '../models/stock_option.dart';
 
 class StockRemoteDatasource {
   final Dio _dio;
@@ -29,6 +30,45 @@ class StockRemoteDatasource {
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
+  }
+
+  /// Derive pickable batches and locations from the current stock levels.
+  /// Returns a record of (batches, locations).
+  Future<({List<StockOption> batches, List<StockOption> locations})>
+      listOptions() async {
+    final levels = await listLevels();
+    final batches = <String, StockOption>{};
+    final locations = <String, StockOption>{};
+    for (final l in levels) {
+      if (l.batchId != null && l.batchId!.isNotEmpty) {
+        batches.putIfAbsent(
+          l.batchId!,
+          () => StockOption(
+            id: l.batchId!,
+            label: l.batchNumber != null && l.batchNumber!.isNotEmpty
+                ? 'Lot ${l.batchNumber} · ${l.productName}'
+                : 'Lot ${l.batchId!.substring(0, 6)} · ${l.productName}',
+          ),
+        );
+      }
+      if (l.locationId.isNotEmpty) {
+        locations.putIfAbsent(
+          l.locationId,
+          () => StockOption(
+            id: l.locationId,
+            label: l.locationName.isNotEmpty
+                ? l.locationName
+                : 'Emplacement ${l.locationId.substring(0, 6)}',
+          ),
+        );
+      }
+    }
+    return (
+      batches: batches.values.toList()
+        ..sort((a, b) => a.label.compareTo(b.label)),
+      locations: locations.values.toList()
+        ..sort((a, b) => a.label.compareTo(b.label)),
+    );
   }
 
   Future<StockMovementData> issue({

@@ -1,7 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../data/models/cycle_attachment_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 
@@ -24,10 +27,7 @@ class CycleAttachmentsBloc
     LoadAttachments event,
     Emitter<CycleAttachmentsState> emit,
   ) async {
-    emit(state.copyWith(
-      status: AttachmentsStatus.loading,
-      error: null,
-    ));
+    emit(state.copyWith(status: AttachmentsStatus.loading, error: null));
     try {
       final list = await _repository.listAttachments(cycleId);
       emit(CycleAttachmentsState(
@@ -37,7 +37,12 @@ class CycleAttachmentsBloc
     } on ApiException catch (e) {
       emit(CycleAttachmentsState(
         status: AttachmentsStatus.failure,
-        error: e.message,
+        error: ErrorMessage.from(e),
+      ));
+    } catch (e) {
+      emit(CycleAttachmentsState(
+        status: AttachmentsStatus.failure,
+        error: ErrorMessage.from(e),
       ));
     }
   }
@@ -48,13 +53,16 @@ class CycleAttachmentsBloc
   ) async {
     try {
       await _repository.uploadAttachment(
-        cycleId,
-        event.filePath,
-        event.fileName,
+        cycleId: cycleId,
+        fileName: event.fileName,
+        bytes: event.bytes,
+        mimeType: event.mimeType,
       );
       add(const LoadAttachments());
     } on ApiException catch (e) {
-      emit(state.copyWith(error: e.message));
+      emit(state.copyWith(error: ErrorMessage.from(e)));
+    } catch (e) {
+      emit(state.copyWith(error: ErrorMessage.from(e)));
     }
   }
 
@@ -63,10 +71,12 @@ class CycleAttachmentsBloc
     Emitter<CycleAttachmentsState> emit,
   ) async {
     try {
-      await _repository.deleteAttachment(cycleId, event.mediaId);
+      await _repository.deleteAttachment(cycleId, event.attachmentId);
       add(const LoadAttachments());
     } on ApiException catch (e) {
-      emit(state.copyWith(error: e.message));
+      emit(state.copyWith(error: ErrorMessage.from(e)));
+    } catch (e) {
+      emit(state.copyWith(error: ErrorMessage.from(e)));
     }
   }
 }

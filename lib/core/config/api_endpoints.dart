@@ -57,7 +57,7 @@ abstract final class ApiEndpoints {
   static String cycleItem(String id, String itemId) => '$_v1/cycles/$id/items/$itemId';
   static String cycleControlTests(String id) => '$_v1/cycles/$id/control-tests';
   static String cycleAttachments(String id) => '$_v1/cycles/$id/attachments';
-  static String cycleAttachment(String id, int mediaId) => '$_v1/cycles/$id/attachments/$mediaId';
+  static String cycleAttachment(String id, String attachmentId) => '$_v1/cycles/$id/attachments/$attachmentId';
   static String cycleLabels(String id) => '$_v1/cycles/$id/labels';
 
   // Stock

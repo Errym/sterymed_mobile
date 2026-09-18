@@ -1,30 +1,48 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
-import '../cubit/stock_action_cubit.dart';
+import '../../data/models/stock_option.dart';
+import '../../data/repositories/stock_repository.dart';
+import '../widgets/stock_options_loader.dart';
 
 class StockAdjustScreen extends StatelessWidget {
   const StockAdjustScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (_) => getIt<StockActionCubit>(),
-      child: const _StockAdjustForm(),
+    return Scaffold(
+      backgroundColor: AppColors.backgroundApp,
+      appBar: const AppAppBar(title: 'Ajustement de stock'),
+      body: StockOptionsLoader(
+        builder: (ctx, batches, locations, reload) {
+          if (batches.isEmpty || locations.isEmpty) {
+            return _NoStockCard(
+              missingBatch: batches.isEmpty,
+              missingLocation: locations.isEmpty,
+              onReload: reload,
+            );
+          }
+          return _StockAdjustForm(batches: batches, locations: locations);
+        },
+      ),
     );
   }
 }
 
 class _StockAdjustForm extends StatefulWidget {
-  const _StockAdjustForm();
+  final List<StockOption> batches;
+  final List<StockOption> locations;
+
+  const _StockAdjustForm({required this.batches, required this.locations});
 
   @override
   State<_StockAdjustForm> createState() => _StockAdjustFormState();
@@ -32,15 +50,21 @@ class _StockAdjustForm extends StatefulWidget {
 
 class _StockAdjustFormState extends State<_StockAdjustForm> {
   final _formKey = GlobalKey<FormState>();
-  final _batchCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController();
   final _qtyCtrl = TextEditingController();
   final _reasonCtrl = TextEditingController();
+  String? _batchId;
+  String? _locationId;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _batchId = widget.batches.first.id;
+    _locationId = widget.locations.first.id;
+  }
 
   @override
   void dispose() {
-    _batchCtrl.dispose();
-    _locationCtrl.dispose();
     _qtyCtrl.dispose();
     _reasonCtrl.dispose();
     super.dispose();
@@ -48,108 +72,148 @@ class _StockAdjustFormState extends State<_StockAdjustForm> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final ok = await context.read<StockActionCubit>().adjust(
-          batchId: _batchCtrl.text.trim(),
-          locationId: _locationCtrl.text.trim(),
-          qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
-          reason: _reasonCtrl.text.trim(),
-        );
-    if (!mounted) return;
-    if (ok) {
+    if (_batchId == null || _locationId == null) return;
+
+    setState(() => _submitting = true);
+    try {
+      await getIt<StockRepository>().adjust(
+        batchId: _batchId!,
+        locationId: _locationId!,
+        qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
+        reason: _reasonCtrl.text.trim(),
+      );
+      if (!mounted) return;
       AppSnackbar.show(context, 'Ajustement enregistré.',
           kind: SnackKind.success);
       context.pop();
-    } else {
-      AppSnackbar.show(context, 'Échec de l\'enregistrement.',
-          kind: SnackKind.error);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.backgroundApp,
-      appBar: const AppAppBar(title: 'Ajustement de stock'),
-      body: BlocBuilder<StockActionCubit, StockActionState>(
-        builder: (context, state) {
-          final isSubmitting = state.status == StockActionStatus.loading;
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.warningLight,
+              borderRadius: BorderRadius.circular(AppRadius.card),
+            ),
+            child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.warningLight,
-                    borderRadius: BorderRadius.circular(AppRadius.card),
+                const Icon(Icons.warning_amber_outlined,
+                    color: AppColors.warning),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Un ajustement corrige un écart d\'inventaire. '
+                    'Le motif est obligatoire.',
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.warning),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_outlined,
-                          color: AppColors.warning),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          'Un ajustement corrige un écart d\'inventaire. '
-                          'Le motif est obligatoire.',
-                          style: AppTypography.caption
-                              .copyWith(color: AppColors.warning),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.lg),
-                AppTextField(
-                  label: 'Identifiant du lot *',
-                  hint: 'ex. UUID du lot',
-                  controller: _batchCtrl,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Requis.' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Identifiant de l\'emplacement *',
-                  hint: 'ex. UUID du local',
-                  controller: _locationCtrl,
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Requis.' : null,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Quantité (négatif pour retirer) *',
-                  hint: 'ex. 5 ou -3',
-                  keyboardType:
-                      const TextInputType.numberWithOptions(signed: true),
-                  controller: _qtyCtrl,
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Requis.';
-                    if (int.tryParse(v.trim()) == null) {
-                      return 'Entrez un nombre valide.';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextArea(
-                  label: 'Motif (obligatoire) *',
-                  controller: _reasonCtrl,
-                  maxLines: 3,
-                  validator: (v) => (v == null || v.trim().isEmpty)
-                      ? 'Le motif est obligatoire pour un ajustement.'
-                      : null,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                PrimaryButton(
-                  label: 'Enregistrer l\'ajustement',
-                  isLoading: isSubmitting,
-                  onPressed: _submit,
                 ),
               ],
             ),
-          );
-        },
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AppDropdown<String>(
+            label: 'Lot *',
+            value: _batchId,
+            options: widget.batches
+                .map((b) => AppDropdownOption(value: b.id, label: b.label))
+                .toList(),
+            onChanged: (v) => setState(() => _batchId = v),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppDropdown<String>(
+            label: 'Emplacement *',
+            value: _locationId,
+            options: widget.locations
+                .map((l) => AppDropdownOption(value: l.id, label: l.label))
+                .toList(),
+            onChanged: (v) => setState(() => _locationId = v),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextField(
+            label: 'Quantité (négatif pour retirer) *',
+            hint: 'ex. 5 ou -3',
+            keyboardType: const TextInputType.numberWithOptions(signed: true),
+            controller: _qtyCtrl,
+            validator: (v) {
+              if (v == null || v.trim().isEmpty) return 'Requis.';
+              if (int.tryParse(v.trim()) == null) {
+                return 'Entrez un nombre valide.';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: AppSpacing.md),
+          AppTextArea(
+            label: 'Motif (obligatoire) *',
+            controller: _reasonCtrl,
+            maxLines: 3,
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? 'Le motif est obligatoire pour un ajustement.'
+                : null,
+          ),
+          const SizedBox(height: AppSpacing.xl),
+          PrimaryButton(
+            label: 'Enregistrer l\'ajustement',
+            isLoading: _submitting,
+            onPressed: _submitting ? null : _submit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoStockCard extends StatelessWidget {
+  final bool missingBatch;
+  final bool missingLocation;
+  final Future<void> Function() onReload;
+
+  const _NoStockCard({
+    required this.missingBatch,
+    required this.missingLocation,
+    required this.onReload,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final msg = missingBatch && missingLocation
+        ? 'Aucun lot ni emplacement en stock.'
+        : missingBatch
+            ? 'Aucun lot en stock. Réceptionnez d\'abord une commande.'
+            : 'Aucun emplacement configuré.';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.inventory_2_outlined,
+                size: 56, color: AppColors.textTertiary),
+            const SizedBox(height: AppSpacing.md),
+            Text(msg,
+                textAlign: TextAlign.center,
+                style: AppTypography.bodyStrong),
+            const SizedBox(height: AppSpacing.lg),
+            OutlinedButton.icon(
+              onPressed: () => onReload(),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }
