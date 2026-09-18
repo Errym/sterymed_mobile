@@ -1,3 +1,7 @@
+// WORKAROUND: Backend GET /v1/patients returns only {id, reference}.
+// Full record cached locally.
+// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-008 is fixed.
+
 import 'dart:convert';
 
 import 'package:hive/hive.dart';

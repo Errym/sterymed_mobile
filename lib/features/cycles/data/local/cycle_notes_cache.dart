@@ -1,3 +1,7 @@
+// WORKAROUND: Backend has no PATCH /v1/cycles/{id}.
+// Notes cached in Hive only, never synced.
+// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-007 is fixed.
+
 import 'dart:convert';
 
 import 'package:hive/hive.dart';

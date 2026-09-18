@@ -46,3 +46,8 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+project_dump.txt
+*.phase0.bak
+*.phase1.bak
+*.tmp
+Thumbs.db

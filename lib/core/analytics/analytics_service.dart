@@ -18,6 +18,4 @@ class AnalyticsService {
   void trackUsageRecorded() => track(AnalyticsEvents.usageRecorded);
   void trackCycleTransition(String status) =>
       track(AnalyticsEvents.cycleTransition, {'status': status});
-  void trackProstheticTransition(String status) =>
-      track(AnalyticsEvents.prostheticTransition, {'status': status});
 }

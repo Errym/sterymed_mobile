@@ -1,3 +1,7 @@
+// WORKAROUND: Backend has no GET /v1/locations or GET /v1/batches.
+// Both derived from /stock-levels. Incomplete.
+// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-002 & #bug-003 are fixed.
+
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';

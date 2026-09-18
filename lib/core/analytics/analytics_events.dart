@@ -5,5 +5,4 @@ abstract final class AnalyticsEvents {
   static const scanBlocked = 'scan_blocked';
   static const usageRecorded = 'usage_recorded';
   static const cycleTransition = 'cycle_transition';
-  static const prostheticTransition = 'prosthetic_transition';
 }

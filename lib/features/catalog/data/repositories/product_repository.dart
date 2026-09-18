@@ -1,3 +1,7 @@
+// WORKAROUND: Backend has no PATCH /v1/products/{id}.
+// update() = delete + recreate. Data-loss risk.
+// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-006 is fixed.
+
 import '../../../../core/cache/cache.dart';
 import '../datasources/product_remote_datasource.dart';
 import '../models/product_data.dart';

@@ -1,3 +1,7 @@
+// WORKAROUND: Backend has no PATCH /v1/patients/{id}.
+// update() = delete + recreate. Data-loss risk.
+// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-005 is fixed.
+
 import '../../../../core/cache/cache.dart';
 import '../../../../core/utils/logger.dart';
 import '../datasources/patient_remote_datasource.dart';
