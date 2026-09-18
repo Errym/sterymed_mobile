@@ -82,6 +82,7 @@ import '../features/labels/data/repositories/label_usage_repository.dart';
 
 // ── Patients ────────────────────────────────────────────────────────────────
 import '../features/patients/data/datasources/patient_remote_datasource.dart';
+import '../features/patients/data/local/patient_local_cache.dart';
 import '../features/patients/data/repositories/patient_repository.dart';
 import '../features/patients/presentation/bloc/patient_list_bloc.dart';
 import '../features/patients/presentation/bloc/patient_search_bloc.dart';
@@ -168,9 +169,11 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<PatientRemoteDatasource>(
     () => PatientRemoteDatasource(getIt<DioClient>().dio),
   );
+  getIt.registerLazySingleton<PatientLocalCache>(() => PatientLocalCache());
   getIt.registerLazySingleton<PatientRepository>(() => PatientRepository(
         getIt<PatientRemoteDatasource>(),
         getIt<AppCache>(),
+        getIt<PatientLocalCache>(),
       ));
   getIt.registerFactory<PatientListBloc>(
     () => PatientListBloc(getIt<PatientRepository>()),

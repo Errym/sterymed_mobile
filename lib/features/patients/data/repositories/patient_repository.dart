@@ -1,57 +1,81 @@
 import '../../../../core/cache/cache.dart';
 import '../../../../core/utils/logger.dart';
 import '../datasources/patient_remote_datasource.dart';
+import '../local/patient_local_cache.dart';
 import '../models/patient_create_request.dart';
 import '../models/patient_data.dart';
 
 class PatientRepository {
   final PatientRemoteDatasource _remote;
   final AppCache _cache;
+  final PatientLocalCache _local;
 
-  PatientRepository(this._remote, this._cache);
+  PatientRepository(this._remote, this._cache, this._local);
 
   Future<List<PatientData>> search(
     String query, {
     bool forceRefresh = false,
   }) async {
-    if (!forceRefresh && query.trim().isEmpty) {
-      final cached = _cache.get<List<PatientData>>('patients:all');
-      if (cached != null) return cached;
-    }
-    final fresh = await _remote.search(query);
-    if (query.trim().isEmpty) _cache.put('patients:all', fresh);
-    return fresh;
+    // We don't cache the API list here — the local patient cache handles
+    // the display values. Always hit the API so we reflect server changes.
+    final fromApi = await _remote.search(query);
+    // Merge with the local cache so name/phone/email show up.
+    return _local.merge(fromApi);
   }
 
   Future<PatientData> create(PatientCreateRequest req) async {
-    final p = await _remote.create(req);
+    final created = await _remote.create(req);
+    // The API only returns { id, reference }. Save the full record locally
+    // so the name and other fields survive.
+    final full = PatientData(
+      id: created.id,
+      firstName: req.firstName,
+      lastName: req.lastName,
+      reference: created.reference ?? req.reference,
+      birthDate: req.birthDate,
+      phone: req.phone,
+      email: req.email,
+    );
+    await _local.save(full);
     _cache.invalidateAll();
-    return p;
+    return full;
   }
 
-  Future<PatientData> show(String id) => _remote.show(id);
+  Future<PatientData> show(String id) async {
+    // Prefer the local cache — it has the real values.
+    final cached = await _local.get(id);
+    if (cached != null) return cached;
+    // Fall back to the API (which only has id + reference).
+    return _remote.show(id);
+  }
 
   Future<void> destroy(String id) async {
     await _remote.destroy(id);
+    await _local.remove(id);
     _cache.invalidateAll();
   }
 
-  /// Edit is implemented as delete + recreate because the backend has no
-  /// PATCH /v1/patients/{id} endpoint (verified in docs/backend_routes.json).
-  ///
-  /// The old row is deleted and a new one is created with the new values.
-  /// Downside: the id changes. Any historical records referencing the old
-  /// id will point to a deleted patient. That is acceptable for the pilot
-  /// because patients are only referenced by label-usage events, and the
-  /// user is explicitly warned before confirming the edit.
+  /// Edit = delete + recreate (backend has no PATCH /v1/patients).
+  /// We keep the local cache consistent through both steps.
   Future<PatientData> update({
     required String id,
     required PatientCreateRequest req,
   }) async {
     AppLogger.d('PatientRepository.update: delete + recreate for $id');
     await _remote.destroy(id);
+    await _local.remove(id);
     final created = await _remote.create(req);
+    final full = PatientData(
+      id: created.id,
+      firstName: req.firstName,
+      lastName: req.lastName,
+      reference: created.reference ?? req.reference,
+      birthDate: req.birthDate,
+      phone: req.phone,
+      email: req.email,
+    );
+    await _local.save(full);
     _cache.invalidateAll();
-    return created;
+    return full;
   }
 }
