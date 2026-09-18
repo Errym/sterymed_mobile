@@ -37,7 +37,6 @@ void main() {
             .having((s) => s.status, 'status', ScannerStatus.resolved),
         // cooldown may transition back to scanning; allow it
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
     blocTest<ScannerBloc, ScannerState>(
@@ -61,7 +60,6 @@ void main() {
             .having((s) => s.result?.status, 'result.status',
                 LabelScanStatus.expired),
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
     blocTest<ScannerBloc, ScannerState>(
@@ -82,7 +80,6 @@ void main() {
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.error),
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
     test('torch toggles', () {
