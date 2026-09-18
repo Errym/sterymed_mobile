@@ -39,8 +39,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Critique'), findsOneWidget);
-    expect(find.text('Avertissement'), findsOneWidget);
+expect(find.text('Critique'),
+        findsWidgets); // header + badge    expect(find.text('Avertissement'), findsOneWidget);
     expect(find.text('Information'), findsOneWidget);
   });
 

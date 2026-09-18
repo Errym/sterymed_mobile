@@ -17,23 +17,27 @@ void main() {
   });
 
   group('CycleDetailBloc', () {
-    blocTest<CycleDetailBloc, CycleDetailState>(
+   blocTest<CycleDetailBloc, CycleDetailState>(
       'loads cycle + items + tests + attachments',
       build: () => CycleDetailBloc(repo),
       setUp: () {
-        when(() => repo.show(any()))
-            .thenAnswer((_) async => buildCycle());
+        when(() => repo.show(any())).thenAnswer((_) async => buildCycle());
         when(() => repo.listItems(any()))
             .thenAnswer((_) async => [buildCycleItem()]);
         when(() => repo.listControlTests(any()))
             .thenAnswer((_) async => [buildControlTest()]);
-        when(() => repo.listAttachments(any()))
-            .thenAnswer((_) async => []);
+        when(() => repo.listAttachments(any())).thenAnswer((_) async => []);
       },
       act: (bloc) => bloc.add(const LoadCycleDetail('cycle-1')),
       expect: () => [
         isA<CycleDetailState>()
             .having((s) => s.status, 'status', CycleDetailStatus.loading),
+        // Intermediate: cycle loaded, aux still pending
+        isA<CycleDetailState>()
+            .having((s) => s.status, 'status', CycleDetailStatus.success)
+            .having((s) => s.cycle, 'cycle', isNotNull)
+            .having((s) => s.items, 'items', isEmpty),
+        // Final: everything loaded
         isA<CycleDetailState>()
             .having((s) => s.status, 'status', CycleDetailStatus.success)
             .having((s) => s.cycle, 'cycle', isNotNull)
