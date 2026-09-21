@@ -1,13 +1,24 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/core/theme/typography.dart';
+import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:steriymed_mobile/features/alerts/data/repositories/alert_repository.dart';
 import 'package:steriymed_mobile/features/alerts/presentation/bloc/alert_list_bloc.dart';
 import 'package:steriymed_mobile/features/alerts/presentation/screens/alert_list_screen.dart';
-
 import '../fixtures/alert_fixture.dart';
 import '../helpers/pump_app.dart';
 import '../mocks/mock_repositories.dart';
+
+/// Matches the group header specifically, not the per-alert severity
+/// badge -- both render the same French label as literal text.
+Finder findGroupHeader(String label) => find.byWidgetPredicate(
+      (w) =>
+          w is Text &&
+          w.data == label &&
+          w.style?.fontSize == AppTypography.sectionTitle.fontSize,
+    );
 
 void main() {
   late MockAlertRepository repo;
@@ -37,9 +48,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Critique'), findsOneWidget);
-    expect(find.text('Avertissement'), findsOneWidget);
-    expect(find.text('Information'), findsOneWidget);
+    expect(findGroupHeader('Critique'), findsOneWidget);
+    expect(findGroupHeader('Avertissement'), findsOneWidget);
+    expect(findGroupHeader('Information'), findsOneWidget);
   });
 
   testWidgets('shows empty view when no alerts', (tester) async {

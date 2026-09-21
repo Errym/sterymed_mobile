@@ -1,9 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
-import 'package:steriymed_mobile/features/auth/data/repositories/auth_repository.dart';
 import 'package:steriymed_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:steriymed_mobile/features/auth/presentation/screens/login_screen.dart';
 
@@ -61,13 +62,16 @@ void main() {
   });
 
   testWidgets('disables submit while loading', (tester) async {
+    // A Completer that's never completed keeps the bloc in its loading
+    // state without scheduling a real Timer -- a Future.delayed here
+    // would leave a pending timer at teardown (or, if flushed, trigger
+    // post-login navigation this test's widget tree has no GoRouter for).
+    final neverCompletes = Completer<void>();
     when(() => repo.login(
           tenantSlug: any(named: 'tenantSlug'),
           email: any(named: 'email'),
           password: any(named: 'password'),
-        )).thenAnswer((_) async {
-      await Future<void>.delayed(const Duration(seconds: 5));
-    });
+        )).thenAnswer((_) => neverCompletes.future);
 
     await pumpApp(
       tester,
@@ -76,14 +80,16 @@ void main() {
         child: const LoginScreen(),
       ),
     );
+
     await tester.enterText(find.byType(TextFormField).at(0), 'test');
     await tester.enterText(find.byType(TextFormField).at(1), 'a@b.com');
     await tester.enterText(find.byType(TextFormField).at(2), 'password123');
+
     await tester.tap(find.text('Se connecter'));
     await tester.pump();
 
-    // Button should be in loading state
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    final button = tester.widget<ElevatedButton>(find.byType(ElevatedButton));
+    expect(button.onPressed, isNull);
   });
 
   testWidgets('fires AuthLoginSubmitted on valid input', (tester) async {

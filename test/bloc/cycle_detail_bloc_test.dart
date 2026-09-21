@@ -34,6 +34,12 @@ void main() {
       expect: () => [
         isA<CycleDetailState>()
             .having((s) => s.status, 'status', CycleDetailStatus.loading),
+        // the cycle itself resolves and is emitted before items/tests do
+        isA<CycleDetailState>()
+            .having((s) => s.status, 'status', CycleDetailStatus.success)
+            .having((s) => s.cycle, 'cycle', isNotNull)
+            .having((s) => s.items.length, 'items', 0)
+            .having((s) => s.controlTests.length, 'tests', 0),
         isA<CycleDetailState>()
             .having((s) => s.status, 'status', CycleDetailStatus.success)
             .having((s) => s.cycle, 'cycle', isNotNull)

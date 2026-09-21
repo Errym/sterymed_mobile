@@ -2,6 +2,7 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
+import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:steriymed_mobile/features/alerts/data/repositories/alert_repository.dart';
 import 'package:steriymed_mobile/features/alerts/presentation/bloc/alert_list_bloc.dart';
 

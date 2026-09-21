@@ -35,9 +35,10 @@ void main() {
             .having((s) => s.status, 'status', ScannerStatus.resolving),
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.resolved),
-        // cooldown may transition back to scanning; allow it
+        // the cooldown timer fires within `wait` and transitions back
+        isA<ScannerState>()
+            .having((s) => s.status, 'status', ScannerStatus.scanning),
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
     blocTest<ScannerBloc, ScannerState>(
@@ -60,8 +61,10 @@ void main() {
             .having((s) => s.status, 'status', ScannerStatus.resolved)
             .having((s) => s.result?.status, 'result.status',
                 LabelScanStatus.expired),
+        // the cooldown timer fires within `wait` and transitions back
+        isA<ScannerState>()
+            .having((s) => s.status, 'status', ScannerStatus.scanning),
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
     blocTest<ScannerBloc, ScannerState>(
@@ -81,18 +84,22 @@ void main() {
             .having((s) => s.status, 'status', ScannerStatus.resolving),
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.error),
+        // the cooldown timer fires within `wait` and transitions back
+        isA<ScannerState>()
+            .having((s) => s.status, 'status', ScannerStatus.scanning),
       ],
-      expectLater: (stream) => stream.take(2),
     );
 
-    test('torch toggles', () {
+    test('torch toggles', () async {
       final bloc = ScannerBloc(repo);
       expect(bloc.state.torchOn, false);
       bloc.add(const TorchToggled());
+      await Future<void>.delayed(Duration.zero);
       expect(bloc.state.torchOn, true);
       bloc.add(const TorchToggled());
+      await Future<void>.delayed(Duration.zero);
       expect(bloc.state.torchOn, false);
-      bloc.close();
+      await bloc.close();
     });
 
     test('reset returns to initial state', () {
