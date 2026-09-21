@@ -19,8 +19,8 @@ class AgingBadge extends StatelessWidget {
       bg = AppColors.agingMedium.withValues(alpha: 0.15);
       fg = AppColors.agingMedium;
     } else {
-      bg = AppColors.agingLate.withValues(alpha: 0.12);
-      fg = AppColors.agingLate;
+      bg = AppColors.agingUrgent.withValues(alpha: 0.12);
+      fg = AppColors.agingUrgent;
     }
 
     return Container(
