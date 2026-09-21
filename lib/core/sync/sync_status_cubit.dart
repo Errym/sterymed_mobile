@@ -24,13 +24,17 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
   Future<void> start() async {
     final online = await _connectivity.isConnected;
     _refresh(online: online);
+    await _flushIfOnline(online);
     _sub = _connectivity.onStatusChange.listen((online) async {
       _refresh(online: online);
-      if (online) {
-        await _engine.flush();
-        _refresh(online: true);
-      }
+      await _flushIfOnline(online);
     });
+  }
+
+  Future<void> _flushIfOnline(bool online) async {
+    if (!online) return;
+    await _engine.flush();
+    _refresh(online: true);
   }
 
   void _refresh({bool? online}) {
