@@ -16,6 +16,9 @@ import '../core/cache/cache.dart';
 import '../core/network/dio_client.dart';
 import '../core/storage/session_store.dart';
 import '../core/storage/token_storage.dart';
+import '../core/storage/outbox/outbox_store.dart';
+import '../core/sync/connectivity_service.dart';
+import '../core/sync/sync_status_cubit.dart';
 
 // ── Auth ────────────────────────────────────────────────────────────────────
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
@@ -406,6 +409,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<StockRepository>(() => StockRepository(
         getIt<StockRemoteDatasource>(),
         getIt<AppCache>(),
+        outbox: getIt<OutboxStore>(),
+        connectivity: getIt<ConnectivityService>(),
+        syncStatus: getIt<SyncStatusCubit>(),
       ));
   getIt.registerFactory<StockLevelListBloc>(
     () => StockLevelListBloc(getIt<StockRepository>()),
