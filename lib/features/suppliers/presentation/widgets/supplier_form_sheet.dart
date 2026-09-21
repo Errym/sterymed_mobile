@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../data/repositories/supplier_repository.dart';
 import '../bloc/supplier_list_bloc.dart';
 
 class SupplierFormSheet extends StatefulWidget {
@@ -35,6 +37,7 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
   final _emailCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
   final _addressCtrl = TextEditingController();
+  bool _submitting = false;
 
   @override
   void dispose() {
@@ -45,17 +48,27 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    context.read<SupplierListBloc>().add(CreateSupplier(
-          name: _nameCtrl.text.trim(),
-          email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
-          phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
-          address:
-              _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
-        ));
-    AppSnackbar.show(context, 'Fournisseur enregistré.', kind: SnackKind.success);
-    Navigator.of(context).pop(true);
+    setState(() => _submitting = true);
+    try {
+      await getIt<SupplierRepository>().create(
+        name: _nameCtrl.text.trim(),
+        email: _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        address:
+            _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+      );
+      if (!mounted) return;
+      context.read<SupplierListBloc>().add(const LoadSuppliers());
+      AppSnackbar.show(context, 'Fournisseur enregistré.', kind: SnackKind.success);
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -98,6 +111,7 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
             PrimaryButton(
               label: 'Enregistrer le fournisseur',
               onPressed: _submit,
+              isLoading: _submitting,
             ),
           ],
         ),

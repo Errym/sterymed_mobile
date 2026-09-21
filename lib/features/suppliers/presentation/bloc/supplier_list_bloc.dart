@@ -13,7 +13,6 @@ class SupplierListBloc extends Bloc<SupplierListEvent, SupplierListState> {
 
   SupplierListBloc(this._repository) : super(const SupplierListState()) {
     on<LoadSuppliers>(_onLoad);
-    on<CreateSupplier>(_onCreate);
   }
 
   Future<void> _onLoad(LoadSuppliers e, Emitter<SupplierListState> emit) async {
@@ -23,20 +22,6 @@ class SupplierListBloc extends Bloc<SupplierListEvent, SupplierListState> {
       emit(state.copyWith(status: SupplierListStatus.success, suppliers: list));
     } on ApiException catch (ex) {
       emit(state.copyWith(status: SupplierListStatus.failure, error: ex.message));
-    }
-  }
-
-  Future<void> _onCreate(CreateSupplier e, Emitter<SupplierListState> emit) async {
-    try {
-      await _repository.create(
-        name: e.name,
-        email: e.email,
-        phone: e.phone,
-        address: e.address,
-      );
-      add(const LoadSuppliers());
-    } on ApiException catch (ex) {
-      emit(state.copyWith(error: ex.message));
     }
   }
 }

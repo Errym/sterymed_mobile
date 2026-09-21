@@ -316,19 +316,6 @@ class AppRouter {
             path: Routes.dluRules,
             pageBuilder: (_, s) => _fade(s, const DluRulesScreen()),
           ),
-          GoRoute(
-            path: Routes.devices,
-            pageBuilder: (_, s) => _fade(s, const DeviceListScreen()),
-            routes: [
-              GoRoute(
-                path: ':id',
-                pageBuilder: (_, s) => _fade(
-                  s,
-                  DeviceDetailScreen(deviceId: s.pathParameters['id']!),
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     ],

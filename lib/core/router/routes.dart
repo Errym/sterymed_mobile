@@ -72,7 +72,7 @@ abstract final class Routes {
 
   // Devices
   static const devices = '/app/devices';
-  static String deviceDetail(String id) => '/app/devices/\$id';
+  static String deviceDetail(String id) => '/app/devices/$id';
 
   // DLU rules
   static const dluRules = '/app/dlu-rules';

@@ -84,8 +84,6 @@ class SettingsScreen extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.lg),
           const _SectionHeader('Application'),
-          // ignore: prefer_const_constructors
-          // ignore: prefer_const_constructors
           _InfoTile(
             icon: Icons.info_outline,
             label: 'Version',
