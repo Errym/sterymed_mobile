@@ -1,0 +1,1 @@
+{"error":{"code":"VALIDATION_FAILED","message":"The given data was invalid.","details":{"batch_id":["The selected batch id is invalid."],"location_id":["The selected location id is invalid."],"reason":["The reason field is required."]},"request_id":"01a0bbaf-b954-7297-8d7a-1b161645596d"}}

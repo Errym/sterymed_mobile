@@ -1,0 +1,1 @@
+{"error":{"code":"VALIDATION_FAILED","message":"The given data was invalid.","details":{"tenant_slug":["The tenant slug field is required."],"email":["The email field must be a valid email address."],"password":["The password field is required."]},"request_id":"01a0bbaf-bdba-708e-a384-ca00cb0394e3"}}

@@ -51,3 +51,7 @@ project_dump.txt
 *.phase1.bak
 *.tmp
 Thumbs.db
+!docs/captures/
+!docs/ui-reference/
+!docs/adr/
+.env.local
