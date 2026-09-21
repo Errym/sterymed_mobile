@@ -1,0 +1,3918 @@
+# SteryMed Mobile — The Complete Build Breakdown
+
+# Senior mobile engineer's master plan · Backend ready · UI provided · Flutter · 55 days + 8 contingency · Pilot MVP
+
+This is the entire project, phase per phase, from Day 1 to Day 55 and handoff. Every decision is justified. Every phase has entry criteria, daily work, exit criteria, and tests. Every gate is binary. If you follow this exactly, you ship a working app that matches the backend, matches the web UI, matches the *Cahier des charges*, and passes pilot acceptance.
+
+No fantasies. No invented scope. No over-engineering. Just the app the clinic will use.
+
+---
+
+# Part 1 — Ground rules
+
+Read these once. Obey them for the entire project.
+
+1. **The backend is the contract.** Observed API responses are the source of truth. Never trust DTOs in `openapi.yaml` over the wire.
+2. **The web UI is the reference.** Match it visually. Do not invent new patterns for mobile when the web already has one.
+3. **The brief is the scope.** No screen, no feature, no button that isn't in the brief. If it's not asked for, do not build it.
+4. **The pilot is French-only.** No `app_en.arb`. No English strings anywhere. Ever.
+5. **The pilot has two roles.** `admin` and `staff`. Not six. Not four. Two.
+6. **The outbox is mandatory from Phase 5 onward.** Not bolted on later.
+7. **The 409 is success, not error.** Replayed idempotency keys mean "already recorded."
+8. **Blocking UI states come from the server.** Expired and recalled labels are decided server-side. Never client-side.
+9. **No PII in logs.** Ever. Enforce at the interceptor level. Verify on Day 46.
+10. **CI is proven on Day 6.** Not Day 47. If the pipeline is broken, everything after is chaos.
+11. **Backup and restore are scheduled.** Not a checklist line. Drilled twice.
+12. **Every gate is binary.** Pass or fail. No partial credit.
+13. **Web + mobile coherence is tested continuously.** Not once at the end.
+14. **If a phase slips, cut scope, not quality.** The cut order is at the end of this document.
+15. **The pilot is a promise.** If the app loses a nurse's data entry, the pilot fails. Build accordingly.
+
+---
+
+# Part 2 — Pre-flight (half a day)
+
+Sit with the web engineer. Get everything you need. Do not start coding until this is done.
+
+| # | Task | Exit criterion |
+| --- | --- | --- |
+| P1 | Confirm product name is **SteryMed** everywhere | No SteriQore in any user-facing artifact |
+| P2 | Get live staging URL + pinned backend commit hash | Written in `README.md` |
+| P3 | Get Scramble docs URL (or `openapi.yaml` path) | Written in `docs/API_CONTRACT.md` |
+| P4 | Get test admin account + test staff account | Stored in `.env.local` (gitignored) |
+| P5 | Get test tenant slug with seeded pilot data | Written in `docs/API_CONTRACT.md` |
+| P6 | Confirm replayed `Idempotency-Key` returns 409 | One line in `docs/API_CONTRACT.md` |
+| P7 | Confirm prosthetic endpoints are live and seeded | Section in `docs/API_CONTRACT.md` |
+| P8 | Confirm all API `error.message` are in French | Test one bad login |
+| P9 | Confirm role matrix is `admin` + `staff` only | `docs/ROLE_MATRIX.md` |
+| P10 | Confirm support channel + SLA for pilot | `docs/SUPPORT.md` |
+| P11 | Confirm data migration + rollback plan | `docs/MIGRATION.md` |
+| P12 | Copy all 14 UI screenshots from SteryMed docs | `docs/ui-reference/` |
+| P13 | Confirm CI has macOS runner capability | Green test workflow exists |
+| P14 | Confirm Sentry project created | DSN in hand |
+
+You leave pre-flight with: a working staging URL, two test accounts, one contract, fourteen UI screenshots, a support channel, and a data migration plan. Nothing else.
+
+---
+
+# Part 3 — Phase 0: Contract capture + UI mapping (Days 1–3)
+
+## Purpose
+
+Eliminate every unknown before you write Dart. Every bug you don't catch here costs 5x later.
+
+## Day 1 — Live wire capture
+
+Open Postman. Log in as admin. Hit every endpoint in pilot scope. Copy the raw request and raw response.
+
+Endpoints to capture:
+
+**Auth**
+
+- `POST /auth/login`
+- `DELETE /auth/logout`
+- `DELETE /auth/tokens`
+- `GET /me`
+
+**Dashboard**
+
+- `GET /dashboard` (or wherever aggregates come from)
+
+**Alerts**
+
+- `GET /alerts`
+- `POST /alerts/{alert}/resolve`
+
+**Labels**
+
+- `GET /labels/{code}`
+- `GET /labels/{label}/usage`
+- `POST /labels/{label}/usage`
+
+**Patients**
+
+- `GET /patients`
+
+**Cycles**
+
+- `GET /cycles`
+- `POST /cycles`
+- `GET /cycles/{id}`
+- `POST /cycles/{id}/start`
+- `POST /cycles/{id}/complete`
+- `POST /cycles/{id}/submit-for-release`
+- `POST /cycles/{id}/release`
+- `GET /cycles/{id}/items`
+- `POST /cycles/{id}/items`
+- `DELETE /cycles/{id}/items/{itemId}`
+- `GET /cycles/{id}/control-tests`
+- `POST /cycles/{id}/control-tests`
+- `GET /cycles/{id}/attachments`
+- `POST /cycles/{id}/attachments`
+- `DELETE /cycles/{id}/attachments/{mediaId}`
+
+**Stock**
+
+- `GET /stock-levels`
+- `POST /stock-movements/issue`
+- `POST /stock-movements/adjust`
+- `POST /stock-movements/transfer`
+
+**Purchases**
+
+- `GET /purchase-orders`
+- `GET /purchase-orders/{id}`
+- `POST /purchase-orders/{id}/receipts`
+
+**Audit**
+
+- `GET /audit-events`
+
+**Prosthetic**
+
+- `GET /prosthetic-cases`
+- `POST /prosthetic-cases`
+- `GET /prosthetic-cases/{id}`
+- `PATCH /prosthetic-cases/{id}`
+- `POST /prosthetic-cases/{id}/status`
+- `POST /prosthetic-cases/{id}/attachments`
+- `GET /prosthetic-cases/waiting-placement`
+- `GET /prosthetic-dashboard`
+- `GET /laboratories`
+- `GET /prosthetic-cases/{id}/payments`
+- `POST /prosthetic-cases/{id}/payments`
+
+Write every pair into `docs/API_CONTRACT.md`. Raw JSON, not paraphrased.
+
+## Day 2 — Behavior matrix
+
+**Role matrix.** Log in as admin. Log in as staff. Hit every endpoint. Record which return 403.
+
+**Tenant isolation.** Log in as tenant A. Try to fetch a resource ID belonging to tenant B. Confirm 404.
+
+**Idempotency.** Send same `Idempotency-Key` twice. Confirm 409 on second.
+
+**Error catalog.** Trigger each error on purpose. Record exact `error.code` and French `error.message`:
+
+- 401 wrong password
+- 403 staff hitting admin-only endpoint
+- 404 unknown resource
+- 409 idempotency replay
+- 422 invalid payload
+- 429 rate limit
+
+Write `docs/ERROR_MATRIX.md`.
+
+## Day 3 — UI mapping + offline matrix + freeze
+
+**UI mapping.** Open every screen in the SteryMed docs. For each, list which endpoint feeds it, which fields display, which fields edit, and which states must be handled: loading, error, empty, loaded, offline, pending sync.
+
+Write `docs/UI_MAPPING.md`. This is your daily reference.
+
+**Offline matrix.**
+
+| Action | Offline |
+| --- | --- |
+| Scan lookup | NEVER |
+| Label usage | QUEUE |
+| Stock issue | QUEUE |
+| Stock adjust | QUEUE |
+| Stock transfer | QUEUE |
+| Goods receipt | QUEUE |
+| Cycle transitions | QUEUE |
+| Prosthetic status transition | QUEUE |
+| Prosthetic photo attachment | QUEUE |
+| Payments | QUEUE |
+| Search / filter | NEVER |
+
+Write `docs/OFFLINE_MATRIX.md`.
+
+**Freeze.** Sign off with web engineer. From now on, any contract change is a written change request.
+
+## Gate 0
+
+- [ ]  Every pilot endpoint captured from wire data
+- [ ]  Role matrix complete (admin + staff)
+- [ ]  Tenant isolation spot-checked
+- [ ]  Idempotency 409 confirmed
+- [ ]  Error catalog complete
+- [ ]  All API messages confirmed in French
+- [ ]  UI mapping complete
+- [ ]  Offline matrix complete
+- [ ]  Contract frozen and signed
+
+---
+
+# Part 4 — Phase 1: Foundation (Days 4–6)
+
+## Purpose
+
+Build the plumbing every feature will use. No features. Only infrastructure.
+
+## Day 4 — Network + storage
+
+**`lib/core/config/env.dart`**
+
+```dart
+class Env {
+  static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const environment = String.fromEnvironment('ENV', defaultValue: 'dev');
+  static const sentryDsn = String.fromEnvironment('SENTRY_DSN');
+}
+```
+
+**`lib/core/config/api_endpoints.dart`**
+
+One file, every path. Mirrors `routes/api.php` exactly. No strings scattered.
+
+**`lib/core/network/dio_client.dart`**
+
+Timeouts, JSON headers, base URL from Env.
+
+**Interceptors**
+
+- `auth_interceptor.dart` — reads bearer from `TokenStorage`, attaches to every request
+- `error_interceptor.dart` — parses `{error:{code,message,details,request_id}}`, throws `ApiException`
+- `idempotency_interceptor.dart` — injects `Idempotency-Key` on queuable POSTs
+- `logging_interceptor.dart` — debug only, runs payload through `pii_scrubber.dart`
+
+**`lib/core/storage/token_storage.dart`**
+
+`flutter_secure_storage` for bearer. Nothing else.
+
+**`lib/core/storage/session_store.dart`**
+
+Holds current `UserData`, `TenantData`, current role. Wiped on logout.
+
+## Day 5 — Errors, theme, router, DI
+
+**`lib/core/errors/api_exception.dart`**
+
+```dart
+class ApiException implements Exception {
+  final String code;
+  final String message;   // French
+  final Map<String, dynamic> details;
+  final String requestId;
+  final int? statusCode;
+}
+```
+
+**`lib/core/errors/error_mapper.dart`**
+
+`DioException` → `ApiException`. Handles network down, timeout, unknown server error.
+
+**`lib/core/theme/`**
+
+Match SteryMed UI colors, typography, spacing exactly. Pull tokens from the doc. Do not invent.
+
+**`lib/shared/widgets/`**
+
+The shared widget kit that every feature reuses. Full list in Part 6.
+
+**`lib/core/router/app_router.dart`**
+
+go_router with auth redirect. Route names in `route_names.dart`. Guards: `auth_guard.dart`, `role_guard.dart`.
+
+**`lib/di/`**
+
+get_it registrations split by concern.
+
+## Day 6 — Build pipeline spike
+
+- GitHub Actions: `flutter analyze` + `flutter test` + `flutter build apk --debug`
+- Keystore uploaded to CI secrets (nothing in repo)
+- macOS runner: `flutter build ios --simulator --no-codesign`
+- Sentry DSN wired into `bootstrap.dart`
+- Analytics events list in `analytics_events.dart` (no PII)
+
+## Gate 1
+
+- [ ]  `flutter analyze` clean
+- [ ]  CI green on Android and iOS
+- [ ]  Debug APK builds and installs on real device
+- [ ]  iOS build compiles
+- [ ]  App boots to splash
+- [ ]  Sentry receives a test event
+- [ ]  No patient data in logs
+
+---
+
+# Part 5 — Phase 2: Auth + session + shell (Days 7–10)
+
+## Day 7 — Auth data layer
+
+Models: `UserData`, `TenantData`, `LoginResponse` = `{token, token_type, user, tenant}`.
+
+`AuthRepository`: `login`, `logout`, `me`, `logoutEverywhere`, `restoreSession`.
+
+## Day 8 — AuthBloc
+
+States: `initial`, `loading`, `authenticated`, `unauthenticated`, `error`.
+
+Events: `AuthLoginSubmitted`, `AuthLogoutRequested`, `AuthSessionChecked`, `AuthLogoutEverywhereRequested`.
+
+**Critical:** logout calls `DELETE /auth/logout` server-side, then wipes local. If server call fails, still wipe local — log to Sentry.
+
+## Day 9 — Splash + Login
+
+`SplashScreen` — session check → route to login or shell.
+`LoginScreen` — `tenant_slug`, email, password. Field errors from 422 envelope. All strings French.
+
+## Day 10 — Shell
+
+`ShellScreen` — bottom nav:
+
+- Accueil
+- Scanner
+- Cycles
+- Prothèse
+- Alertes
+- Plus
+
+Role-aware: staff sees fewer tabs than admin. Nav visibility from `role_guard.dart`.
+
+Global 401 → AuthBloc `unauthenticated` → router redirects to login.
+
+## Tests
+
+- Widget: login screen renders, shows 422 errors in French
+- Bloc: happy path, 422, 401, network down
+- Integration: login → home → kill → reopen → still logged in → logout → `/me` 401
+
+## Gate 2
+
+- [ ]  Login works against staging
+- [ ]  Session persists across app kills
+- [ ]  Logout revokes server-side
+- [ ]  401 anywhere redirects to login
+- [ ]  Role-aware nav works (admin sees more than staff)
+- [ ]  All user-facing strings French
+- [ ]  Auth tests green
+
+---
+
+# Part 6 — Phase 3: Dashboard + alerts + cursor list (Days 11–14)
+
+## Day 11 — Dashboard data + Cubit
+
+`DashboardData` model. `DashboardRepository`. `DashboardCubit` with `loading`, `loaded`, `error` states.
+
+## Day 12 — Dashboard screen
+
+Match the UI exactly. Cards, counts, tap-through.
+
+**Rule:** every card opens a filtered list. No dead KPIs. This is explicit in the SteryMed brief.
+
+## Day 13 — Alerts
+
+`AlertData` model. `GET /alerts` cursor-paginated. Grouped by severity (critical, warning, info).
+
+`POST /alerts/{alert}/resolve` with confirmation dialog.
+
+## Day 14 — Cursor list component
+
+`CursorPaginatedList<T>` in `lib/shared/widgets/lists/`. Handles:
+
+- Initial load
+- Load more on scroll
+- Pull to refresh
+- Error retry
+- End of list
+- Empty state
+
+Every list from here uses it.
+
+## Gate 3
+
+- [ ]  Dashboard cards open correct filtered lists
+- [ ]  Alerts grouped by severity
+- [ ]  Alert resolve works with confirmation
+- [ ]  Cursor list reused in 2+ places
+- [ ]  **Web dashboard shows same counts for same test user** (coherence check #1)
+
+---
+
+# Part 7 — Phase 4: Scanner + label (Days 15–19)
+
+## Day 15 — Scanner foundation
+
+`mobile_scanner` (ML Kit). QR + DataMatrix. Camera permission flow with dedicated screen. Torch toggle. **400ms cooldown** on scan to prevent double-fire.
+
+## Day 16 — Scan → resolve
+
+`GET /labels/{code}` returns `LabelScanResultData`.
+
+Router decision:
+
+- Valid → `LabelDetailScreen`
+- Blocked (expired or recalled per server enum) → `LabelBlockedScreen` (full-screen, color-coded, back button only)
+
+**Never compute expiry client-side.**
+
+## Day 17 — Label detail
+
+Match UI. Show:
+
+- Status badge
+- Product, batch
+- Sterilization and expiry dates
+- Device, cycle reference
+- Usage history link
+- "Enregistrer utilisation" CTA — only when server says valid
+
+## Day 18 — Mandatory real-device day
+
+Not optional. Take your phone to the clinic or a room with:
+
+- Printed labels from the actual printer
+- 5 distances (5, 10, 20, 30, 50cm)
+- Angles (0°, 45°, 90°)
+- Low light
+- Damaged/wrinkled labels
+- Screen glare
+- Both QR and DataMatrix
+
+Log every failure in `docs/DEVICE_TEST_LOG.md`. Fix before moving on.
+
+## Day 19 — Tests
+
+- Bloc: scan valid, blocked, unknown, network-error
+- Widget: label detail, blocked screen
+- Integration: scan → detail, scan → blocked
+
+## Gate 4
+
+- [ ]  Scan → detail < 2s on mid-range Android
+- [ ]  Blocked screen matches server state exactly
+- [ ]  No double-scan registrations
+- [ ]  Real-device log complete
+- [ ]  Scanner tests green
+
+---
+
+# Part 8 — Phase 5: Usage + patients + offline outbox (Days 20–26)
+
+This is the phase that makes or breaks the app.
+
+## Day 20 — Patients
+
+`PatientData` model. Debounced `GET /patients`. Selection UI as bottom sheet.
+
+## Day 21 — Usage form
+
+`LabelUsageFormScreen`:
+
+- Label summary (read-only)
+- Patient picker
+- Procedure
+- Notes
+- `practitioner_id` = current user
+
+`POST /labels/{label}/usage` with tap-time `Idempotency-Key`.
+
+## Day 22 — Outbox core
+
+`lib/core/storage/outbox/`:
+
+- `outbox_item.dart` — `{id, operation_type, payload, idempotency_key, created_at, retry_count, status}`
+- `outbox_store.dart` — hive-backed
+- `sync_engine.dart` — flush on app start + connectivity restore. Ordered, one-at-a-time. Max 5 retries then manual review.
+- `sync_result.dart` — success, conflict, error, manual review
+
+`lib/core/sync/`:
+
+- `connectivity_service.dart` — wraps `connectivity_plus`
+- `sync_status_cubit.dart` — global sync state (pending count, online/offline)
+
+## Day 23 — Submit routing
+
+Online → direct POST. Offline → queue + pending state.
+
+Form state preserved. If app killed mid-form, restored from hive on restart. **Never lose input.**
+
+## Day 24 — Conflict semantics
+
+- **409** → "Enregistré précédemment" toast, mark done
+- **422** → surface error, keep for review
+- **403** → surface error, keep for review
+- **5xx** → retry with backoff, keep for review after 5 attempts
+
+Sync status badge in shell shows pending count.
+
+## Day 25–26 — Mandatory flaky-network device days
+
+Take phone. Airplane mode on/off mid-submit. Throttle 3G. Kill app mid-sync. Replay same idempotency key. Make server unreachable during flush.
+
+Log results. Fix everything.
+
+## Gate 5
+
+- [ ]  Offline usage queues and survives app kill
+- [ ]  Sync on reconnect verified server-side
+- [ ]  409 conflict proven with evidence
+- [ ]  Double-tap impossible
+- [ ]  Form state never lost
+- [ ]  **Web shows same usage record after mobile sync** (coherence check #2)
+- [ ]  Usage tests green
+
+---
+
+# Part 9 — Phase 6: Sterilization cycles (Days 27–33)
+
+## Day 27 — Models + repository
+
+`CycleData`, `CycleItemData`, `ControlTestData`, `CycleAttachmentData`, `CycleReleaseData`. Full repo interface.
+
+## Day 28 — Repo impl + list
+
+CRUD + transitions wired. `CycleListScreen` with status tabs matching UI.
+
+## Day 29 — Cycle detail
+
+Match UI:
+
+- Timeline (mirrors web `cycle-timeline`)
+- Items
+- Control tests
+- Attachments
+- Release info
+
+## Day 30 — Lifecycle actions
+
+`start → complete → submit-for-release → release`.
+
+Release dialog: `compliant` or `rejected`. **Reason mandatory when rejected** (UI + server).
+
+Confirmation before every critical transition.
+
+## Day 31 — Items + control tests
+
+`AddCycleItemScreen`: description, optional `batch_id`.
+`RecordControlTestScreen`: type enum, result enum, performed_at, notes.
+
+## Day 32 — Attachments
+
+Photo capture → compress < 10MB → multipart upload with progress.
+Mimes allowlist mirrors `AttachCycleFileRequest`.
+Delete with confirmation.
+
+## Day 33 — Offline transitions + e2e
+
+Cycle transitions through outbox. Integration: create → start → complete → submit → release with items, control tests, photo.
+
+## Gate 6
+
+- [ ]  Full lifecycle e2e on device
+- [ ]  Rejected release requires reason
+- [ ]  **Attachments visible on web** (coherence check #3)
+- [ ]  Offline transitions sync correctly
+- [ ]  Cycle tests green
+
+---
+
+# Part 10 — Phase 7: Prosthetic module (Days 34–40)
+
+The new MVP-critical module. Full depth. No shortcuts.
+
+## Day 34 — Models + repository
+
+`ProstheticCaseData`, `ProstheticCaseStatus`, `ProstheticCaseHistoryData`, `LaboratoryData`, `ProstheticPaymentData`, `ProstheticAttachmentData`.
+
+Status enum: `impression_completed`, `sent_to_lab`, `received_at_practice`, `placement_scheduled`, `placed`, `cancelled_remade`.
+
+Repository interface including `waitingPlacement()` and `dashboard()`.
+
+## Day 35 — Prosthetic list + filters
+
+Search + filters:
+
+- Patient (searchable)
+- Practitioner (searchable)
+- Laboratory (searchable)
+- Type of work
+- Status
+- Date period
+
+Filters **combine** and **persist** while drilling into a case and back. Explicit in brief.
+
+Cursor pagination. One-handed layout.
+
+## Day 36 — Prosthetic detail
+
+Match UI:
+
+- Patient identity + practitioner
+- Current status + full timeline
+- Impression type + work category
+- Laboratory + dates
+- Administrative/payment block
+- Attachments and clinical photos
+- Remarks + activity history
+
+Actions: Edit, Print/Export.
+
+## Day 37 — Create + edit
+
+Four sections matching UI:
+
+1. **Patient** — first name, last name, patient link
+2. **Clinical** — practitioner, impression date, impression type (digital/physical), type of work (crown, bridge, implant, aligner, veneer, denture, etc.)
+3. **Laboratory & dates** — lab, sent-to-lab, returned-from-lab, planned placement, actual placement
+4. **Notes** — free text, internal comments, priority/urgency
+
+Searchable dropdowns. Sensible defaults. Prefilled dates.
+
+**Acceptance: complete case in under 2 minutes.**
+
+## Day 38 — Status transitions
+
+One-tap from detail. Confirmation before critical transitions (`placed`, `cancelled_remade`).
+
+Each transition stores date, time, user, optional note. Server writes immutable history.
+
+Offline-queued.
+
+## Day 39 — Waiting for placement
+
+Priority view. Explicitly requested.
+
+Auto inclusion: `returned_from_lab` exists AND `actual_placement` empty AND status not cancelled.
+
+Columns: patient, practitioner, laboratory, work type, return date, planned placement, **days elapsed**, current status.
+
+Aging badges: 0–7 (green), 8–14 (yellow), 15+ (red).
+
+Export action.
+
+## Day 40 — Payments + prosthetic dashboard
+
+**Payment block:**
+
+- Deposit requested / received
+- Deposit amount
+- Final payment completed
+- Remaining balance (auto-calculated)
+- Administrative comments
+
+**Non-blocking warning before `placed` if outstanding payment.**
+
+**Financial fields editable by admin only.** Visible to staff.
+
+**Prosthetic dashboard** — counts that tap through to filtered lists.
+
+## Gate 7
+
+- [ ]  Create complete case in under 2 minutes
+- [ ]  Current status + full history always visible
+- [ ]  Case findable by all filters
+- [ ]  Waiting-for-placement auto-includes correctly
+- [ ]  Aging badges correct
+- [ ]  Reception can verify deposit, balance, payment
+- [ ]  Dashboard counts open correct filtered lists
+- [ ]  **Web + mobile show same case after mobile edit** (coherence check #4)
+- [ ]  Prosthetic tests green
+
+---
+
+# Part 11 — Phase 8: Stock + purchases + history + settings (Days 41–45)
+
+## Day 41 — Stock
+
+- `StockLevelListScreen` with low-stock indicators
+- `StockIssueScreen` — qty stepper, optional reason
+- `StockAdjustScreen` — **reason mandatory**, UI blocks submit if empty
+- `StockTransferScreen` — from/to location
+
+All three queue offline.
+
+## Day 42 — Purchases
+
+- `PurchaseOrderListScreen`, `PurchaseOrderDetailScreen`
+- Status badges
+- `ReceiveGoodsScreen`: line-by-line qty, batch_number, expiry_date, discrepancy_reason. **Partial reception supported.**
+- Photo evidence reuses Phase 6 attachment foundation
+- Offline queue for receipts
+
+## Day 43 — Audit history
+
+`GET /audit-events` with filters: actor, action, subject, date.
+Read-only cursor list.
+Filter persistence while drilling in.
+
+**Evidence search deferred to v1.1.**
+
+## Day 44 — Settings
+
+One screen:
+
+- **Mon compte** — name, email, role, tenant (all read-only)
+- **Session** — Se déconnecter, Se déconnecter partout
+- **Application** — version, environment badge, À propos link
+- **Support** — contact link
+
+**No separate profile screen. No separate tenant screen. No separate logout-everywhere screen.**
+
+## Day 45 — Polish + coherence sweep
+
+Loading, error, empty states everywhere. Navigation audit. Auth guard audit.
+
+**Full web + mobile coherence sweep:**
+Every write on mobile → verify on web. Every write on web → verify on mobile. Every filter, list, detail view. Not a spot check.
+
+## Gate 8
+
+- [ ]  Issue/adjust/transfer work online + offline
+- [ ]  Adjust without reason impossible
+- [ ]  Partial reception works
+- [ ]  Photo evidence attaches and syncs
+- [ ]  Audit filters persist while drilling in
+- [ ]  Settings complete (one screen, all sections)
+- [ ]  **Full coherence sweep passed** (coherence check #5)
+- [ ]  Stock + purchases + history tests green
+
+---
+
+# Part 12 — Phase 9: Hardening (Days 46–50)
+
+## Day 46 — Security (pragmatic)
+
+- HTTPS-only in prod
+- CI secrets scan (`gitleaks`)
+- Interceptor scrub audit — no PII in logs
+- Role enforcement spot-check per Gate 0
+- OWASP mobile checks: insecure storage, weak crypto, improper platform usage
+- File access restricted — no raw unrestricted URLs
+
+**Certificate pinning deferred to v1.1.**
+
+## Day 47 — Performance
+
+- Every list uses builder + cursor pagination
+- Debounced search (300ms) everywhere
+- Image cache
+- Dispose audit — no leaked controllers or blocs
+- Shell screens < 2s on 4G mid-range Android
+- Prosthetic waiting list < 2s
+
+## Day 48 — Full test run
+
+- Unit tests
+- Bloc tests
+- Widget tests
+- 4 golden tests: login, dashboard, label detail, prosthetic case detail
+- Integration tests for 6 demo journeys
+
+Coverage report. Fix gaps in critical logic only.
+
+## Day 49 — Backup + restore drilled twice
+
+- Backup DB → destroy staging → restore → verify
+- Backup media → destroy → restore → verify
+- Document in `docs/BACKUP_RESTORE.md`
+
+Scheduled, tested, owned. Not a checklist line.
+
+## Day 50 — Bug fixes + demo rehearsal
+
+Critical/blocking only. Triage rest into v1.1 backlog.
+
+Full demo on staging, real devices, both platforms.
+Offline + conflict demo included.
+Prosthetic workflow demo included.
+
+## Gate 9
+
+- [ ]  Zero critical/blocking bugs
+- [ ]  Performance targets measured and met
+- [ ]  Security audit passed
+- [ ]  All tests green
+- [ ]  Backup + restore drilled twice and documented
+- [ ]  Demo rehearsal passes end-to-end
+
+---
+
+# Part 13 — Phase 10: Release (Days 51–55)
+
+## Day 51 — Android
+
+Signed release APK + AAB.
+Keystore in CI secrets since Day 6.
+Play internal track. Install on real device. Smoke test.
+
+## Day 52 — iOS
+
+Release build → TestFlight via macOS runner. Install. Smoke test.
+
+## Day 53 — Staging + pilot data
+
+Deploy pinned backend to staging.
+Run `SeedPilotVolume`.
+Verify mobile and web against it.
+Run full coherence check one more time.
+
+## Day 54 — Demo video
+
+Six journeys:
+
+1. Login → scan → record usage
+2. Full cycle lifecycle
+3. Prosthetic case: create → transitions → waiting for placement → payment check
+4. Quick stock issue
+5. Alert resolve
+6. Offline → sync → conflict
+
+Plus error handling montage.
+
+## Day 55 — Handoff
+
+**Six user-facing docs:**
+
+- `README.md` — install, run, deploy
+- `API_CONTRACT.md` — observed wire data
+- `OFFLINE_MATRIX.md` — what queues, what doesn't
+- `RUNBOOK.md` — support, incidents, contacts
+- `BACKUP_RESTORE.md` — drilled procedures
+- `USER_GUIDE.md` — French, screenshots
+
+**Three internal docs:**
+
+- `SECURITY.md`
+- `PRIVACY.md`
+- `MIGRATION.md`
+
+Demo video.
+Final walkthrough + written sign-off.
+
+## Gate 10
+
+- [ ]  APK + AAB + iOS build distributed
+- [ ]  Demo video recorded
+- [ ]  Documentation complete
+- [ ]  Client sign-off obtained
+
+---
+
+# Part 14 — Quality gates summary
+
+| Gate | Day | Criterion |
+| --- | --- | --- |
+| Pre-flight | 0 | P1–P14 signed off |
+| 0 | 3 | Contract frozen; UI mapped; offline matrix written |
+| 1 | 6 | CI green; Android + iOS build; Sentry live |
+| 2 | 10 | Auth lifecycle correct incl. server revoke; French UI |
+| 3 | 14 | Dashboard + alerts + cursor list; coherence check #1 |
+| 4 | 19 | Scanner proven on real devices |
+| 5 | 26 | Offline + sync + conflict proven; coherence check #2 |
+| 6 | 33 | Cycle lifecycle + attachments; coherence check #3 |
+| 7 | 40 | Prosthetic module complete; coherence check #4 |
+| 8 | 45 | Stock + purchases + history + full coherence sweep |
+| 9 | 50 | Security + performance + backup drilled |
+| 10 | 55 | Both stores live; demo; sign-off |
+
+---
+
+# Part 15 — The 41 screens (final, verified)
+
+**Auth (3):** Splash, Login, Camera permission
+
+**Shell (1):** Shell
+
+**Dashboard (1):** Dashboard
+
+**Scanner (1):** Scanner
+
+**Labels (3):** Label detail, Label blocked, Label usage form
+
+**Patients (1):** Patient search
+
+**Cycles (7):** List, Detail, Create, Items, Control tests, Attachments, Release
+
+**Stock (4):** Level list, Issue, Adjust, Transfer
+
+**Purchases (4):** PO list, PO detail, Goods receipt, Receipt photo
+
+**Prosthetic (10):** List, Case detail, Create, Edit, Status history, Payment, Attachment, Waiting placement, Dashboard, Laboratory list
+
+**Alerts (1):** Alert list
+
+**History (1):** Audit list
+
+**Settings (2):** Settings, About
+
+**Sync (1):** Sync queue
+
+**Onboarding (1):** Onboarding
+
+**Total: 41 screens.**
+
+Nothing invented. Nothing missing. Every screen traceable to the brief.
+
+---
+
+# Part 16 — The shared widget kit (48 widgets)
+
+**Buttons (5):** primary, secondary, ghost, danger, icon action
+
+**Inputs (6):** text field, dropdown, date picker, search field, number stepper, text area
+
+**Feedback (7):** loading, error, empty, offline banner, sync badge, snackbar, confirmation dialog
+
+**Badges (3):** status, severity, aging
+
+**Lists (3):** cursor paginated list, skeleton, separator
+
+**Cards (4):** app card, KPI card, info card, action card
+
+**Layout (5):** app scaffold, app appbar, section header, divider labeled, responsive layout
+
+**Media (5):** app image, avatar, attachment tile, photo capture, image preview
+
+**Forms (3):** form section, field wrapper, form actions
+
+**Timeline (2):** timeline widget, timeline entry
+
+**Misc (4):** app logo, app version, environment badge, copyable text
+
+**Total: 48 shared widgets.**
+
+---
+
+# Part 17 — Feature widget kit (~103 widgets)
+
+Each feature owns its widgets. Full list is in the folder structure. No duplication with shared.
+
+---
+
+# Part 18 — Cut order if a phase slips
+
+If Day 40 arrives with work still to build, cut in this order:
+
+1. **Receipt photo screen** (Purchases) — receipts still work without photos
+2. **Laboratory list** (Prosthetic) — picker still works
+3. **Stock transfer** — issue + adjust cover 80% of needs
+4. **Cycle release screen** — release as inline dialog on detail
+5. **About screen** — fold version into Settings
+6. **Onboarding screen** — one-time, not critical
+
+**Never cut:**
+
+- Login
+- Dashboard
+- Scanner + Label detail + Label usage
+- Prosthetic module (all 10 screens)
+- Waiting for placement
+- Sync queue
+- Settings (single screen)
+
+Those are the reason the pilot exists. Everything else is comfort.
+
+---
+
+# Part 19 — What "production ready" means for this pilot
+
+Sixteen conditions must be true:
+
+- [ ]  Pilot admin can log in, use every screen, log out
+- [ ]  Pilot staff can log in, use their screens, log out
+- [ ]  Prosthetic case can be created, moved through every status, appears in waiting-for-placement
+- [ ]  Cycle can be created, executed, released
+- [ ]  Offline usage submission survives app kill and syncs on reconnect
+- [ ]  Replayed submission shows "Enregistré précédemment", not error
+- [ ]  Web shows everything mobile writes, within seconds
+- [ ]  Mobile shows everything web writes, within seconds
+- [ ]  No patient data in Sentry
+- [ ]  No patient data in `flutter logs`
+- [ ]  Every list paginates
+- [ ]  Every error shows French message + request_id
+- [ ]  Backup + restore tested twice
+- [ ]  APK installs on real Android
+- [ ]  iOS build installs on real iPhone
+- [ ]  Demo video exists, six docs accurate
+
+If all sixteen are true, the pilot ships.
+
+---
+
+# Part 20 — Final word
+
+You are not building a product. You are building the pilot the clinic will use for 90 days to decide whether to buy. The pilot is a promise. The app must keep it.
+
+The backend is done. The UI is decided. Your job is to translate the wire into Flutter without inventing, breaking, or over-promising anything.
+
+Every phase ends in a gate. Every gate is binary. Every binary gate is provable. Pass all ten, you ship Day 55. Fail one, you fix it before moving on. That discipline is the difference between a senior engineer and everyone else.
+
+**41 screens. 151 widgets. 55 days. One promise.**
+
+Build this.
+
+SteryMed Mobile — Complete Task Breakdown
+
+SteryMed Mobile — Global Ultimate Files Structure
+# Senior mobile engineer's master plan · Backend ready · UI provided · Flutter · 55 days + 8 contingency · Pilot MVP
+
+This is the entire project, phase per phase, from Day 1 to Day 55 and handoff. Every decision is justified. Every phase has entry criteria, daily work, exit criteria, and tests. Every gate is binary. If you follow this exactly, you ship a working app that matches the backend, matches the web UI, matches the *Cahier des charges*, and passes pilot acceptance.
+
+No fantasies. No invented scope. No over-engineering. Just the app the clinic will use.
+
+---
+
+# Part 1 — Ground rules
+
+Read these once. Obey them for the entire project.
+
+1. **The backend is the contract.** Observed API responses are the source of truth. Never trust DTOs in `openapi.yaml` over the wire.
+2. **The web UI is the reference.** Match it visually. Do not invent new patterns for mobile when the web already has one.
+3. **The brief is the scope.** No screen, no feature, no button that isn't in the brief. If it's not asked for, do not build it.
+4. **The pilot is French-only.** No `app_en.arb`. No English strings anywhere. Ever.
+5. **The pilot has two roles.** `admin` and `staff`. Not six. Not four. Two.
+6. **The outbox is mandatory from Phase 5 onward.** Not bolted on later.
+7. **The 409 is success, not error.** Replayed idempotency keys mean "already recorded."
+8. **Blocking UI states come from the server.** Expired and recalled labels are decided server-side. Never client-side.
+9. **No PII in logs.** Ever. Enforce at the interceptor level. Verify on Day 46.
+10. **CI is proven on Day 6.** Not Day 47. If the pipeline is broken, everything after is chaos.
+11. **Backup and restore are scheduled.** Not a checklist line. Drilled twice.
+12. **Every gate is binary.** Pass or fail. No partial credit.
+13. **Web + mobile coherence is tested continuously.** Not once at the end.
+14. **If a phase slips, cut scope, not quality.** The cut order is at the end of this document.
+15. **The pilot is a promise.** If the app loses a nurse's data entry, the pilot fails. Build accordingly.
+
+---
+
+# Part 2 — Pre-flight (half a day)
+
+Sit with the web engineer. Get everything you need. Do not start coding until this is done.
+
+| # | Task | Exit criterion |
+| --- | --- | --- |
+| P1 | Confirm product name is **SteryMed** everywhere | No SteriQore in any user-facing artifact |
+| P2 | Get live staging URL + pinned backend commit hash | Written in `README.md` |
+| P3 | Get Scramble docs URL (or `openapi.yaml` path) | Written in `docs/API_CONTRACT.md` |
+| P4 | Get test admin account + test staff account | Stored in `.env.local` (gitignored) |
+| P5 | Get test tenant slug with seeded pilot data | Written in `docs/API_CONTRACT.md` |
+| P6 | Confirm replayed `Idempotency-Key` returns 409 | One line in `docs/API_CONTRACT.md` |
+| P7 | Confirm prosthetic endpoints are live and seeded | Section in `docs/API_CONTRACT.md` |
+| P8 | Confirm all API `error.message` are in French | Test one bad login |
+| P9 | Confirm role matrix is `admin` + `staff` only | `docs/ROLE_MATRIX.md` |
+| P10 | Confirm support channel + SLA for pilot | `docs/SUPPORT.md` |
+| P11 | Confirm data migration + rollback plan | `docs/MIGRATION.md` |
+| P12 | Copy all 14 UI screenshots from SteryMed docs | `docs/ui-reference/` |
+| P13 | Confirm CI has macOS runner capability | Green test workflow exists |
+| P14 | Confirm Sentry project created | DSN in hand |
+
+You leave pre-flight with: a working staging URL, two test accounts, one contract, fourteen UI screenshots, a support channel, and a data migration plan. Nothing else.
+
+---
+
+# Part 3 — Phase 0: Contract capture + UI mapping (Days 1–3)
+
+## Purpose
+
+Eliminate every unknown before you write Dart. Every bug you don't catch here costs 5x later.
+
+## Day 1 — Live wire capture
+
+Open Postman. Log in as admin. Hit every endpoint in pilot scope. Copy the raw request and raw response.
+
+Endpoints to capture:
+
+**Auth**
+
+- `POST /auth/login`
+- `DELETE /auth/logout`
+- `DELETE /auth/tokens`
+- `GET /me`
+
+**Dashboard**
+
+- `GET /dashboard` (or wherever aggregates come from)
+
+**Alerts**
+
+- `GET /alerts`
+- `POST /alerts/{alert}/resolve`
+
+**Labels**
+
+- `GET /labels/{code}`
+- `GET /labels/{label}/usage`
+- `POST /labels/{label}/usage`
+
+**Patients**
+
+- `GET /patients`
+
+**Cycles**
+
+- `GET /cycles`
+- `POST /cycles`
+- `GET /cycles/{id}`
+- `POST /cycles/{id}/start`
+- `POST /cycles/{id}/complete`
+- `POST /cycles/{id}/submit-for-release`
+- `POST /cycles/{id}/release`
+- `GET /cycles/{id}/items`
+- `POST /cycles/{id}/items`
+- `DELETE /cycles/{id}/items/{itemId}`
+- `GET /cycles/{id}/control-tests`
+- `POST /cycles/{id}/control-tests`
+- `GET /cycles/{id}/attachments`
+- `POST /cycles/{id}/attachments`
+- `DELETE /cycles/{id}/attachments/{mediaId}`
+
+**Stock**
+
+- `GET /stock-levels`
+- `POST /stock-movements/issue`
+- `POST /stock-movements/adjust`
+- `POST /stock-movements/transfer`
+
+**Purchases**
+
+- `GET /purchase-orders`
+- `GET /purchase-orders/{id}`
+- `POST /purchase-orders/{id}/receipts`
+
+**Audit**
+
+- `GET /audit-events`
+
+**Prosthetic**
+
+- `GET /prosthetic-cases`
+- `POST /prosthetic-cases`
+- `GET /prosthetic-cases/{id}`
+- `PATCH /prosthetic-cases/{id}`
+- `POST /prosthetic-cases/{id}/status`
+- `POST /prosthetic-cases/{id}/attachments`
+- `GET /prosthetic-cases/waiting-placement`
+- `GET /prosthetic-dashboard`
+- `GET /laboratories`
+- `GET /prosthetic-cases/{id}/payments`
+- `POST /prosthetic-cases/{id}/payments`
+
+Write every pair into `docs/API_CONTRACT.md`. Raw JSON, not paraphrased.
+
+## Day 2 — Behavior matrix
+
+**Role matrix.** Log in as admin. Log in as staff. Hit every endpoint. Record which return 403.
+
+**Tenant isolation.** Log in as tenant A. Try to fetch a resource ID belonging to tenant B. Confirm 404.
+
+**Idempotency.** Send same `Idempotency-Key` twice. Confirm 409 on second.
+
+**Error catalog.** Trigger each error on purpose. Record exact `error.code` and French `error.message`:
+
+- 401 wrong password
+- 403 staff hitting admin-only endpoint
+- 404 unknown resource
+- 409 idempotency replay
+- 422 invalid payload
+- 429 rate limit
+
+Write `docs/ERROR_MATRIX.md`.
+
+## Day 3 — UI mapping + offline matrix + freeze
+
+**UI mapping.** Open every screen in the SteryMed docs. For each, list which endpoint feeds it, which fields display, which fields edit, and which states must be handled: loading, error, empty, loaded, offline, pending sync.
+
+Write `docs/UI_MAPPING.md`. This is your daily reference.
+
+**Offline matrix.**
+
+| Action | Offline |
+| --- | --- |
+| Scan lookup | NEVER |
+| Label usage | QUEUE |
+| Stock issue | QUEUE |
+| Stock adjust | QUEUE |
+| Stock transfer | QUEUE |
+| Goods receipt | QUEUE |
+| Cycle transitions | QUEUE |
+| Prosthetic status transition | QUEUE |
+| Prosthetic photo attachment | QUEUE |
+| Payments | QUEUE |
+| Search / filter | NEVER |
+
+Write `docs/OFFLINE_MATRIX.md`.
+
+**Freeze.** Sign off with web engineer. From now on, any contract change is a written change request.
+
+## Gate 0
+
+- [ ]  Every pilot endpoint captured from wire data
+- [ ]  Role matrix complete (admin + staff)
+- [ ]  Tenant isolation spot-checked
+- [ ]  Idempotency 409 confirmed
+- [ ]  Error catalog complete
+- [ ]  All API messages confirmed in French
+- [ ]  UI mapping complete
+- [ ]  Offline matrix complete
+- [ ]  Contract frozen and signed
+
+---
+
+# Part 4 — Phase 1: Foundation (Days 4–6)
+
+## Purpose
+
+Build the plumbing every feature will use. No features. Only infrastructure.
+
+## Day 4 — Network + storage
+
+**`lib/core/config/env.dart`**
+
+```dart
+class Env {
+  static const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+  static const environment = String.fromEnvironment('ENV', defaultValue: 'dev');
+  static const sentryDsn = String.fromEnvironment('SENTRY_DSN');
+}
+```
+
+**`lib/core/config/api_endpoints.dart`**
+
+One file, every path. Mirrors `routes/api.php` exactly. No strings scattered.
+
+**`lib/core/network/dio_client.dart`**
+
+Timeouts, JSON headers, base URL from Env.
+
+**Interceptors**
+
+- `auth_interceptor.dart` — reads bearer from `TokenStorage`, attaches to every request
+- `error_interceptor.dart` — parses `{error:{code,message,details,request_id}}`, throws `ApiException`
+- `idempotency_interceptor.dart` — injects `Idempotency-Key` on queuable POSTs
+- `logging_interceptor.dart` — debug only, runs payload through `pii_scrubber.dart`
+
+**`lib/core/storage/token_storage.dart`**
+
+`flutter_secure_storage` for bearer. Nothing else.
+
+**`lib/core/storage/session_store.dart`**
+
+Holds current `UserData`, `TenantData`, current role. Wiped on logout.
+
+## Day 5 — Errors, theme, router, DI
+
+**`lib/core/errors/api_exception.dart`**
+
+```dart
+class ApiException implements Exception {
+  final String code;
+  final String message;   // French
+  final Map<String, dynamic> details;
+  final String requestId;
+  final int? statusCode;
+}
+```
+
+**`lib/core/errors/error_mapper.dart`**
+
+`DioException` → `ApiException`. Handles network down, timeout, unknown server error.
+
+**`lib/core/theme/`**
+
+Match SteryMed UI colors, typography, spacing exactly. Pull tokens from the doc. Do not invent.
+
+**`lib/shared/widgets/`**
+
+The shared widget kit that every feature reuses. Full list in Part 6.
+
+**`lib/core/router/app_router.dart`**
+
+go_router with auth redirect. Route names in `route_names.dart`. Guards: `auth_guard.dart`, `role_guard.dart`.
+
+**`lib/di/`**
+
+get_it registrations split by concern.
+
+## Day 6 — Build pipeline spike
+
+- GitHub Actions: `flutter analyze` + `flutter test` + `flutter build apk --debug`
+- Keystore uploaded to CI secrets (nothing in repo)
+- macOS runner: `flutter build ios --simulator --no-codesign`
+- Sentry DSN wired into `bootstrap.dart`
+- Analytics events list in `analytics_events.dart` (no PII)
+
+## Gate 1
+
+- [ ]  `flutter analyze` clean
+- [ ]  CI green on Android and iOS
+- [ ]  Debug APK builds and installs on real device
+- [ ]  iOS build compiles
+- [ ]  App boots to splash
+- [ ]  Sentry receives a test event
+- [ ]  No patient data in logs
+
+---
+
+# Part 5 — Phase 2: Auth + session + shell (Days 7–10)
+
+## Day 7 — Auth data layer
+
+Models: `UserData`, `TenantData`, `LoginResponse` = `{token, token_type, user, tenant}`.
+
+`AuthRepository`: `login`, `logout`, `me`, `logoutEverywhere`, `restoreSession`.
+
+## Day 8 — AuthBloc
+
+States: `initial`, `loading`, `authenticated`, `unauthenticated`, `error`.
+
+Events: `AuthLoginSubmitted`, `AuthLogoutRequested`, `AuthSessionChecked`, `AuthLogoutEverywhereRequested`.
+
+**Critical:** logout calls `DELETE /auth/logout` server-side, then wipes local. If server call fails, still wipe local — log to Sentry.
+
+## Day 9 — Splash + Login
+
+`SplashScreen` — session check → route to login or shell.
+`LoginScreen` — `tenant_slug`, email, password. Field errors from 422 envelope. All strings French.
+
+## Day 10 — Shell
+
+`ShellScreen` — bottom nav:
+
+- Accueil
+- Scanner
+- Cycles
+- Prothèse
+- Alertes
+- Plus
+
+Role-aware: staff sees fewer tabs than admin. Nav visibility from `role_guard.dart`.
+
+Global 401 → AuthBloc `unauthenticated` → router redirects to login.
+
+## Tests
+
+- Widget: login screen renders, shows 422 errors in French
+- Bloc: happy path, 422, 401, network down
+- Integration: login → home → kill → reopen → still logged in → logout → `/me` 401
+
+## Gate 2
+
+- [ ]  Login works against staging
+- [ ]  Session persists across app kills
+- [ ]  Logout revokes server-side
+- [ ]  401 anywhere redirects to login
+- [ ]  Role-aware nav works (admin sees more than staff)
+- [ ]  All user-facing strings French
+- [ ]  Auth tests green
+
+---
+
+# Part 6 — Phase 3: Dashboard + alerts + cursor list (Days 11–14)
+
+## Day 11 — Dashboard data + Cubit
+
+`DashboardData` model. `DashboardRepository`. `DashboardCubit` with `loading`, `loaded`, `error` states.
+
+## Day 12 — Dashboard screen
+
+Match the UI exactly. Cards, counts, tap-through.
+
+**Rule:** every card opens a filtered list. No dead KPIs. This is explicit in the SteryMed brief.
+
+## Day 13 — Alerts
+
+`AlertData` model. `GET /alerts` cursor-paginated. Grouped by severity (critical, warning, info).
+
+`POST /alerts/{alert}/resolve` with confirmation dialog.
+
+## Day 14 — Cursor list component
+
+`CursorPaginatedList<T>` in `lib/shared/widgets/lists/`. Handles:
+
+- Initial load
+- Load more on scroll
+- Pull to refresh
+- Error retry
+- End of list
+- Empty state
+
+Every list from here uses it.
+
+## Gate 3
+
+- [ ]  Dashboard cards open correct filtered lists
+- [ ]  Alerts grouped by severity
+- [ ]  Alert resolve works with confirmation
+- [ ]  Cursor list reused in 2+ places
+- [ ]  **Web dashboard shows same counts for same test user** (coherence check #1)
+
+---
+
+# Part 7 — Phase 4: Scanner + label (Days 15–19)
+
+## Day 15 — Scanner foundation
+
+`mobile_scanner` (ML Kit). QR + DataMatrix. Camera permission flow with dedicated screen. Torch toggle. **400ms cooldown** on scan to prevent double-fire.
+
+## Day 16 — Scan → resolve
+
+`GET /labels/{code}` returns `LabelScanResultData`.
+
+Router decision:
+
+- Valid → `LabelDetailScreen`
+- Blocked (expired or recalled per server enum) → `LabelBlockedScreen` (full-screen, color-coded, back button only)
+
+**Never compute expiry client-side.**
+
+## Day 17 — Label detail
+
+Match UI. Show:
+
+- Status badge
+- Product, batch
+- Sterilization and expiry dates
+- Device, cycle reference
+- Usage history link
+- "Enregistrer utilisation" CTA — only when server says valid
+
+## Day 18 — Mandatory real-device day
+
+Not optional. Take your phone to the clinic or a room with:
+
+- Printed labels from the actual printer
+- 5 distances (5, 10, 20, 30, 50cm)
+- Angles (0°, 45°, 90°)
+- Low light
+- Damaged/wrinkled labels
+- Screen glare
+- Both QR and DataMatrix
+
+Log every failure in `docs/DEVICE_TEST_LOG.md`. Fix before moving on.
+
+## Day 19 — Tests
+
+- Bloc: scan valid, blocked, unknown, network-error
+- Widget: label detail, blocked screen
+- Integration: scan → detail, scan → blocked
+
+## Gate 4
+
+- [ ]  Scan → detail < 2s on mid-range Android
+- [ ]  Blocked screen matches server state exactly
+- [ ]  No double-scan registrations
+- [ ]  Real-device log complete
+- [ ]  Scanner tests green
+
+---
+
+# Part 8 — Phase 5: Usage + patients + offline outbox (Days 20–26)
+
+This is the phase that makes or breaks the app.
+
+## Day 20 — Patients
+
+`PatientData` model. Debounced `GET /patients`. Selection UI as bottom sheet.
+
+## Day 21 — Usage form
+
+`LabelUsageFormScreen`:
+
+- Label summary (read-only)
+- Patient picker
+- Procedure
+- Notes
+- `practitioner_id` = current user
+
+`POST /labels/{label}/usage` with tap-time `Idempotency-Key`.
+
+## Day 22 — Outbox core
+
+`lib/core/storage/outbox/`:
+
+- `outbox_item.dart` — `{id, operation_type, payload, idempotency_key, created_at, retry_count, status}`
+- `outbox_store.dart` — hive-backed
+- `sync_engine.dart` — flush on app start + connectivity restore. Ordered, one-at-a-time. Max 5 retries then manual review.
+- `sync_result.dart` — success, conflict, error, manual review
+
+`lib/core/sync/`:
+
+- `connectivity_service.dart` — wraps `connectivity_plus`
+- `sync_status_cubit.dart` — global sync state (pending count, online/offline)
+
+## Day 23 — Submit routing
+
+Online → direct POST. Offline → queue + pending state.
+
+Form state preserved. If app killed mid-form, restored from hive on restart. **Never lose input.**
+
+## Day 24 — Conflict semantics
+
+- **409** → "Enregistré précédemment" toast, mark done
+- **422** → surface error, keep for review
+- **403** → surface error, keep for review
+- **5xx** → retry with backoff, keep for review after 5 attempts
+
+Sync status badge in shell shows pending count.
+
+## Day 25–26 — Mandatory flaky-network device days
+
+Take phone. Airplane mode on/off mid-submit. Throttle 3G. Kill app mid-sync. Replay same idempotency key. Make server unreachable during flush.
+
+Log results. Fix everything.
+
+## Gate 5
+
+- [ ]  Offline usage queues and survives app kill
+- [ ]  Sync on reconnect verified server-side
+- [ ]  409 conflict proven with evidence
+- [ ]  Double-tap impossible
+- [ ]  Form state never lost
+- [ ]  **Web shows same usage record after mobile sync** (coherence check #2)
+- [ ]  Usage tests green
+
+---
+
+# Part 9 — Phase 6: Sterilization cycles (Days 27–33)
+
+## Day 27 — Models + repository
+
+`CycleData`, `CycleItemData`, `ControlTestData`, `CycleAttachmentData`, `CycleReleaseData`. Full repo interface.
+
+## Day 28 — Repo impl + list
+
+CRUD + transitions wired. `CycleListScreen` with status tabs matching UI.
+
+## Day 29 — Cycle detail
+
+Match UI:
+
+- Timeline (mirrors web `cycle-timeline`)
+- Items
+- Control tests
+- Attachments
+- Release info
+
+## Day 30 — Lifecycle actions
+
+`start → complete → submit-for-release → release`.
+
+Release dialog: `compliant` or `rejected`. **Reason mandatory when rejected** (UI + server).
+
+Confirmation before every critical transition.
+
+## Day 31 — Items + control tests
+
+`AddCycleItemScreen`: description, optional `batch_id`.
+`RecordControlTestScreen`: type enum, result enum, performed_at, notes.
+
+## Day 32 — Attachments
+
+Photo capture → compress < 10MB → multipart upload with progress.
+Mimes allowlist mirrors `AttachCycleFileRequest`.
+Delete with confirmation.
+
+## Day 33 — Offline transitions + e2e
+
+Cycle transitions through outbox. Integration: create → start → complete → submit → release with items, control tests, photo.
+
+## Gate 6
+
+- [ ]  Full lifecycle e2e on device
+- [ ]  Rejected release requires reason
+- [ ]  **Attachments visible on web** (coherence check #3)
+- [ ]  Offline transitions sync correctly
+- [ ]  Cycle tests green
+
+---
+
+# Part 10 — Phase 7: Prosthetic module (Days 34–40)
+
+The new MVP-critical module. Full depth. No shortcuts.
+
+## Day 34 — Models + repository
+
+`ProstheticCaseData`, `ProstheticCaseStatus`, `ProstheticCaseHistoryData`, `LaboratoryData`, `ProstheticPaymentData`, `ProstheticAttachmentData`.
+
+Status enum: `impression_completed`, `sent_to_lab`, `received_at_practice`, `placement_scheduled`, `placed`, `cancelled_remade`.
+
+Repository interface including `waitingPlacement()` and `dashboard()`.
+
+## Day 35 — Prosthetic list + filters
+
+Search + filters:
+
+- Patient (searchable)
+- Practitioner (searchable)
+- Laboratory (searchable)
+- Type of work
+- Status
+- Date period
+
+Filters **combine** and **persist** while drilling into a case and back. Explicit in brief.
+
+Cursor pagination. One-handed layout.
+
+## Day 36 — Prosthetic detail
+
+Match UI:
+
+- Patient identity + practitioner
+- Current status + full timeline
+- Impression type + work category
+- Laboratory + dates
+- Administrative/payment block
+- Attachments and clinical photos
+- Remarks + activity history
+
+Actions: Edit, Print/Export.
+
+## Day 37 — Create + edit
+
+Four sections matching UI:
+
+1. **Patient** — first name, last name, patient link
+2. **Clinical** — practitioner, impression date, impression type (digital/physical), type of work (crown, bridge, implant, aligner, veneer, denture, etc.)
+3. **Laboratory & dates** — lab, sent-to-lab, returned-from-lab, planned placement, actual placement
+4. **Notes** — free text, internal comments, priority/urgency
+
+Searchable dropdowns. Sensible defaults. Prefilled dates.
+
+**Acceptance: complete case in under 2 minutes.**
+
+## Day 38 — Status transitions
+
+One-tap from detail. Confirmation before critical transitions (`placed`, `cancelled_remade`).
+
+Each transition stores date, time, user, optional note. Server writes immutable history.
+
+Offline-queued.
+
+## Day 39 — Waiting for placement
+
+Priority view. Explicitly requested.
+
+Auto inclusion: `returned_from_lab` exists AND `actual_placement` empty AND status not cancelled.
+
+Columns: patient, practitioner, laboratory, work type, return date, planned placement, **days elapsed**, current status.
+
+Aging badges: 0–7 (green), 8–14 (yellow), 15+ (red).
+
+Export action.
+
+## Day 40 — Payments + prosthetic dashboard
+
+**Payment block:**
+
+- Deposit requested / received
+- Deposit amount
+- Final payment completed
+- Remaining balance (auto-calculated)
+- Administrative comments
+
+**Non-blocking warning before `placed` if outstanding payment.**
+
+**Financial fields editable by admin only.** Visible to staff.
+
+**Prosthetic dashboard** — counts that tap through to filtered lists.
+
+## Gate 7
+
+- [ ]  Create complete case in under 2 minutes
+- [ ]  Current status + full history always visible
+- [ ]  Case findable by all filters
+- [ ]  Waiting-for-placement auto-includes correctly
+- [ ]  Aging badges correct
+- [ ]  Reception can verify deposit, balance, payment
+- [ ]  Dashboard counts open correct filtered lists
+- [ ]  **Web + mobile show same case after mobile edit** (coherence check #4)
+- [ ]  Prosthetic tests green
+
+---
+
+# Part 11 — Phase 8: Stock + purchases + history + settings (Days 41–45)
+
+## Day 41 — Stock
+
+- `StockLevelListScreen` with low-stock indicators
+- `StockIssueScreen` — qty stepper, optional reason
+- `StockAdjustScreen` — **reason mandatory**, UI blocks submit if empty
+- `StockTransferScreen` — from/to location
+
+All three queue offline.
+
+## Day 42 — Purchases
+
+- `PurchaseOrderListScreen`, `PurchaseOrderDetailScreen`
+- Status badges
+- `ReceiveGoodsScreen`: line-by-line qty, batch_number, expiry_date, discrepancy_reason. **Partial reception supported.**
+- Photo evidence reuses Phase 6 attachment foundation
+- Offline queue for receipts
+
+## Day 43 — Audit history
+
+`GET /audit-events` with filters: actor, action, subject, date.
+Read-only cursor list.
+Filter persistence while drilling in.
+
+**Evidence search deferred to v1.1.**
+
+## Day 44 — Settings
+
+One screen:
+
+- **Mon compte** — name, email, role, tenant (all read-only)
+- **Session** — Se déconnecter, Se déconnecter partout
+- **Application** — version, environment badge, À propos link
+- **Support** — contact link
+
+**No separate profile screen. No separate tenant screen. No separate logout-everywhere screen.**
+
+## Day 45 — Polish + coherence sweep
+
+Loading, error, empty states everywhere. Navigation audit. Auth guard audit.
+
+**Full web + mobile coherence sweep:**
+Every write on mobile → verify on web. Every write on web → verify on mobile. Every filter, list, detail view. Not a spot check.
+
+## Gate 8
+
+- [ ]  Issue/adjust/transfer work online + offline
+- [ ]  Adjust without reason impossible
+- [ ]  Partial reception works
+- [ ]  Photo evidence attaches and syncs
+- [ ]  Audit filters persist while drilling in
+- [ ]  Settings complete (one screen, all sections)
+- [ ]  **Full coherence sweep passed** (coherence check #5)
+- [ ]  Stock + purchases + history tests green
+
+---
+
+# Part 12 — Phase 9: Hardening (Days 46–50)
+
+## Day 46 — Security (pragmatic)
+
+- HTTPS-only in prod
+- CI secrets scan (`gitleaks`)
+- Interceptor scrub audit — no PII in logs
+- Role enforcement spot-check per Gate 0
+- OWASP mobile checks: insecure storage, weak crypto, improper platform usage
+- File access restricted — no raw unrestricted URLs
+
+**Certificate pinning deferred to v1.1.**
+
+## Day 47 — Performance
+
+- Every list uses builder + cursor pagination
+- Debounced search (300ms) everywhere
+- Image cache
+- Dispose audit — no leaked controllers or blocs
+- Shell screens < 2s on 4G mid-range Android
+- Prosthetic waiting list < 2s
+
+## Day 48 — Full test run
+
+- Unit tests
+- Bloc tests
+- Widget tests
+- 4 golden tests: login, dashboard, label detail, prosthetic case detail
+- Integration tests for 6 demo journeys
+
+Coverage report. Fix gaps in critical logic only.
+
+## Day 49 — Backup + restore drilled twice
+
+- Backup DB → destroy staging → restore → verify
+- Backup media → destroy → restore → verify
+- Document in `docs/BACKUP_RESTORE.md`
+
+Scheduled, tested, owned. Not a checklist line.
+
+## Day 50 — Bug fixes + demo rehearsal
+
+Critical/blocking only. Triage rest into v1.1 backlog.
+
+Full demo on staging, real devices, both platforms.
+Offline + conflict demo included.
+Prosthetic workflow demo included.
+
+## Gate 9
+
+- [ ]  Zero critical/blocking bugs
+- [ ]  Performance targets measured and met
+- [ ]  Security audit passed
+- [ ]  All tests green
+- [ ]  Backup + restore drilled twice and documented
+- [ ]  Demo rehearsal passes end-to-end
+
+---
+
+# Part 13 — Phase 10: Release (Days 51–55)
+
+## Day 51 — Android
+
+Signed release APK + AAB.
+Keystore in CI secrets since Day 6.
+Play internal track. Install on real device. Smoke test.
+
+## Day 52 — iOS
+
+Release build → TestFlight via macOS runner. Install. Smoke test.
+
+## Day 53 — Staging + pilot data
+
+Deploy pinned backend to staging.
+Run `SeedPilotVolume`.
+Verify mobile and web against it.
+Run full coherence check one more time.
+
+## Day 54 — Demo video
+
+Six journeys:
+
+1. Login → scan → record usage
+2. Full cycle lifecycle
+3. Prosthetic case: create → transitions → waiting for placement → payment check
+4. Quick stock issue
+5. Alert resolve
+6. Offline → sync → conflict
+
+Plus error handling montage.
+
+## Day 55 — Handoff
+
+**Six user-facing docs:**
+
+- `README.md` — install, run, deploy
+- `API_CONTRACT.md` — observed wire data
+- `OFFLINE_MATRIX.md` — what queues, what doesn't
+- `RUNBOOK.md` — support, incidents, contacts
+- `BACKUP_RESTORE.md` — drilled procedures
+- `USER_GUIDE.md` — French, screenshots
+
+**Three internal docs:**
+
+- `SECURITY.md`
+- `PRIVACY.md`
+- `MIGRATION.md`
+
+Demo video.
+Final walkthrough + written sign-off.
+
+## Gate 10
+
+- [ ]  APK + AAB + iOS build distributed
+- [ ]  Demo video recorded
+- [ ]  Documentation complete
+- [ ]  Client sign-off obtained
+
+---
+
+# Part 14 — Quality gates summary
+
+| Gate | Day | Criterion |
+| --- | --- | --- |
+| Pre-flight | 0 | P1–P14 signed off |
+| 0 | 3 | Contract frozen; UI mapped; offline matrix written |
+| 1 | 6 | CI green; Android + iOS build; Sentry live |
+| 2 | 10 | Auth lifecycle correct incl. server revoke; French UI |
+| 3 | 14 | Dashboard + alerts + cursor list; coherence check #1 |
+| 4 | 19 | Scanner proven on real devices |
+| 5 | 26 | Offline + sync + conflict proven; coherence check #2 |
+| 6 | 33 | Cycle lifecycle + attachments; coherence check #3 |
+| 7 | 40 | Prosthetic module complete; coherence check #4 |
+| 8 | 45 | Stock + purchases + history + full coherence sweep |
+| 9 | 50 | Security + performance + backup drilled |
+| 10 | 55 | Both stores live; demo; sign-off |
+
+---
+
+# Part 15 — The 41 screens (final, verified)
+
+**Auth (3):** Splash, Login, Camera permission
+
+**Shell (1):** Shell
+
+**Dashboard (1):** Dashboard
+
+**Scanner (1):** Scanner
+
+**Labels (3):** Label detail, Label blocked, Label usage form
+
+**Patients (1):** Patient search
+
+**Cycles (7):** List, Detail, Create, Items, Control tests, Attachments, Release
+
+**Stock (4):** Level list, Issue, Adjust, Transfer
+
+**Purchases (4):** PO list, PO detail, Goods receipt, Receipt photo
+
+**Prosthetic (10):** List, Case detail, Create, Edit, Status history, Payment, Attachment, Waiting placement, Dashboard, Laboratory list
+
+**Alerts (1):** Alert list
+
+**History (1):** Audit list
+
+**Settings (2):** Settings, About
+
+**Sync (1):** Sync queue
+
+**Onboarding (1):** Onboarding
+
+**Total: 41 screens.**
+
+Nothing invented. Nothing missing. Every screen traceable to the brief.
+
+---
+
+# Part 16 — The shared widget kit (48 widgets)
+
+**Buttons (5):** primary, secondary, ghost, danger, icon action
+
+**Inputs (6):** text field, dropdown, date picker, search field, number stepper, text area
+
+**Feedback (7):** loading, error, empty, offline banner, sync badge, snackbar, confirmation dialog
+
+**Badges (3):** status, severity, aging
+
+**Lists (3):** cursor paginated list, skeleton, separator
+
+**Cards (4):** app card, KPI card, info card, action card
+
+**Layout (5):** app scaffold, app appbar, section header, divider labeled, responsive layout
+
+**Media (5):** app image, avatar, attachment tile, photo capture, image preview
+
+**Forms (3):** form section, field wrapper, form actions
+
+**Timeline (2):** timeline widget, timeline entry
+
+**Misc (4):** app logo, app version, environment badge, copyable text
+
+**Total: 48 shared widgets.**
+
+---
+
+# Part 17 — Feature widget kit (~103 widgets)
+
+Each feature owns its widgets. Full list is in the folder structure. No duplication with shared.
+
+---
+
+# Part 18 — Cut order if a phase slips
+
+If Day 40 arrives with work still to build, cut in this order:
+
+1. **Receipt photo screen** (Purchases) — receipts still work without photos
+2. **Laboratory list** (Prosthetic) — picker still works
+3. **Stock transfer** — issue + adjust cover 80% of needs
+4. **Cycle release screen** — release as inline dialog on detail
+5. **About screen** — fold version into Settings
+6. **Onboarding screen** — one-time, not critical
+
+**Never cut:**
+
+- Login
+- Dashboard
+- Scanner + Label detail + Label usage
+- Prosthetic module (all 10 screens)
+- Waiting for placement
+- Sync queue
+- Settings (single screen)
+
+Those are the reason the pilot exists. Everything else is comfort.
+
+---
+
+# Part 19 — What "production ready" means for this pilot
+
+Sixteen conditions must be true:
+
+- [ ]  Pilot admin can log in, use every screen, log out
+- [ ]  Pilot staff can log in, use their screens, log out
+- [ ]  Prosthetic case can be created, moved through every status, appears in waiting-for-placement
+- [ ]  Cycle can be created, executed, released
+- [ ]  Offline usage submission survives app kill and syncs on reconnect
+- [ ]  Replayed submission shows "Enregistré précédemment", not error
+- [ ]  Web shows everything mobile writes, within seconds
+- [ ]  Mobile shows everything web writes, within seconds
+- [ ]  No patient data in Sentry
+- [ ]  No patient data in `flutter logs`
+- [ ]  Every list paginates
+- [ ]  Every error shows French message + request_id
+- [ ]  Backup + restore tested twice
+- [ ]  APK installs on real Android
+- [ ]  iOS build installs on real iPhone
+- [ ]  Demo video exists, six docs accurate
+
+If all sixteen are true, the pilot ships.
+
+---
+
+# Part 20 — Final word
+
+You are not building a product. You are building the pilot the clinic will use for 90 days to decide whether to buy. The pilot is a promise. The app must keep it.
+
+The backend is done. The UI is decided. Your job is to translate the wire into Flutter without inventing, breaking, or over-promising anything.
+
+Every phase ends in a gate. Every gate is binary. Every binary gate is provable. Pass all ten, you ship Day 55. Fail one, you fix it before moving on. That discipline is the difference between a senior engineer and everyone else.
+
+**41 screens. 151 widgets. 55 days. One promise.**
+
+Build this.
+
+# Phase per phase · Every task · Every checkbox · 10/10 production quality
+
+This is the tactical execution list. Every phase has numbered tasks you can check off. No task is optional unless marked. No task is vague. Each one produces a concrete artifact.
+
+Read `Part 1` once, then work phase by phase. Every phase ends with a gate. Every gate is binary. No partial credit.
+
+---
+
+# Part 1 — How to use this document
+
+**Daily rhythm:**
+
+- Morning: check Gate 0 status of current phase. Pull latest. Run `flutter analyze`, `flutter test`, boot app against staging.
+- Midday: commit and push. CI must be green.
+- Afternoon: write tests for what you built.
+- End of day: commit, push, verify CI green, write one line in `docs/DAILY_LOG.md`.
+
+**Rule:** never move to the next phase until the current gate is fully green. Never.
+
+**Rule:** if you find yourself skipping tests to hit a date, you've already failed the gate. Stop. Fix the test. Then continue.
+
+---
+
+# Phase 0 — Contract capture + UI mapping
+
+**Duration:** Days 1–3 (3 days)
+**Output:** frozen contract, mapped UI, offline matrix, error catalog
+
+## Tasks
+
+### T0.1 — Capture auth wire data
+
+- [ ]  POST `/auth/login` — capture raw request + raw response as JSON
+- [ ]  DELETE `/auth/logout`
+- [ ]  DELETE `/auth/tokens`
+- [ ]  GET `/me`
+
+### T0.2 — Capture dashboard wire data
+
+- [ ]  GET `/dashboard` (or the actual aggregate endpoint)
+- [ ]  Note exact field names, types, nullability
+
+### T0.3 — Capture alerts wire data
+
+- [ ]  GET `/alerts` (with cursor param)
+- [ ]  POST `/alerts/{alert}/resolve`
+- [ ]  Note all severity enum values
+
+### T0.4 — Capture labels wire data
+
+- [ ]  GET `/labels/{code}` — capture both valid and blocked responses
+- [ ]  GET `/labels/{label}/usage`
+- [ ]  POST `/labels/{label}/usage`
+- [ ]  Note `LabelScanResultData` shape and `status` enum
+
+### T0.5 — Capture patients wire data
+
+- [ ]  GET `/patients` with `?search=`
+
+### T0.6 — Capture cycles wire data
+
+- [ ]  GET `/cycles`
+- [ ]  POST `/cycles`
+- [ ]  GET `/cycles/{id}`
+- [ ]  POST `/cycles/{id}/start`
+- [ ]  POST `/cycles/{id}/complete`
+- [ ]  POST `/cycles/{id}/submit-for-release`
+- [ ]  POST `/cycles/{id}/release`
+- [ ]  GET/POST/DELETE `/cycles/{id}/items`
+- [ ]  GET/POST `/cycles/{id}/control-tests`
+- [ ]  GET/POST/DELETE `/cycles/{id}/attachments`
+
+### T0.7 — Capture stock wire data
+
+- [ ]  GET `/stock-levels`
+- [ ]  POST `/stock-movements/issue`
+- [ ]  POST `/stock-movements/adjust`
+- [ ]  POST `/stock-movements/transfer`
+
+### T0.8 — Capture purchases wire data
+
+- [ ]  GET `/purchase-orders`
+- [ ]  GET `/purchase-orders/{id}`
+- [ ]  POST `/purchase-orders/{id}/receipts`
+
+### T0.9 — Capture audit wire data
+
+- [ ]  GET `/audit-events` with filter params
+
+### T0.10 — Capture prosthetic wire data
+
+- [ ]  GET `/prosthetic-cases`
+- [ ]  POST `/prosthetic-cases`
+- [ ]  GET `/prosthetic-cases/{id}`
+- [ ]  PATCH `/prosthetic-cases/{id}`
+- [ ]  POST `/prosthetic-cases/{id}/status`
+- [ ]  POST `/prosthetic-cases/{id}/attachments`
+- [ ]  GET `/prosthetic-cases/waiting-placement`
+- [ ]  GET `/prosthetic-dashboard`
+- [ ]  GET `/laboratories`
+- [ ]  GET/POST `/prosthetic-cases/{id}/payments`
+
+### T0.11 — Write `docs/API_CONTRACT.md`
+
+- [ ]  One section per endpoint
+- [ ]  Raw request + raw response
+- [ ]  Field notes (types, nullable, enum values)
+
+### T0.12 — Role matrix test
+
+- [ ]  Log in as admin. Hit every endpoint. Record status codes.
+- [ ]  Log in as staff. Hit every endpoint. Record status codes.
+- [ ]  Write `docs/ROLE_MATRIX.md`
+
+### T0.13 — Tenant isolation test
+
+- [ ]  Log in as tenant A
+- [ ]  Fetch a resource ID belonging to tenant B
+- [ ]  Confirm 404 (not 403, not 200)
+- [ ]  Write result in `docs/API_CONTRACT.md`
+
+### T0.14 — Idempotency 409 test
+
+- [ ]  Send same `Idempotency-Key` twice on a queuable POST
+- [ ]  Confirm second returns 409
+- [ ]  Write result in `docs/API_CONTRACT.md`
+
+### T0.15 — Error catalog
+
+- [ ]  401 wrong password
+- [ ]  403 staff hitting admin endpoint
+- [ ]  404 unknown resource
+- [ ]  409 idempotency replay
+- [ ]  422 invalid payload
+- [ ]  429 rate limit
+- [ ]  Capture exact `error.code` and French `error.message`
+- [ ]  Write `docs/ERROR_MATRIX.md`
+
+### T0.16 — UI mapping
+
+- [ ]  For every one of the 41 screens, list:
+    - Which endpoint(s) feed it
+    - Which fields display
+    - Which fields edit
+    - Which states must be handled (loading, error, empty, loaded, offline, pending sync)
+- [ ]  Write `docs/UI_MAPPING.md`
+
+### T0.17 — Offline matrix
+
+- [ ]  List every write operation
+- [ ]  Mark QUEUE or NEVER
+- [ ]  Write `docs/OFFLINE_MATRIX.md`
+
+### T0.18 — Copy UI screenshots
+
+- [ ]  All 14 screenshots into `docs/ui-reference/`
+- [ ]  Name them by screen (dashboard.png, login.png, etc.)
+
+### T0.19 — Freeze sign-off
+
+- [ ]  Review contract with web engineer
+- [ ]  Any change from now on is a written change request
+- [ ]  Both parties sign
+
+## Gate 0 — check before moving on
+
+- [ ]  Every pilot endpoint captured from real wire data
+- [ ]  Role matrix complete (admin + staff)
+- [ ]  Tenant isolation spot-checked (404 confirmed)
+- [ ]  Idempotency 409 confirmed
+- [ ]  Error catalog complete
+- [ ]  All API error messages confirmed in French
+- [ ]  UI mapping complete for all 41 screens
+- [ ]  Offline matrix complete
+- [ ]  UI screenshots in `docs/ui-reference/`
+- [ ]  Contract frozen and signed
+
+**If any checkbox is empty, do not start Phase 1.**
+
+---
+
+# Phase 1 — Foundation
+
+**Duration:** Days 4–6 (3 days)
+**Output:** working network layer, storage, theme, router, DI, CI green
+
+## Tasks
+
+### T1.1 — Set up Flutter project
+
+- [ ]  `flutter create --org com.steriymed --platforms=android,ios steriymed_mobile`
+- [ ]  Configure `pubspec.yaml` with dependencies
+- [ ]  Set Dart SDK constraint to `>=3.4.0 <4.0.0`
+
+### T1.2 — Configure `analysis_options.yaml`
+
+- [ ]  Enable `flutter_lints`
+- [ ]  Add strict rules (prefer_const, avoid_print, require_trailing_commas)
+- [ ]  Verify `flutter analyze` clean
+
+### T1.3 — Write `lib/core/config/env.dart`
+
+- [ ]  `apiBaseUrl` from `String.fromEnvironment`
+- [ ]  `environment` from `String.fromEnvironment` default `dev`
+- [ ]  `sentryDsn` from `String.fromEnvironment`
+
+### T1.4 — Write `lib/core/config/api_endpoints.dart`
+
+- [ ]  One constant per endpoint path
+- [ ]  Grouped by feature with comments
+- [ ]  Mirrors `routes/api.php` exactly
+
+### T1.5 — Write `lib/core/config/app_config.dart`
+
+- [ ]  Timeouts (connect, read, write)
+- [ ]  Page sizes
+- [ ]  Feature flags (if any)
+
+### T1.6 — Write `lib/core/network/dio_client.dart`
+
+- [ ]  Create Dio instance with base URL from Env
+- [ ]  Set JSON headers
+- [ ]  Set timeouts from AppConfig
+
+### T1.7 — Write `lib/core/network/interceptors/auth_interceptor.dart`
+
+- [ ]  Read bearer from `TokenStorage`
+- [ ]  Attach to every request
+- [ ]  Skip on `/auth/login`
+
+### T1.8 — Write `lib/core/network/interceptors/error_interceptor.dart`
+
+- [ ]  Parse `{error:{code,message,details,request_id}}`
+- [ ]  Throw `ApiException` with all fields
+- [ ]  Handle network down (DioExceptionType.connectionError)
+- [ ]  Handle timeout
+- [ ]  Handle unknown 5xx
+
+### T1.9 — Write `lib/core/network/interceptors/idempotency_interceptor.dart`
+
+- [ ]  Detect queuable POSTs (path whitelist)
+- [ ]  Inject `Idempotency-Key` header if not present
+- [ ]  Use UUID v4
+
+### T1.10 — Write `lib/core/network/interceptors/logging_interceptor.dart`
+
+- [ ]  Only log in debug mode
+- [ ]  Run payload through `pii_scrubber.dart`
+- [ ]  Never log tokens, passwords, patient names, patient IDs
+
+### T1.11 — Write `lib/core/errors/api_exception.dart`
+
+- [ ]  Fields: `code`, `message`, `details`, `requestId`, `statusCode`
+- [ ]  `toString()` for debug
+
+### T1.12 — Write `lib/core/errors/error_mapper.dart`
+
+- [ ]  `DioException` → `ApiException`
+- [ ]  Fallback French messages for network, timeout, unknown
+
+### T1.13 — Write `lib/core/errors/error_codes.dart`
+
+- [ ]  Constants for all captured `error.code` values
+- [ ]  Used everywhere instead of raw strings
+
+### T1.14 — Write `lib/core/storage/secure_storage.dart`
+
+- [ ]  `flutter_secure_storage` wrapper
+- [ ]  Read, write, delete methods
+
+### T1.15 — Write `lib/core/storage/token_storage.dart`
+
+- [ ]  Save, load, delete bearer token
+- [ ]  Uses `SecureStorage`
+
+### T1.16 — Write `lib/core/storage/session_store.dart`
+
+- [ ]  Save, load, delete current `UserData`, `TenantData`, role
+- [ ]  In-memory only (survives app lifecycle, not restarts)
+
+### T1.17 — Write `lib/core/utils/logger.dart`
+
+- [ ]  Wraps `debugPrint`
+- [ ]  Only logs in debug
+
+### T1.18 — Write `lib/core/utils/pii_scrubber.dart`
+
+- [ ]  Regex for patient IDs, names, tokens
+- [ ]  Returns scrubbed string
+
+### T1.19 — Write `lib/core/utils/validators.dart`
+
+- [ ]  Email validator
+- [ ]  Required validator
+- [ ]  Password validator
+- [ ]  French error messages
+
+### T1.20 — Write `lib/core/utils/debouncer.dart`
+
+- [ ]  Generic debouncer for search fields
+
+### T1.21 — Write `lib/core/utils/idempotency_key.dart`
+
+- [ ]  UUID v4 generator
+
+### T1.22 — Write `lib/core/theme/colors.dart`
+
+- [ ]  Match SteryMed UI palette exactly
+- [ ]  Pull tokens from docs
+
+### T1.23 — Write `lib/core/theme/typography.dart`
+
+- [ ]  Inter font family
+- [ ]  Sizes matching UI
+
+### T1.24 — Write `lib/core/theme/spacing.dart`
+
+- [ ]  4/8/12/16/24/32 scale
+
+### T1.25 — Write `lib/core/theme/radius.dart`
+
+- [ ]  Small, medium, large, pill
+
+### T1.26 — Write `lib/core/theme/shadows.dart`
+
+- [ ]  Card, modal, appbar shadows
+
+### T1.27 — Write `lib/core/theme/tokens.dart`
+
+- [ ]  Aggregate tokens
+
+### T1.28 — Write `lib/core/theme/light_theme.dart`
+
+- [ ]  `ThemeData` for light mode
+
+### T1.29 — Write `lib/core/theme/dark_theme.dart`
+
+- [ ]  `ThemeData` for dark mode
+
+### T1.30 — Write `lib/core/theme/app_theme.dart`
+
+- [ ]  Exports light + dark
+
+### T1.31 — Write `lib/core/router/route_names.dart`
+
+- [ ]  Constants for all 41 routes
+
+### T1.32 — Write `lib/core/router/routes.dart`
+
+- [ ]  Route definitions
+
+### T1.33 — Write `lib/core/router/app_router.dart`
+
+- [ ]  go_router configuration
+- [ ]  Initial route = splash
+- [ ]  Auth redirect guard
+
+### T1.34 — Write `lib/core/router/guards/auth_guard.dart`
+
+- [ ]  Redirects to login if no session
+
+### T1.35 — Write `lib/core/router/guards/role_guard.dart`
+
+- [ ]  Redirects if role not allowed on route
+
+### T1.36 — Write `lib/core/analytics/analytics_events.dart`
+
+- [ ]  List of events: login, scan_success, scan_blocked, usage_recorded, cycle_transition, prosthetic_transition
+- [ ]  No PII
+
+### T1.37 — Write `lib/core/analytics/analytics_service.dart`
+
+- [ ]  Interface + stub implementation
+
+### T1.38 — Write `lib/core/crash/crash_reporter.dart`
+
+- [ ]  Sentry wrapper
+- [ ]  PII scrubbing before send
+
+### T1.39 — Write shared widgets — buttons (5 files)
+
+- [ ]  `primary_button.dart`
+- [ ]  `secondary_button.dart`
+- [ ]  `ghost_button.dart`
+- [ ]  `danger_button.dart`
+- [ ]  `icon_action_button.dart`
+
+### T1.40 — Write shared widgets — inputs (6 files)
+
+- [ ]  `app_text_field.dart`
+- [ ]  `app_dropdown.dart`
+- [ ]  `app_date_picker.dart`
+- [ ]  `app_search_field.dart`
+- [ ]  `app_number_stepper.dart`
+- [ ]  `app_text_area.dart`
+
+### T1.41 — Write shared widgets — feedback (7 files)
+
+- [ ]  `loading_view.dart`
+- [ ]  `error_view.dart` (shows request_id)
+- [ ]  `empty_view.dart`
+- [ ]  `offline_banner.dart`
+- [ ]  `sync_status_badge.dart`
+- [ ]  `app_snackbar.dart`
+- [ ]  `confirmation_dialog.dart`
+
+### T1.42 — Write shared widgets — badges (3 files)
+
+- [ ]  `status_badge.dart`
+- [ ]  `severity_badge.dart`
+- [ ]  `aging_badge.dart`
+
+### T1.43 — Write shared widgets — lists (3 files)
+
+- [ ]  `cursor_paginated_list.dart`
+- [ ]  `list_tile_skeleton.dart`
+- [ ]  `list_separator.dart`
+
+### T1.44 — Write shared widgets — cards (4 files)
+
+- [ ]  `app_card.dart`
+- [ ]  `kpi_card.dart`
+- [ ]  `info_card.dart`
+- [ ]  `action_card.dart`
+
+### T1.45 — Write shared widgets — layout (5 files)
+
+- [ ]  `app_scaffold.dart`
+- [ ]  `app_appbar.dart`
+- [ ]  `section_header.dart`
+- [ ]  `divider_labeled.dart`
+- [ ]  `responsive_layout.dart`
+
+### T1.46 — Write shared widgets — media (5 files)
+
+- [ ]  `app_image.dart`
+- [ ]  `app_avatar.dart`
+- [ ]  `attachment_tile.dart`
+- [ ]  `photo_capture.dart`
+- [ ]  `image_preview.dart`
+
+### T1.47 — Write shared widgets — forms (3 files)
+
+- [ ]  `form_section.dart`
+- [ ]  `form_field_wrapper.dart`
+- [ ]  `form_actions.dart`
+
+### T1.48 — Write shared widgets — timeline (2 files)
+
+- [ ]  `timeline_widget.dart`
+- [ ]  `timeline_entry.dart`
+
+### T1.49 — Write shared widgets — misc (4 files)
+
+- [ ]  `app_logo.dart`
+- [ ]  `app_version_label.dart`
+- [ ]  `environment_badge.dart`
+- [ ]  `copyable_text.dart`
+
+### T1.50 — Write `lib/di/` registrations
+
+- [ ]  `di.dart` aggregator
+- [ ]  `core_di.dart`
+- [ ]  `network_di.dart`
+- [ ]  `storage_di.dart`
+- [ ]  `router_di.dart`
+
+### T1.51 — Write `lib/bootstrap.dart`
+
+- [ ]  Init Sentry
+- [ ]  Init DI
+- [ ]  Init secure storage
+- [ ]  Call `runApp(SteryMedApp())`
+
+### T1.52 — Write `lib/app.dart`
+
+- [ ]  `MaterialApp.router`
+- [ ]  Localization delegates
+- [ ]  Theme
+- [ ]  Router config
+
+### T1.53 — Write `lib/main.dart`
+
+- [ ]  Call `bootstrap()`
+
+### T1.54 — Configure `l10n.yaml`
+
+- [ ]  French only
+- [ ]  Template arb file
+
+### T1.55 — Write `lib/l10n/app_fr.arb`
+
+- [ ]  Every UI string in French
+- [ ]  No English fallbacks
+
+### T1.56 — Android manifest configuration
+
+- [ ]  App name: SteryMed
+- [ ]  Camera permission
+- [ ]  Internet permission
+- [ ]  `network_security_config.xml` for debug
+- [ ]  Version from pubspec
+
+### T1.57 — iOS Info.plist configuration
+
+- [ ]  Camera usage description (French)
+- [ ]  Photo library usage description (French)
+- [ ]  App display name: SteryMed
+
+### T1.58 — Set up CI — Android workflow
+
+- [ ]  `.github/workflows/mobile-analyze.yml`
+- [ ]  `.github/workflows/mobile-test.yml`
+- [ ]  `.github/workflows/mobile-build-android.yml`
+- [ ]  Keystore in secrets
+- [ ]  `flutter analyze` + `flutter test` + `flutter build apk --debug`
+
+### T1.59 — Set up CI — iOS workflow
+
+- [ ]  `.github/workflows/mobile-build-ios.yml`
+- [ ]  macOS runner
+- [ ]  `flutter build ios --simulator --no-codesign`
+
+### T1.60 — Set up CI — secrets scan
+
+- [ ]  `.github/workflows/secrets-scan.yml`
+- [ ]  `gitleaks`
+
+### T1.61 — Wire Sentry
+
+- [ ]  DSN from Env
+- [ ]  Test event sent
+- [ ]  Verified in Sentry dashboard
+
+### T1.62 — Write T1 unit tests
+
+- [ ]  `test/unit/core/env_test.dart`
+- [ ]  `test/unit/core/error_mapper_test.dart`
+- [ ]  `test/unit/core/idempotency_key_test.dart`
+- [ ]  `test/unit/core/debouncer_test.dart`
+- [ ]  `test/unit/core/validators_test.dart`
+- [ ]  `test/unit/core/pii_scrubber_test.dart`
+
+### T1.63 — Verify boot
+
+- [ ]  App boots to splash screen
+- [ ]  No crash on real Android device
+- [ ]  No crash on real iPhone
+
+## Gate 1 — check before moving on
+
+- [ ]  `flutter analyze` clean (0 issues)
+- [ ]  `flutter test` green (all T1 tests pass)
+- [ ]  CI green on Android workflow
+- [ ]  CI green on iOS workflow
+- [ ]  Debug APK installs on real Android
+- [ ]  iOS build compiles
+- [ ]  App boots to splash
+- [ ]  Sentry receives a test event
+- [ ]  No PII in any log output
+
+**If any checkbox is empty, do not start Phase 2.**
+
+---
+
+# Phase 2 — Auth + session + shell
+
+**Duration:** Days 7–10 (4 days)
+**Output:** working login, session persistence, role-aware shell
+
+## Tasks
+
+### T2.1 — Write `UserData` model
+
+- [ ]  Fields matching wire shape exactly
+- [ ]  `fromJson`, `toJson`
+
+### T2.2 — Write `TenantData` model
+
+- [ ]  Fields matching wire shape
+
+### T2.3 — Write `LoginResponse` model
+
+- [ ]  `{token, token_type, user, tenant}`
+
+### T2.4 — Write `AuthRemoteDatasource`
+
+- [ ]  `login`, `logout`, `logoutEverywhere`, `me`
+- [ ]  Uses Dio
+
+### T2.5 — Write `AuthRepository`
+
+- [ ]  Orchestrates datasource + `TokenStorage` + `SessionStore`
+- [ ]  `restoreSession()`
+- [ ]  `login()` — save token + user + tenant
+- [ ]  `logout()` — call server, wipe local
+- [ ]  `logoutEverywhere()` — call server, wipe local
+- [ ]  `me()` — refresh user + tenant
+
+### T2.6 — Write `AuthEvent`
+
+- [ ]  `AuthLoginSubmitted`
+- [ ]  `AuthLogoutRequested`
+- [ ]  `AuthLogoutEverywhereRequested`
+- [ ]  `AuthSessionChecked`
+
+### T2.7 — Write `AuthState`
+
+- [ ]  `initial`
+- [ ]  `loading`
+- [ ]  `authenticated`
+- [ ]  `unauthenticated`
+- [ ]  `error`
+
+### T2.8 — Write `AuthBloc`
+
+- [ ]  Handles all events
+- [ ]  Uses `AuthRepository`
+- [ ]  On error, emits `AuthErrorState` with `ApiException`
+
+### T2.9 — Write `SplashScreen`
+
+- [ ]  Triggers `AuthSessionChecked`
+- [ ]  Shows logo + loading
+- [ ]  Router redirects based on state
+
+### T2.10 — Write `LoginScreen`
+
+- [ ]  Fields: tenant_slug, email, password
+- [ ]  Submit button
+- [ ]  Loading state
+- [ ]  Error display with request_id
+- [ ]  All strings from `app_fr.arb`
+
+### T2.11 — Write `LoginForm`
+
+- [ ]  Form validation
+- [ ]  422 field errors displayed inline
+- [ ]  Password visibility toggle
+
+### T2.12 — Write `CameraPermissionScreen`
+
+- [ ]  Explains camera use in French
+- [ ]  Button to open settings
+
+### T2.13 — Write `ShellScreen`
+
+- [ ]  Bottom nav bar
+- [ ]  6 tabs: Accueil, Scanner, Cycles, Prothèse, Alertes, Plus
+- [ ]  Child routes
+
+### T2.14 — Write `BottomNavBar`
+
+- [ ]  Icons + labels
+- [ ]  Active state
+
+### T2.15 — Write `RoleAwareNav`
+
+- [ ]  Filters tabs by role
+- [ ]  Admin sees all
+- [ ]  Staff sees subset
+
+### T2.16 — Write `ProfileMenu`
+
+- [ ]  Small menu in appbar showing user + role
+- [ ]  Logout shortcut
+
+### T2.17 — Wire global 401 handling
+
+- [ ]  Error interceptor throws `ApiException(code: 'unauthenticated')`
+- [ ]  AuthBloc listens and emits `unauthenticated`
+- [ ]  Router redirects to login
+
+### T2.18 — Register DI for auth
+
+- [ ]  `AuthBloc` factory
+- [ ]  `AuthRepository` singleton
+- [ ]  `AuthRemoteDatasource` singleton
+
+### T2.19 — Write auth bloc tests
+
+- [ ]  Happy path: login success → authenticated
+- [ ]  Wrong password: 401 → error state with French message
+- [ ]  Network down: error state with French network message
+- [ ]  Session check with no token → unauthenticated
+- [ ]  Session check with valid token → authenticated
+- [ ]  Logout calls server then wipes local
+- [ ]  Logout everywhere calls server then wipes local
+
+### T2.20 — Write login screen widget test
+
+- [ ]  Renders all fields
+- [ ]  Shows 422 errors in French
+- [ ]  Submit button disabled while loading
+
+### T2.21 — Write integration test
+
+- [ ]  Login → shell visible
+- [ ]  Kill app → reopen → still logged in
+- [ ]  Logout → `/me` returns 401
+
+### T2.22 — Manual test on real devices
+
+- [ ]  Android: login, kill, reopen
+- [ ]  iOS: login, kill, reopen
+- [ ]  Logout works on both
+
+## Gate 2 — check before moving on
+
+- [ ]  Login works against staging
+- [ ]  Session persists across app kills (verified on real devices)
+- [ ]  Logout revokes server-side (`/me` returns 401)
+- [ ]  401 anywhere redirects to login
+- [ ]  Role-aware nav works (admin sees more tabs than staff)
+- [ ]  All user-facing strings in French
+- [ ]  Auth bloc tests green
+- [ ]  Login widget test green
+- [ ]  Integration test green
+
+**If any checkbox is empty, do not start Phase 3.**
+
+---
+
+# Phase 3 — Dashboard + alerts + cursor list
+
+**Duration:** Days 11–14 (4 days)
+**Output:** working dashboard with tap-through, alerts grouped, reusable cursor list
+
+## Tasks
+
+### T3.1 — Write `DashboardData` model
+
+- [ ]  Fields matching wire shape
+- [ ]  Nested card data classes
+
+### T3.2 — Write `DashboardRemoteDatasource`
+
+- [ ]  Fetch dashboard aggregate
+
+### T3.3 — Write `DashboardRepository`
+
+- [ ]  Interface + impl
+
+### T3.4 — Write `DashboardCubit`
+
+- [ ]  `loading`, `loaded`, `error` states
+- [ ]  Refresh method
+
+### T3.5 — Write `DashboardScreen`
+
+- [ ]  Match UI reference exactly
+- [ ]  Loading state
+- [ ]  Error state with retry
+- [ ]  Pull to refresh
+
+### T3.6 — Write `KpiRow`
+
+- [ ]  Row of KPI cards
+
+### T3.7 — Write `AttentionCards`
+
+- [ ]  Attention/alert cards
+
+### T3.8 — Write `TodayCyclesCard`
+
+- [ ]  Cycles today
+
+### T3.9 — Write `RecentProceduresCard`
+
+- [ ]  Recent procedures
+
+### T3.10 — Write `ProstheticSummaryCard`
+
+- [ ]  Prosthetic counts (active, at lab, returned, waiting placement, unpaid)
+
+### T3.11 — Wire tap-through on every card
+
+- [ ]  Each card navigates to its filtered list
+- [ ]  No dead KPIs
+
+### T3.12 — Write `AlertData` model
+
+- [ ]  Fields matching wire shape
+
+### T3.13 — Write `AlertRemoteDatasource`
+
+- [ ]  Fetch alerts with cursor
+- [ ]  Resolve alert
+
+### T3.14 — Write `AlertRepository`
+
+- [ ]  Interface + impl
+
+### T3.15 — Write `AlertListBloc`
+
+- [ ]  Load, paginate, resolve
+
+### T3.16 — Write `AlertListScreen`
+
+- [ ]  Cursor paginated
+- [ ]  Grouped by severity (critical, warning, info)
+- [ ]  Match UI reference
+
+### T3.17 — Write `AlertTile`
+
+- [ ]  Shows alert info
+- [ ]  Tap → detail or resolve
+
+### T3.18 — Write `AlertSeverityGroup`
+
+- [ ]  Visual grouping with header
+
+### T3.19 — Write `ResolveConfirmDialog`
+
+- [ ]  Confirmation before resolving
+
+### T3.20 — Write `CursorPaginatedList<T>`
+
+- [ ]  Generic list widget
+- [ ]  Handles cursor from response
+- [ ]  Load more on scroll
+- [ ]  Pull to refresh
+- [ ]  Error retry
+- [ ]  End of list indicator
+- [ ]  Empty state
+- [ ]  Loading state
+
+### T3.21 — Write widget tests for CursorPaginatedList
+
+- [ ]  Loads first page
+- [ ]  Loads second page on scroll
+- [ ]  Shows error on failure
+- [ ]  Pull to refresh resets
+
+### T3.22 — Write bloc tests for DashboardCubit
+
+- [ ]  Happy path
+- [ ]  Error path
+- [ ]  Refresh
+
+### T3.23 — Write bloc tests for AlertListBloc
+
+- [ ]  Happy path
+- [ ]  Pagination
+- [ ]  Resolve succeeds → alert removed from list
+- [ ]  Resolve fails → error state
+
+### T3.24 — Write widget tests for DashboardScreen
+
+- [ ]  Renders KPIs
+- [ ]  Tap-through navigates to correct screen
+
+### T3.25 — Write widget tests for AlertListScreen
+
+- [ ]  Groups by severity
+- [ ]  Resolve dialog appears
+
+### T3.26 — Coherence check #1
+
+- [ ]  Login as same user on web
+- [ ]  Compare dashboard counts to mobile dashboard
+- [ ]  Must match exactly
+- [ ]  Log result in `docs/DAILY_LOG.md`
+
+## Gate 3 — check before moving on
+
+- [ ]  Dashboard cards open correct filtered lists
+- [ ]  Alerts grouped by severity
+- [ ]  Alert resolve works with confirmation
+- [ ]  `CursorPaginatedList` reused in 2+ places
+- [ ]  Dashboard bloc tests green
+- [ ]  Alerts bloc tests green
+- [ ]  Widget tests green
+- [ ]  **Web dashboard shows same counts for same test user** (coherence #1)
+
+**If any checkbox is empty, do not start Phase 4.**
+
+---
+
+# Phase 4 — Scanner + label detail + blocked state
+
+**Duration:** Days 15–19 (5 days)
+**Output:** working scanner, correct label resolution, blocked screen, real-device verification
+
+## Tasks
+
+### T4.1 — Add `mobile_scanner` dependency
+
+- [ ]  Version pinned in pubspec
+
+### T4.2 — Write `ScanResult` model
+
+- [ ]  Raw scanned code
+
+### T4.3 — Write `ScannerBloc`
+
+- [ ]  Events: `ScanDetected`, `ScanCooldownExpired`, `TorchToggled`
+- [ ]  States: `initial`, `scanning`, `resolving`, `resolved`, `error`
+- [ ]  400ms cooldown between scans
+
+### T4.4 — Write `ScannerScreen`
+
+- [ ]  Camera preview
+- [ ]  Overlay with scan frame
+- [ ]  Torch toggle
+- [ ]  Handle permission denied → navigate to `CameraPermissionScreen`
+
+### T4.5 — Write `ScannerOverlay`
+
+- [ ]  Scan frame
+- [ ]  Hint text in French
+
+### T4.6 — Write `TorchToggle`
+
+- [ ]  Icon button toggling camera flash
+
+### T4.7 — Write `ScanCooldownIndicator`
+
+- [ ]  Visual feedback when in cooldown
+
+### T4.8 — Write `LabelScanResultData` model
+
+- [ ]  Fields matching wire shape
+- [ ]  `status` enum: valid, expired, recalled (or per backend)
+
+### T4.9 — Write `LabelRemoteDatasource`
+
+- [ ]  `getByCode(code)`
+
+### T4.10 — Write `LabelRepository`
+
+- [ ]  Interface + impl
+
+### T4.11 — Wire scan → resolve
+
+- [ ]  On scan detected, call `getByCode`
+- [ ]  Route: valid → `LabelDetailScreen`, blocked → `LabelBlockedScreen`
+
+### T4.12 — Write `LabelDetailScreen`
+
+- [ ]  Match UI reference
+- [ ]  Status badge
+- [ ]  Product info
+- [ ]  Batch info
+- [ ]  Sterilization date
+- [ ]  Expiry date
+- [ ]  Device
+- [ ]  Cycle reference
+- [ ]  Usage history link
+- [ ]  "Enregistrer utilisation" CTA (only enabled when valid)
+
+### T4.13 — Write `LabelBlockedScreen`
+
+- [ ]  Full-screen blocking view
+- [ ]  Color-coded by reason (expired = red, recalled = dark red)
+- [ ]  Shows reason (from server)
+- [ ]  Back button only
+- [ ]  No CTA
+
+### T4.14 — Write `LabelStatusHeader`
+
+- [ ]  Top section of label detail
+
+### T4.15 — Write `LabelInfoSection`
+
+- [ ]  Middle section
+
+### T4.16 — Write `LabelUsageHistory`
+
+- [ ]  List of past usages
+
+### T4.17 — Write `LabelBlockedBanner`
+
+- [ ]  For use on blocked screen
+
+### T4.18 — Write `LabelDetailBloc`
+
+- [ ]  Load label by code
+- [ ]  States: loading, loaded, error
+
+### T4.19 — Write bloc tests for ScannerBloc
+
+- [ ]  Scan detected → resolves
+- [ ]  Valid → navigate to detail
+- [ ]  Blocked → navigate to blocked
+- [ ]  Unknown code → error
+- [ ]  Network down → error
+- [ ]  Cooldown prevents double-fire
+
+### T4.20 — Write bloc tests for LabelDetailBloc
+
+- [ ]  Load valid
+- [ ]  Load blocked
+- [ ]  Load error
+
+### T4.21 — Write widget tests
+
+- [ ]  Label detail renders all sections
+- [ ]  Blocked screen renders reason
+- [ ]  CTA disabled when blocked
+
+### T4.22 — Write integration tests
+
+- [ ]  Scan valid → detail
+- [ ]  Scan blocked → blocked screen
+
+### T4.23 — Real-device test day
+
+- [ ]  5cm distance
+- [ ]  10cm
+- [ ]  20cm
+- [ ]  30cm
+- [ ]  50cm
+- [ ]  45° angle
+- [ ]  90° angle
+- [ ]  Low light
+- [ ]  Damaged label
+- [ ]  Wrinkled label
+- [ ]  Screen glare
+- [ ]  QR code
+- [ ]  DataMatrix code
+- [ ]  Log every result in `docs/DEVICE_TEST_LOG.md`
+- [ ]  Fix every failure
+
+## Gate 4 — check before moving on
+
+- [ ]  Scan → detail < 2s on mid-range Android
+- [ ]  Blocked screen matches server state exactly
+- [ ]  No double-scan registrations (cooldown verified)
+- [ ]  Real-device test log complete
+- [ ]  Every failure from device tests fixed
+- [ ]  Scanner bloc tests green
+- [ ]  Label detail bloc tests green  
+
+# Flutter · 41 screens · 151 widgets · 55 days · Backend ready · UI provided · 10/10 pilot-ready
+
+One tree. Every file. Every folder. Every reason. Verified against the brief, the *Cahier des charges*, and the SteryMed UI. Copy this and build.
+
+---
+
+```
+steriymed-mobile/
+│
+├── .gitignore
+├── .metadata
+├── .editorconfig
+├── analysis_options.yaml
+├── dart_test.yaml
+├── l10n.yaml
+├── pubspec.yaml
+├── pubspec.lock
+├── README.md
+├── CHANGELOG.md
+├── LICENSE
+├── Makefile
+│
+├── android/
+│   ├── build.gradle
+│   ├── settings.gradle
+│   ├── gradle.properties
+│   ├── key.properties.example
+│   ├── gradle/wrapper/
+│   │   ├── gradle-wrapper.jar
+│   │   └── gradle-wrapper.properties
+│   └── app/
+│       ├── build.gradle
+│       ├── proguard-rules.pro
+│       ├── google-services.json.example
+│       └── src/
+│           ├── main/
+│           │   ├── AndroidManifest.xml
+│           │   ├── kotlin/com/steriymed/mobile/
+│           │   │   ├── MainActivity.kt
+│           │   │   └── SteryMedApp.kt
+│           │   └── res/
+│           │       ├── drawable/launch_background.xml
+│           │       ├── mipmap-hdpi/
+│           │       ├── mipmap-mdpi/
+│           │       ├── mipmap-xhdpi/
+│           │       ├── mipmap-xxhdpi/
+│           │       ├── mipmap-xxxhdpi/
+│           │       ├── values/
+│           │       │   ├── colors.xml
+│           │       │   ├── strings.xml
+│           │       │   └── styles.xml
+│           │       └── xml/
+│           │           ├── network_security_config.xml
+│           │           └── file_paths.xml
+│           ├── debug/AndroidManifest.xml
+│           └── profile/AndroidManifest.xml
+│
+├── ios/
+│   ├── Podfile
+│   ├── Podfile.lock
+│   ├── Runner.xcodeproj/
+│   ├── Runner.xcworkspace/
+│   ├── Flutter/
+│   │   ├── Debug.xcconfig
+│   │   ├── Release.xcconfig
+│   │   └── AppFrameworkInfo.plist
+│   └── Runner/
+│       ├── AppDelegate.swift
+│       ├── Info.plist
+│       ├── Runner.entitlements
+│       ├── GoogleService-Info.plist.example
+│       ├── Base.lproj/
+│       │   ├── Main.storyboard
+│       │   └── LaunchScreen.storyboard
+│       ├── fr.lproj/InfoPlist.strings
+│       └── Assets.xcassets/
+│           ├── AppIcon.appiconset/
+│           ├── LaunchImage.imageset/
+│           └── AccentColor.colorset/
+│
+├── assets/
+│   ├── images/
+│   │   ├── logo.png
+│   │   ├── logo_dark.png
+│   │   ├── empty_states/
+│   │   │   ├── empty_cases.svg
+│   │   │   ├── empty_alerts.svg
+│   │   │   ├── empty_stock.svg
+│   │   │   ├── empty_history.svg
+│   │   │   └── empty_prosthetic.svg
+│   │   ├── illustrations/
+│   │   │   ├── offline.svg
+│   │   │   ├── sync.svg
+│   │   │   ├── scanner_hint.svg
+│   │   │   └── waiting_placement.svg
+│   │   └── icons/
+│   │       ├── prosthetic.svg
+│   │       ├── sterilization.svg
+│   │       ├── stock.svg
+│   │       └── alert.svg
+│   ├── fonts/
+│   │   ├── Inter-Regular.ttf
+│   │   ├── Inter-Medium.ttf
+│   │   ├── Inter-SemiBold.ttf
+│   │   └── Inter-Bold.ttf
+│   └── config/google-services.json.example
+│
+├── lib/
+│   ├── main.dart
+│   ├── bootstrap.dart
+│   ├── app.dart
+│   │
+│   ├── core/
+│   │   ├── config/
+│   │   │   ├── env.dart
+│   │   │   ├── api_endpoints.dart
+│   │   │   ├── app_config.dart
+│   │   │   └── build_info.dart
+│   │   ├── network/
+│   │   │   ├── dio_client.dart
+│   │   │   ├── dio_factory.dart
+│   │   │   ├── network_info.dart
+│   │   │   └── interceptors/
+│   │   │       ├── auth_interceptor.dart
+│   │   │       ├── error_interceptor.dart
+│   │   │       ├── idempotency_interceptor.dart
+│   │   │       ├── logging_interceptor.dart
+│   │   │       └── retry_interceptor.dart
+│   │   ├── errors/
+│   │   │   ├── api_exception.dart
+│   │   │   ├── error_mapper.dart
+│   │   │   ├── failure.dart
+│   │   │   └── error_codes.dart
+│   │   ├── storage/
+│   │   │   ├── secure_storage.dart
+│   │   │   ├── token_storage.dart
+│   │   │   ├── session_store.dart
+│   │   │   ├── key_value_store.dart
+│   │   │   └── outbox/
+│   │   │       ├── outbox_item.dart
+│   │   │       ├── outbox_operation.dart
+│   │   │       ├── outbox_status.dart
+│   │   │       ├── outbox_store.dart
+│   │   │       ├── outbox_repository.dart
+│   │   │       ├── sync_engine.dart
+│   │   │       └── sync_result.dart
+│   │   ├── sync/
+│   │   │   ├── connectivity_service.dart
+│   │   │   ├── sync_status.dart
+│   │   │   └── sync_status_cubit.dart
+│   │   ├── router/
+│   │   │   ├── app_router.dart
+│   │   │   ├── routes.dart
+│   │   │   ├── route_names.dart
+│   │   │   └── guards/
+│   │   │       ├── auth_guard.dart
+│   │   │       └── role_guard.dart
+│   │   ├── theme/
+│   │   │   ├── app_theme.dart
+│   │   │   ├── light_theme.dart
+│   │   │   ├── dark_theme.dart
+│   │   │   ├── tokens.dart
+│   │   │   ├── colors.dart
+│   │   │   ├── typography.dart
+│   │   │   ├── spacing.dart
+│   │   │   ├── radius.dart
+│   │   │   └── shadows.dart
+│   │   ├── utils/
+│   │   │   ├── debouncer.dart
+│   │   │   ├── throttler.dart
+│   │   │   ├── idempotency_key.dart
+│   │   │   ├── validators.dart
+│   │   │   ├── logger.dart
+│   │   │   ├── pii_scrubber.dart
+│   │   │   ├── formatters/
+│   │   │   │   ├── date_formatter.dart
+│   │   │   │   ├── currency_formatter.dart
+│   │   │   │   └── phone_formatter.dart
+│   │   │   └── extensions/
+│   │   │       ├── string_ext.dart
+│   │   │       ├── datetime_ext.dart
+│   │   │       ├── context_ext.dart
+│   │   │       └── list_ext.dart
+│   │   ├── analytics/
+│   │   │   ├── analytics_service.dart
+│   │   │   └── analytics_events.dart
+│   │   ├── crash/crash_reporter.dart
+│   │   ├── permissions/
+│   │   │   ├── camera_permission.dart
+│   │   │   └── notification_permission.dart
+│   │   ├── lifecycle/app_lifecycle_observer.dart
+│   │   └── constants/
+│   │       ├── app_constants.dart
+│   │       ├── storage_keys.dart
+│   │       └── pagination.dart
+│   │
+│   ├── shared/
+│   │   ├── widgets/
+│   │   │   ├── buttons/
+│   │   │   │   ├── primary_button.dart
+│   │   │   │   ├── secondary_button.dart
+│   │   │   │   ├── ghost_button.dart
+│   │   │   │   ├── danger_button.dart
+│   │   │   │   └── icon_action_button.dart
+│   │   │   ├── inputs/
+│   │   │   │   ├── app_text_field.dart
+│   │   │   │   ├── app_dropdown.dart
+│   │   │   │   ├── app_date_picker.dart
+│   │   │   │   ├── app_search_field.dart
+│   │   │   │   ├── app_number_stepper.dart
+│   │   │   │   └── app_text_area.dart
+│   │   │   ├── feedback/
+│   │   │   │   ├── loading_view.dart
+│   │   │   │   ├── error_view.dart
+│   │   │   │   ├── empty_view.dart
+│   │   │   │   ├── offline_banner.dart
+│   │   │   │   ├── sync_status_badge.dart
+│   │   │   │   ├── app_snackbar.dart
+│   │   │   │   └── confirmation_dialog.dart
+│   │   │   ├── badges/
+│   │   │   │   ├── status_badge.dart
+│   │   │   │   ├── severity_badge.dart
+│   │   │   │   └── aging_badge.dart
+│   │   │   ├── lists/
+│   │   │   │   ├── cursor_paginated_list.dart
+│   │   │   │   ├── list_tile_skeleton.dart
+│   │   │   │   └── list_separator.dart
+│   │   │   ├── cards/
+│   │   │   │   ├── app_card.dart
+│   │   │   │   ├── kpi_card.dart
+│   │   │   │   ├── info_card.dart
+│   │   │   │   └── action_card.dart
+│   │   │   ├── layout/
+│   │   │   │   ├── app_scaffold.dart
+│   │   │   │   ├── app_appbar.dart
+│   │   │   │   ├── section_header.dart
+│   │   │   │   ├── divider_labeled.dart
+│   │   │   │   └── responsive_layout.dart
+│   │   │   ├── media/
+│   │   │   │   ├── app_image.dart
+│   │   │   │   ├── app_avatar.dart
+│   │   │   │   ├── attachment_tile.dart
+│   │   │   │   ├── photo_capture.dart
+│   │   │   │   └── image_preview.dart
+│   │   │   ├── forms/
+│   │   │   │   ├── form_section.dart
+│   │   │   │   ├── form_field_wrapper.dart
+│   │   │   │   └── form_actions.dart
+│   │   │   ├── timeline/
+│   │   │   │   ├── timeline_widget.dart
+│   │   │   │   └── timeline_entry.dart
+│   │   │   └── misc/
+│   │   │       ├── app_logo.dart
+│   │   │       ├── app_version_label.dart
+│   │   │       ├── environment_badge.dart
+│   │   │       └── copyable_text.dart
+│   │   └── extensions/widget_ext.dart
+│   │
+│   ├── features/
+│   │   ├── auth/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── user_data.dart
+│   │   │   │   │   ├── tenant_data.dart
+│   │   │   │   │   └── login_response.dart
+│   │   │   │   ├── datasources/auth_remote_datasource.dart
+│   │   │   │   └── repositories/auth_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── auth_bloc.dart
+│   │   │       │   ├── auth_event.dart
+│   │   │       │   └── auth_state.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── splash_screen.dart
+│   │   │       │   ├── login_screen.dart
+│   │   │       │   └── camera_permission_screen.dart
+│   │   │       └── widgets/login_form.dart
+│   │   │
+│   │   ├── dashboard/
+│   │   │   ├── data/
+│   │   │   │   ├── models/dashboard_data.dart
+│   │   │   │   ├── datasources/dashboard_remote_datasource.dart
+│   │   │   │   └── repositories/dashboard_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── cubit/
+│   │   │       │   ├── dashboard_cubit.dart
+│   │   │       │   └── dashboard_state.dart
+│   │   │       ├── screens/dashboard_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── kpi_row.dart
+│   │   │           ├── attention_cards.dart
+│   │   │           ├── today_cycles_card.dart
+│   │   │           ├── recent_procedures_card.dart
+│   │   │           └── prosthetic_summary_card.dart
+│   │   │
+│   │   ├── scanner/
+│   │   │   ├── data/models/scan_result.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── scanner_bloc.dart
+│   │   │       │   ├── scanner_event.dart
+│   │   │       │   └── scanner_state.dart
+│   │   │       ├── screens/scanner_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── scanner_overlay.dart
+│   │   │           ├── torch_toggle.dart
+│   │   │           └── scan_cooldown_indicator.dart
+│   │   │
+│   │   ├── labels/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── label_scan_result.dart
+│   │   │   │   │   ├── label_data.dart
+│   │   │   │   │   └── label_usage_data.dart
+│   │   │   │   ├── datasources/
+│   │   │   │   │   ├── label_remote_datasource.dart
+│   │   │   │   │   └── label_usage_remote_datasource.dart
+│   │   │   │   └── repositories/
+│   │   │   │       ├── label_repository.dart
+│   │   │   │       └── label_usage_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── label_detail_bloc.dart
+│   │   │       │   └── label_usage_bloc.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── label_detail_screen.dart
+│   │   │       │   ├── label_blocked_screen.dart
+│   │   │       │   └── label_usage_form_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── label_status_header.dart
+│   │   │           ├── label_info_section.dart
+│   │   │           ├── label_usage_history.dart
+│   │   │           └── label_blocked_banner.dart
+│   │   │
+│   │   ├── patients/
+│   │   │   ├── data/
+│   │   │   │   ├── models/patient_data.dart
+│   │   │   │   ├── datasources/patient_remote_datasource.dart
+│   │   │   │   └── repositories/patient_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/patient_search_bloc.dart
+│   │   │       ├── screens/patient_search_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── patient_tile.dart
+│   │   │           └── patient_picker_sheet.dart
+│   │   │
+│   │   ├── cycles/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── cycle_data.dart
+│   │   │   │   │   ├── cycle_item_data.dart
+│   │   │   │   │   ├── control_test_data.dart
+│   │   │   │   │   ├── cycle_attachment_data.dart
+│   │   │   │   │   └── cycle_release_data.dart
+│   │   │   │   ├── datasources/cycle_remote_datasource.dart
+│   │   │   │   └── repositories/cycle_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── cycle_list_bloc.dart
+│   │   │       │   ├── cycle_detail_bloc.dart
+│   │   │       │   ├── cycle_create_bloc.dart
+│   │   │       │   ├── cycle_transition_bloc.dart
+│   │   │       │   ├── cycle_items_bloc.dart
+│   │   │       │   ├── cycle_control_tests_bloc.dart
+│   │   │       │   ├── cycle_attachments_bloc.dart
+│   │   │       │   └── cycle_release_bloc.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── cycle_list_screen.dart
+│   │   │       │   ├── cycle_detail_screen.dart
+│   │   │       │   ├── cycle_create_screen.dart
+│   │   │       │   ├── cycle_items_screen.dart
+│   │   │       │   ├── cycle_control_tests_screen.dart
+│   │   │       │   ├── cycle_attachments_screen.dart
+│   │   │       │   └── cycle_release_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── cycle_tile.dart
+│   │   │           ├── cycle_status_badge.dart
+│   │   │           ├── cycle_timeline.dart
+│   │   │           ├── cycle_item_row.dart
+│   │   │           ├── control_test_row.dart
+│   │   │           ├── cycle_attachment_grid.dart
+│   │   │           ├── release_decision_sheet.dart
+│   │   │           └── transition_confirm_dialog.dart
+│   │   │
+│   │   ├── stock/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── stock_level_data.dart
+│   │   │   │   │   ├── stock_movement_data.dart
+│   │   │   │   │   └── location_data.dart
+│   │   │   │   ├── datasources/stock_remote_datasource.dart
+│   │   │   │   └── repositories/stock_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── stock_level_list_bloc.dart
+│   │   │       │   ├── stock_issue_bloc.dart
+│   │   │       │   ├── stock_adjust_bloc.dart
+│   │   │       │   └── stock_transfer_bloc.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── stock_level_list_screen.dart
+│   │   │       │   ├── stock_issue_screen.dart
+│   │   │       │   ├── stock_adjust_screen.dart
+│   │   │       │   └── stock_transfer_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── stock_level_tile.dart
+│   │   │           ├── low_stock_indicator.dart
+│   │   │           ├── quantity_stepper.dart
+│   │   │           ├── reason_field.dart
+│   │   │           └── location_picker.dart
+│   │   │
+│   │   ├── purchases/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── purchase_order_data.dart
+│   │   │   │   │   ├── purchase_order_line_data.dart
+│   │   │   │   │   ├── goods_receipt_data.dart
+│   │   │   │   │   └── goods_receipt_line_data.dart
+│   │   │   │   ├── datasources/purchase_remote_datasource.dart
+│   │   │   │   └── repositories/purchase_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── purchase_order_list_bloc.dart
+│   │   │       │   ├── purchase_order_detail_bloc.dart
+│   │   │       │   ├── goods_receipt_bloc.dart
+│   │   │       │   └── receipt_attachment_bloc.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── purchase_order_list_screen.dart
+│   │   │       │   ├── purchase_order_detail_screen.dart
+│   │   │       │   ├── goods_receipt_screen.dart
+│   │   │       │   └── receipt_photo_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── purchase_order_tile.dart
+│   │   │           ├── purchase_order_status_badge.dart
+│   │   │           ├── receipt_line_form.dart
+│   │   │           ├── batch_expiry_fields.dart
+│   │   │           └── discrepancy_reason_field.dart
+│   │   │
+│   │   ├── prosthetic/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── prosthetic_case.dart
+│   │   │   │   │   ├── prosthetic_case_status.dart
+│   │   │   │   │   ├── prosthetic_case_history.dart
+│   │   │   │   │   ├── prosthetic_case_attachment.dart
+│   │   │   │   │   ├── prosthetic_payment.dart
+│   │   │   │   │   ├── laboratory.dart
+│   │   │   │   │   ├── prosthetic_work_type.dart
+│   │   │   │   │   ├── impression_type.dart
+│   │   │   │   │   ├── waiting_placement_entry.dart
+│   │   │   │   │   ├── prosthetic_dashboard.dart
+│   │   │   │   │   └── prosthetic_filters.dart
+│   │   │   │   ├── datasources/
+│   │   │   │   │   ├── prosthetic_remote_datasource.dart
+│   │   │   │   │   ├── prosthetic_status_remote_datasource.dart
+│   │   │   │   │   ├── prosthetic_payment_remote_datasource.dart
+│   │   │   │   │   ├── laboratory_remote_datasource.dart
+│   │   │   │   │   ├── waiting_placement_remote_datasource.dart
+│   │   │   │   │   └── prosthetic_local_outbox_datasource.dart
+│   │   │   │   └── repositories/
+│   │   │   │       ├── prosthetic_case_repository.dart
+│   │   │   │       ├── prosthetic_status_repository.dart
+│   │   │   │       ├── prosthetic_payment_repository.dart
+│   │   │   │       ├── laboratory_repository.dart
+│   │   │   │       ├── waiting_placement_repository.dart
+│   │   │   │       └── prosthetic_dashboard_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── prosthetic_list_bloc.dart
+│   │   │       │   ├── prosthetic_case_detail_bloc.dart
+│   │   │       │   ├── prosthetic_form_bloc.dart
+│   │   │       │   ├── prosthetic_status_bloc.dart
+│   │   │       │   ├── prosthetic_payment_bloc.dart
+│   │   │       │   ├── prosthetic_attachment_bloc.dart
+│   │   │       │   ├── waiting_placement_bloc.dart
+│   │   │       │   ├── laboratory_bloc.dart
+│   │   │       │   └── prosthetic_dashboard_cubit.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── prosthetic_list_screen.dart
+│   │   │       │   ├── prosthetic_case_detail_screen.dart
+│   │   │       │   ├── prosthetic_case_create_screen.dart
+│   │   │       │   ├── prosthetic_case_edit_screen.dart
+│   │   │       │   ├── prosthetic_status_history_screen.dart
+│   │   │       │   ├── prosthetic_payment_screen.dart
+│   │   │       │   ├── prosthetic_attachment_screen.dart
+│   │   │       │   ├── waiting_placement_screen.dart
+│   │   │       │   ├── prosthetic_dashboard_screen.dart
+│   │   │       │   └── laboratory_list_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── prosthetic_case_tile.dart
+│   │   │           ├── prosthetic_status_badge.dart
+│   │   │           ├── prosthetic_status_stepper.dart
+│   │   │           ├── prosthetic_timeline.dart
+│   │   │           ├── prosthetic_payment_block.dart
+│   │   │           ├── prosthetic_remaining_balance.dart
+│   │   │           ├── prosthetic_attachment_grid.dart
+│   │   │           ├── prosthetic_filters_sheet.dart
+│   │   │           ├── prosthetic_form_section_patient.dart
+│   │   │           ├── prosthetic_form_section_clinical.dart
+│   │   │           ├── prosthetic_form_section_lab_dates.dart
+│   │   │           ├── prosthetic_form_section_notes.dart
+│   │   │           ├── waiting_placement_row.dart
+│   │   │           ├── waiting_placement_aging_badge.dart
+│   │   │           ├── prosthetic_dashboard_cards.dart
+│   │   │           └── laboratory_picker_sheet.dart
+│   │   │
+│   │   ├── alerts/
+│   │   │   ├── data/
+│   │   │   │   ├── models/alert_data.dart
+│   │   │   │   ├── datasources/alert_remote_datasource.dart
+│   │   │   │   └── repositories/alert_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── alert_list_bloc.dart
+│   │   │       │   └── alert_resolve_bloc.dart
+│   │   │       ├── screens/alert_list_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── alert_tile.dart
+│   │   │           ├── alert_severity_group.dart
+│   │   │           └── resolve_confirm_dialog.dart
+│   │   │
+│   │   ├── history/
+│   │   │   ├── data/
+│   │   │   │   ├── models/audit_event_data.dart
+│   │   │   │   ├── datasources/audit_remote_datasource.dart
+│   │   │   │   └── repositories/audit_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── audit_list_bloc.dart
+│   │   │       │   └── history_filters_cubit.dart
+│   │   │       ├── screens/audit_list_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── audit_event_tile.dart
+│   │   │           ├── history_filter_bar.dart
+│   │   │           └── history_date_range_picker.dart
+│   │   │
+│   │   ├── settings/
+│   │   │   ├── data/
+│   │   │   │   ├── models/
+│   │   │   │   │   ├── profile_data.dart
+│   │   │   │   │   └── tenant_profile_data.dart
+│   │   │   │   ├── datasources/settings_remote_datasource.dart
+│   │   │   │   └── repositories/settings_repository.dart
+│   │   │   └── presentation/
+│   │   │       ├── bloc/
+│   │   │       │   ├── settings_bloc.dart
+│   │   │       │   └── session_bloc.dart
+│   │   │       ├── screens/
+│   │   │       │   ├── settings_screen.dart
+│   │   │       │   └── about_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── settings_tile.dart
+│   │   │           ├── account_section.dart
+│   │   │           ├── tenant_section.dart
+│   │   │           ├── session_section.dart
+│   │   │           ├── app_info_section.dart
+│   │   │           └── environment_badge.dart
+│   │   │
+│   │   ├── sync/
+│   │   │   └── presentation/
+│   │   │       ├── bloc/sync_status_bloc.dart
+│   │   │       ├── screens/sync_queue_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── sync_status_banner.dart
+│   │   │           ├── pending_count_badge.dart
+│   │   │           ├── sync_queue_item.dart
+│   │   │           └── manual_review_dialog.dart
+│   │   │
+│   │   ├── shell/
+│   │   │   └── presentation/
+│   │   │       ├── screens/shell_screen.dart
+│   │   │       └── widgets/
+│   │   │           ├── bottom_nav_bar.dart
+│   │   │           ├── role_aware_nav.dart
+│   │   │           ├── profile_menu.dart
+│   │   │           └── sync_indicator.dart
+│   │   │
+│   │   └── onboarding/
+│   │       └── presentation/
+│   │           ├── bloc/onboarding_bloc.dart
+│   │           ├── screens/onboarding_screen.dart
+│   │           └── widgets/
+│   │               ├── onboarding_page.dart
+│   │               └── onboarding_indicator.dart
+│   │
+│   ├── di/
+│   │   ├── di.dart
+│   │   ├── core_di.dart
+│   │   ├── network_di.dart
+│   │   ├── storage_di.dart
+│   │   ├── router_di.dart
+│   │   └── features_di.dart
+│   │
+│   └── l10n/
+│       ├── app_fr.arb
+│       ├── l10n.yaml
+│       └── generated/
+│           ├── app_localizations.dart
+│           └── app_localizations_fr.dart
+│
+├── test/
+│   ├── test_runner.dart
+│   ├── unit/
+│   │   ├── core/
+│   │   │   ├── error_mapper_test.dart
+│   │   │   ├── idempotency_key_test.dart
+│   │   │   ├── debouncer_test.dart
+│   │   │   ├── validators_test.dart
+│   │   │   ├── pii_scrubber_test.dart
+│   │   │   └── env_test.dart
+│   │   ├── storage/
+│   │   │   ├── outbox_store_test.dart
+│   │   │   └── sync_engine_test.dart
+│   │   └── features/
+│   │       ├── prosthetic/
+│   │       │   ├── prosthetic_status_transition_test.dart
+│   │       │   ├── remaining_balance_test.dart
+│   │       │   └── waiting_placement_filter_test.dart
+│   │       ├── cycles/
+│   │       └── stock/
+│   ├── bloc/
+│   │   ├── auth_bloc_test.dart
+│   │   ├── dashboard_cubit_test.dart
+│   │   ├── scanner_bloc_test.dart
+│   │   ├── label_detail_bloc_test.dart
+│   │   ├── label_usage_bloc_test.dart
+│   │   ├── cycle_list_bloc_test.dart
+│   │   ├── cycle_transition_bloc_test.dart
+│   │   ├── stock_issue_bloc_test.dart
+│   │   ├── goods_receipt_bloc_test.dart
+│   │   ├── prosthetic_list_bloc_test.dart
+│   │   ├── prosthetic_case_detail_bloc_test.dart
+│   │   ├── prosthetic_status_bloc_test.dart
+│   │   ├── prosthetic_payment_bloc_test.dart
+│   │   ├── waiting_placement_bloc_test.dart
+│   │   ├── alert_list_bloc_test.dart
+│   │   └── sync_status_bloc_test.dart
+│   ├── widget/
+│   │   ├── login_screen_test.dart
+│   │   ├── dashboard_screen_test.dart
+│   │   ├── label_detail_screen_test.dart
+│   │   ├── label_blocked_screen_test.dart
+│   │   ├── cycle_detail_screen_test.dart
+│   │   ├── prosthetic_case_detail_test.dart
+│   │   ├── prosthetic_form_test.dart
+│   │   ├── waiting_placement_screen_test.dart
+│   │   └── sync_status_banner_test.dart
+│   ├── golden/
+│   │   ├── login_screen_golden_test.dart
+│   │   ├── dashboard_screen_golden_test.dart
+│   │   ├── label_detail_golden_test.dart
+│   │   ├── prosthetic_case_detail_golden_test.dart
+│   │   └── goldens/
+│   │       ├── login_screen.png
+│   │       ├── dashboard_screen.png
+│   │       ├── label_detail.png
+│   │       └── prosthetic_case_detail.png
+│   ├── fixtures/
+│   │   ├── user_fixture.dart
+│   │   ├── tenant_fixture.dart
+│   │   ├── label_fixture.dart
+│   │   ├── cycle_fixture.dart
+│   │   ├── prosthetic_case_fixture.dart
+│   │   ├── payment_fixture.dart
+│   │   ├── laboratory_fixture.dart
+│   │   └── waiting_placement_fixture.dart
+│   ├── mocks/
+│   │   ├── mock_dio.dart
+│   │   ├── mock_outbox_store.dart
+│   │   ├── mock_connectivity.dart
+│   │   └── mock_repositories.dart
+│   └── helpers/
+│       ├── pump_app.dart
+│       ├── test_di.dart
+│       └── golden_config.dart
+│
+├── integration_test/
+│   ├── app_test.dart
+│   ├── journeys/
+│   │   ├── auth_journey_test.dart
+│   │   ├── scanner_usage_journey_test.dart
+│   │   ├── cycle_lifecycle_journey_test.dart
+│   │   ├── prosthetic_case_journey_test.dart
+│   │   ├── waiting_placement_journey_test.dart
+│   │   ├── stock_issue_journey_test.dart
+│   │   ├── goods_receipt_journey_test.dart
+│   │   ├── alert_resolve_journey_test.dart
+│   │   ├── offline_sync_journey_test.dart
+│   │   └── conflict_409_journey_test.dart
+│   ├── support/
+│   │   ├── backend_seed.dart
+│   │   ├── backend_reset.dart
+│   │   ├── test_user.dart
+│   │   └── test_data.dart
+│   └── drivers/integration_test_driver.dart
+│
+├── scripts/
+│   ├── bootstrap.sh
+│   ├── dev.sh
+│   ├── run_staging.sh
+│   ├── run_production.sh
+│   ├── build_android_debug.sh
+│   ├── build_android_release.sh
+│   ├── build_android_aab.sh
+│   ├── build_ios_debug.sh
+│   ├── build_ios_release.sh
+│   ├── build_ios_ipa.sh
+│   ├── test_unit.sh
+│   ├── test_bloc.sh
+│   ├── test_widget.sh
+│   ├── test_golden.sh
+│   ├── test_integration.sh
+│   ├── test_all.sh
+│   ├── analyze.sh
+│   ├── format.sh
+│   ├── gen_l10n.sh
+│   ├── gen_icons.sh
+│   ├── gen_splash.sh
+│   ├── clean.sh
+│   ├── bump_version.sh
+│   └── release.sh
+│
+├── fastlane/
+│   ├── Fastfile
+│   ├── Appfile
+│   ├── Matchfile
+│   ├── Pluginfile
+│   ├── metadata/
+│   │   ├── android/fr-FR/
+│   │   │   ├── title.txt
+│   │   │   ├── short_description.txt
+│   │   │   ├── full_description.txt
+│   │   │   ├── changelogs/default.txt
+│   │   │   └── images/
+│   │   │       ├── icon.png
+│   │   │       ├── featureGraphic.png
+│   │   │       └── phoneScreenshots/
+│   │   └── ios/fr-FR/
+│   │       ├── name.txt
+│   │       ├── subtitle.txt
+│   │       ├── description.txt
+│   │       ├── keywords.txt
+│   │       ├── release_notes.txt
+│   │       ├── support_url.txt
+│   │       └── screenshots/
+│   └── certs/README.md
+│
+├── .github/
+│   └── workflows/
+│       ├── mobile-analyze.yml
+│       ├── mobile-test.yml
+│       ├── mobile-build-android.yml
+│       ├── mobile-build-ios.yml
+│       ├── mobile-release-android.yml
+│       ├── mobile-release-ios.yml
+│       └── secrets-scan.yml
+│
+└── docs/
+    ├── README.md
+    ├── ARCHITECTURE.md
+    ├── API_CONTRACT.md
+    ├── UI_MAPPING.md
+    ├── OFFLINE_MATRIX.md
+    ├── ERROR_MATRIX.md
+    ├── ROLE_MATRIX.md
+    ├── SECURITY.md
+    ├── PRIVACY.md
+    ├── PERFORMANCE.md
+    ├── TESTING.md
+    ├── CICD.md
+    ├── RELEASE.md
+    ├── RUNBOOK.md
+    ├── BACKUP_RESTORE.md
+    ├── SUPPORT.md
+    ├── MIGRATION.md
+    ├── LOCALIZATION.md
+    ├── PROSTHETIC_MODULE.md
+    ├── DEVICE_TEST_LOG.md
+    ├── DAILY_LOG.md
+    ├── DEMO_SCRIPT.md
+    ├── USER_GUIDE.md
+    └── ui-reference/
+        ├── dashboard.png
+        ├── login.png
+        ├── scanner.png
+        ├── label-detail.png
+        ├── cycles-list.png
+        ├── cycle-detail.png
+        ├── prosthetic-list.png
+        ├── prosthetic-detail.png
+        ├── prosthetic-create.png
+        ├── waiting-placement.png
+        ├── alerts.png
+        ├── stock-list.png
+        ├── goods-receipt.png
+        └── settings.png
+```
+
+---
+
+## Final counts
+
+| Layer | Files |
+| --- | --- |
+| `lib/core/` | 55 |
+| `lib/shared/` | 48 |
+| `lib/features/` | 240 |
+| `lib/di/` | 6 |
+| `lib/l10n/` | 4 |
+| `test/` | 60 |
+| `integration_test/` | 15 |
+| `assets/` | 25 |
+| `android/` | 25 |
+| `ios/` | 20 |
+| `scripts/` | 24 |
+| `fastlane/` | 15 |
+| `.github/workflows/` | 7 |
+| `docs/` | 24 + 14 UI refs |
+| **Total** | **~580 files** |
+
+**Screens: 41. Widgets: 151. Days: 55. Gates: 10.**
+
+---
+
+## Rules baked in
+
+1. **Feature-first, clean-lite.** No freezed. No use-case layer. No ceremony.
+2. **French only.** No `app_en.arb`. No English strings.
+3. **Two roles.** `admin`, `staff`. Nothing else.
+4. **Outbox is core.** Not a feature.
+5. **Sync status is first-class.** `core/sync/` exists from Day 1.
+6. **Idempotency is an interceptor concern.**
+7. **PII scrubber is enforced at interceptor level.**
+8. **Prosthetic module is a first-class feature.**
+9. **Waiting for placement is a dedicated screen.**
+10. **Every screen handles four states.** `shared/widgets/feedback/` exists for this.
+11. **Golden tests cover 4 critical screens.**
+12. **CI proven on Day 6.**
+13. **No certificate pinning in MVP.** Deferred to v1.1.
+14. **No evidence search in MVP.** Deferred.
+15. **No bilingual Fastlane metadata.** French only.
+16. **UI reference folder.** 14 screenshots. No guessing.
+
+---
+
+## Handoff checklist
+
+- [ ]  `docs/API_CONTRACT.md` frozen with real wire data
+- [ ]  `docs/UI_MAPPING.md` maps all 41 screens
+- [ ]  `docs/OFFLINE_MATRIX.md` written
+- [ ]  `docs/ERROR_MATRIX.md` written
+- [ ]  `docs/ROLE_MATRIX.md` written
+- [ ]  `docs/ui-reference/` has 14 screenshots
+- [ ]  Test admin + staff accounts on staging
+- [ ]  Test tenant slug with seeded pilot data
+- [ ]  CI has Android + iOS build capability
+- [ ]  Keystore in CI secrets
+- [ ]  Sentry DSN in hand
+- [ ]  French strings reviewed
+- [ ]  Support channel + SLA agreed
+
+---
+
+**This is the tree.**
+
+Copy it. Fill it. Test every gate. Ship on Day 55.
+
+Build it.
