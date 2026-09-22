@@ -17,13 +17,6 @@ class SearchProducts extends ProductListEvent {
   List<Object?> get props => [query];
 }
 
-class CreateProduct extends ProductListEvent {
-  final ProductCreateRequest request;
-  const CreateProduct(this.request);
-  @override
-  List<Object?> get props => [request];
-}
-
 class DeleteProduct extends ProductListEvent {
   final String id;
   const DeleteProduct(this.id);

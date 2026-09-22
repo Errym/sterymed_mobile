@@ -9,6 +9,7 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/product_data.dart';
 import '../../data/repositories/product_repository.dart';
 import '../bloc/product_list_bloc.dart';
@@ -74,24 +75,31 @@ class _ProductListView extends StatelessWidget {
                 return ListView.separated(
                   padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: state.products.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                  separatorBuilder: (_, __) =>
+                      const SizedBox(height: AppSpacing.sm),
                   itemBuilder: (_, i) {
                     final p = state.products[i];
-                    return _ProductTile(
-                      product: p,
-                      onEdit: () => ProductFormSheet.show(context, existing: p),
-                      onDelete: () async {
-                        final ok = await ConfirmationDialog.show(
-                          context,
-                          title: 'Supprimer le produit ?',
-                          message: p.name,
-                          confirmLabel: 'Supprimer',
-                          isDestructive: true,
-                        );
-                        if (ok && context.mounted) {
-                          context.read<ProductListBloc>().add(DeleteProduct(p.id));
-                        }
-                      },
+                    return AnimatedListItem(
+                      index: i,
+                      child: _ProductTile(
+                        product: p,
+                        onEdit: () =>
+                            ProductFormSheet.show(context, existing: p),
+                        onDelete: () async {
+                          final ok = await ConfirmationDialog.show(
+                            context,
+                            title: 'Supprimer le produit ?',
+                            message: p.name,
+                            confirmLabel: 'Supprimer',
+                            isDestructive: true,
+                          );
+                          if (ok && context.mounted) {
+                            context
+                                .read<ProductListBloc>()
+                                .add(DeleteProduct(p.id));
+                          }
+                        },
+                      ),
                     );
                   },
                 );
@@ -138,7 +146,9 @@ class _ProductTile extends StatelessWidget {
                 ),
                 if (product.isSterilizable) ...[
                   const SizedBox(height: 4),
-                  Text('Stérilisable', style: AppTypography.caption.copyWith(color: AppColors.success)),
+                  Text('Stérilisable',
+                      style: AppTypography.caption
+                          .copyWith(color: AppColors.success)),
                 ],
               ],
             ),
@@ -148,7 +158,8 @@ class _ProductTile extends StatelessWidget {
             onPressed: onEdit,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20, color: AppColors.danger),
+            icon: const Icon(Icons.delete_outline,
+                size: 20, color: AppColors.danger),
             onPressed: onDelete,
           ),
         ],

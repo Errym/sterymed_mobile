@@ -1,6 +1,7 @@
-// WORKAROUND: Backend has no PATCH /v1/products/{id}.
-// update() = delete + recreate. Data-loss risk.
-// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-006 is fixed.
+// NOTE: docs/BACKEND_BUGS.md#bug-006 claims PATCH /v1/products/{id} doesn't
+// exist, but product_remote_datasource.dart's update() calls a real PATCH.
+// This has not been independently re-verified against a live backend --
+// treat the discrepancy as unresolved rather than trusting either source.
 
 import '../../../../core/cache/cache.dart';
 import '../datasources/product_remote_datasource.dart';
@@ -12,7 +13,8 @@ class ProductRepository {
 
   ProductRepository(this._remote, this._cache);
 
-  Future<List<ProductData>> list({String? search, bool forceRefresh = false}) async {
+  Future<List<ProductData>> list(
+      {String? search, bool forceRefresh = false}) async {
     final key = 'products:${search ?? ''}';
     if (!forceRefresh) {
       final cached = _cache.get<List<ProductData>>(key);

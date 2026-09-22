@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../data/models/product_data.dart';
+import '../../data/repositories/product_repository.dart';
 import '../bloc/product_list_bloc.dart';
 
 class ProductFormSheet extends StatefulWidget {
@@ -40,6 +42,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   late final TextEditingController _thresholdCtrl;
   late final TextEditingController _barcodeCtrl;
   bool _isSterilizable = false;
+  bool _submitting = false;
 
   @override
   void initState() {
@@ -64,7 +67,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     super.dispose();
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final req = ProductCreateRequest(
       name: _nameCtrl.text.trim(),
@@ -72,11 +75,28 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
       unit: _unitCtrl.text.trim(),
       minThreshold: int.tryParse(_thresholdCtrl.text.trim()) ?? 0,
       isSterilizable: _isSterilizable,
-      barcode: _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
+      barcode:
+          _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
     );
-    context.read<ProductListBloc>().add(CreateProduct(req));
-    AppSnackbar.show(context, 'Produit enregistré.', kind: SnackKind.success);
-    Navigator.of(context).pop(true);
+    final bloc = context.read<ProductListBloc>();
+    setState(() => _submitting = true);
+    try {
+      final existing = widget.existing;
+      if (existing != null) {
+        await getIt<ProductRepository>().update(existing.id, req);
+      } else {
+        await getIt<ProductRepository>().create(req);
+      }
+      if (!mounted) return;
+      bloc.add(const LoadProducts());
+      AppSnackbar.show(context, 'Produit enregistré.', kind: SnackKind.success);
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   @override
@@ -101,13 +121,15 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
             AppTextField(
               label: 'Nom *',
               controller: _nameCtrl,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Requis.' : null,
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(
               label: 'Référence *',
               controller: _refCtrl,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+              validator: (v) =>
+                  (v == null || v.trim().isEmpty) ? 'Requis.' : null,
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(label: 'Unité', controller: _unitCtrl),
@@ -127,7 +149,11 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
               contentPadding: EdgeInsets.zero,
             ),
             const SizedBox(height: AppSpacing.lg),
-            PrimaryButton(label: 'Enregistrer le produit', onPressed: _submit),
+            PrimaryButton(
+              label: 'Enregistrer le produit',
+              isLoading: _submitting,
+              onPressed: _submitting ? null : _submit,
+            ),
           ],
         ),
       ),

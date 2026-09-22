@@ -14,7 +14,6 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
   ProductListBloc(this._repository) : super(const ProductListState()) {
     on<LoadProducts>(_onLoad);
     on<SearchProducts>(_onSearch);
-    on<CreateProduct>(_onCreate);
     on<DeleteProduct>(_onDelete);
   }
 
@@ -24,30 +23,25 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
       final list = await _repository.list();
       emit(state.copyWith(status: ProductListStatus.success, products: list));
     } on ApiException catch (ex) {
-      emit(state.copyWith(status: ProductListStatus.failure, error: ex.message));
+      emit(
+          state.copyWith(status: ProductListStatus.failure, error: ex.message));
     }
   }
 
-  Future<void> _onSearch(SearchProducts e, Emitter<ProductListState> emit) async {
+  Future<void> _onSearch(
+      SearchProducts e, Emitter<ProductListState> emit) async {
     emit(state.copyWith(query: e.query));
     try {
       final list = await _repository.list(search: e.query);
       emit(state.copyWith(status: ProductListStatus.success, products: list));
     } on ApiException catch (ex) {
-      emit(state.copyWith(status: ProductListStatus.failure, error: ex.message));
+      emit(
+          state.copyWith(status: ProductListStatus.failure, error: ex.message));
     }
   }
 
-  Future<void> _onCreate(CreateProduct e, Emitter<ProductListState> emit) async {
-    try {
-      await _repository.create(e.request);
-      add(const LoadProducts());
-    } on ApiException catch (ex) {
-      emit(state.copyWith(error: ex.message));
-    }
-  }
-
-  Future<void> _onDelete(DeleteProduct e, Emitter<ProductListState> emit) async {
+  Future<void> _onDelete(
+      DeleteProduct e, Emitter<ProductListState> emit) async {
     try {
       await _repository.destroy(e.id);
       add(const LoadProducts());
