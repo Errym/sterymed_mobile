@@ -14,6 +14,10 @@ class RefreshCycles extends CycleListEvent {
   const RefreshCycles();
 }
 
+class LoadMoreCycles extends CycleListEvent {
+  const LoadMoreCycles();
+}
+
 class FilterCycles extends CycleListEvent {
   final String? status;
   const FilterCycles(this.status);

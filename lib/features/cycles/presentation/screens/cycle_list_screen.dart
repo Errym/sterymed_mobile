@@ -6,11 +6,10 @@ import 'package:intl/intl.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
-import '../../../../shared/widgets/feedback/empty_view.dart';
-import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/cycle_data.dart';
 import '../bloc/cycle_list_bloc.dart';
@@ -95,40 +94,28 @@ class _CycleListView extends StatelessWidget {
                     state.cycles.isEmpty) {
                   return const ListSkeleton();
                 }
-                if (state.status == CycleListStatus.failure &&
-                    state.cycles.isEmpty) {
-                  return ErrorView(
-                    message: state.error ?? 'Erreur',
-                    onRetry: () =>
-                        context.read<CycleListBloc>().add(const LoadCycles()),
-                  );
-                }
-                final filtered = state.filtered;
-                if (filtered.isEmpty) {
-                  return const EmptyView(
-                    title: 'Aucun cycle',
-                    message: 'Créez un nouveau cycle de stérilisation.',
-                    icon: Icons.autorenew,
-                  );
-                }
-                return RefreshIndicator(
+                return CursorPaginatedList<CycleData>(
+                  items: state.filtered,
+                  hasMore: state.hasMore,
+                  isLoadingMore: state.isLoadingMore,
+                  error: state.status == CycleListStatus.failure
+                      ? (state.error ?? 'Erreur')
+                      : null,
+                  onRetry: () =>
+                      context.read<CycleListBloc>().add(const LoadCycles()),
+                  onLoadMore: () async =>
+                      context.read<CycleListBloc>().add(const LoadMoreCycles()),
                   onRefresh: () async =>
                       context.read<CycleListBloc>().add(const RefreshCycles()),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (_, i) {
-                      final c = filtered[i];
-                      return AnimatedListItem(
-                        index: i,
-                        child: _CycleCard(
-                          cycle: c,
-                          onTap: () => context.go(Routes.cyclesDetail(c.id)),
-                        ),
-                      );
-                    },
+                  emptyTitle: 'Aucun cycle',
+                  emptyMessage: 'Créez un nouveau cycle de stérilisation.',
+                  emptyIcon: Icons.autorenew,
+                  itemBuilder: (_, c, i) => AnimatedListItem(
+                    index: i,
+                    child: _CycleCard(
+                      cycle: c,
+                      onTap: () => context.go(Routes.cyclesDetail(c.id)),
+                    ),
                   ),
                 );
               },

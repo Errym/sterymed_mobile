@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/network/cursor_page.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/goods_receipt_data.dart';
 import '../models/purchase_order_data.dart';
@@ -11,7 +12,7 @@ class PurchaseRemoteDatasource {
   final Dio _dio;
   PurchaseRemoteDatasource(this._dio);
 
-  Future<List<PurchaseOrderData>> listOrders({String? cursor}) async {
+  Future<CursorPage<PurchaseOrderData>> listOrders({String? cursor}) async {
     try {
       final res = await _dio.get(
         ApiEndpoints.purchaseOrders,
@@ -21,11 +22,15 @@ class PurchaseRemoteDatasource {
         },
       );
       final raw = res.data;
-      if (raw is! Map || raw['data'] is! List) return const [];
-      return (raw['data'] as List)
+      if (raw is! Map || raw['data'] is! List) {
+        return const CursorPage(items: []);
+      }
+      final json = raw.cast<String, dynamic>();
+      final items = (json['data'] as List)
           .whereType<Map>()
           .map((e) => PurchaseOrderData.fromJson(e.cast<String, dynamic>()))
           .toList();
+      return CursorPage(items: items, nextCursor: CursorPage.cursorFromMeta(json));
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

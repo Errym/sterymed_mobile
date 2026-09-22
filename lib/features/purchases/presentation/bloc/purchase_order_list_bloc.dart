@@ -16,6 +16,7 @@ class PurchaseOrderListBloc
       : super(const PurchaseOrderListState()) {
     on<LoadPurchaseOrders>(_onLoad);
     on<RefreshPurchaseOrders>(_onRefresh);
+    on<LoadMorePurchaseOrders>(_onLoadMore);
   }
 
   Future<void> _onLoad(
@@ -24,10 +25,12 @@ class PurchaseOrderListBloc
   ) async {
     emit(state.copyWith(status: PurchaseOrderListStatus.loading, error: null));
     try {
-      final orders = await _repository.list();
+      final page = await _repository.list();
       emit(state.copyWith(
         status: PurchaseOrderListStatus.success,
-        orders: orders,
+        orders: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(
@@ -42,16 +45,38 @@ class PurchaseOrderListBloc
     Emitter<PurchaseOrderListState> emit,
   ) async {
     try {
-      final orders = await _repository.list(forceRefresh: true);
+      final page = await _repository.list(forceRefresh: true);
       emit(state.copyWith(
         status: PurchaseOrderListStatus.success,
-        orders: orders,
+        orders: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
       ));
     } on ApiException catch (e) {
       emit(state.copyWith(
         status: PurchaseOrderListStatus.failure,
         error: e.message,
       ));
+    }
+  }
+
+  Future<void> _onLoadMore(
+    LoadMorePurchaseOrders event,
+    Emitter<PurchaseOrderListState> emit,
+  ) async {
+    final cursor = state.nextCursor;
+    if (cursor == null || state.isLoadingMore) return;
+    emit(state.copyWith(isLoadingMore: true));
+    try {
+      final page = await _repository.loadMore(cursor);
+      emit(state.copyWith(
+        orders: [...state.orders, ...page.items],
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+        isLoadingMore: false,
+      ));
+    } on ApiException catch (e) {
+      emit(state.copyWith(isLoadingMore: false, error: e.message));
     }
   }
 }

@@ -8,6 +8,8 @@ class CycleListState extends Equatable {
   final String? selectedStatus;
   final String searchQuery;
   final String? error;
+  final String? nextCursor;
+  final bool isLoadingMore;
 
   const CycleListState({
     this.status = CycleListStatus.initial,
@@ -15,7 +17,11 @@ class CycleListState extends Equatable {
     this.selectedStatus,
     this.searchQuery = '',
     this.error,
+    this.nextCursor,
+    this.isLoadingMore = false,
   });
+
+  bool get hasMore => nextCursor != null;
 
   List<CycleData> get filtered {
     var result = selectedStatus == null
@@ -40,6 +46,9 @@ class CycleListState extends Equatable {
     String? searchQuery,
     String? error,
     bool clearStatusFilter = false,
+    String? nextCursor,
+    bool clearNextCursor = false,
+    bool? isLoadingMore,
   }) {
     return CycleListState(
       status: status ?? this.status,
@@ -51,10 +60,19 @@ class CycleListState extends Equatable {
           : (selectedStatus ?? this.selectedStatus),
       searchQuery: searchQuery ?? this.searchQuery,
       error: error ?? this.error,
+      nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [status, cycles, selectedStatus, searchQuery, error];
+  List<Object?> get props => [
+        status,
+        cycles,
+        selectedStatus,
+        searchQuery,
+        error,
+        nextCursor,
+        isLoadingMore,
+      ];
 }

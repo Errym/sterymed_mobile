@@ -8,10 +8,9 @@ import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
-import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
 import '../../data/models/purchase_order_data.dart';
 import '../../data/repositories/purchase_repository.dart';
 import '../bloc/purchase_order_list_bloc.dart';
@@ -56,20 +55,8 @@ class _PoListView extends StatelessWidget {
       ),
       body: BlocBuilder<PurchaseOrderListBloc, PurchaseOrderListState>(
         builder: (context, state) {
-          if (state.status == PurchaseOrderListStatus.loading &&
+          if (state.status == PurchaseOrderListStatus.success &&
               state.orders.isEmpty) {
-            return const LoadingView();
-          }
-          if (state.status == PurchaseOrderListStatus.failure &&
-              state.orders.isEmpty) {
-            return ErrorView(
-              message: state.error ?? 'Erreur',
-              onRetry: () => context
-                  .read<PurchaseOrderListBloc>()
-                  .add(const LoadPurchaseOrders()),
-            );
-          }
-          if (state.orders.isEmpty) {
             return EmptyView(
               title: 'Aucune commande',
               message: 'Créez votre première commande fournisseur.',
@@ -88,19 +75,28 @@ class _PoListView extends StatelessWidget {
               ),
             );
           }
-          return RefreshIndicator(
+          return CursorPaginatedList<PurchaseOrderData>(
+            items: state.orders,
+            isLoading: state.status == PurchaseOrderListStatus.loading,
+            isLoadingMore: state.isLoadingMore,
+            hasMore: state.hasMore,
+            error: state.status == PurchaseOrderListStatus.failure
+                ? (state.error ?? 'Erreur')
+                : null,
+            onRetry: () => context
+                .read<PurchaseOrderListBloc>()
+                .add(const LoadPurchaseOrders()),
+            onLoadMore: () async => context
+                .read<PurchaseOrderListBloc>()
+                .add(const LoadMorePurchaseOrders()),
             onRefresh: () async => context
                 .read<PurchaseOrderListBloc>()
                 .add(const LoadPurchaseOrders()),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: state.orders.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (_, i) => AnimatedListItem(
-                index: i,
-                child: _PoTile(order: state.orders[i]),
-              ),
+            emptyTitle: 'Aucune commande',
+            emptyIcon: Icons.shopping_cart_outlined,
+            itemBuilder: (_, order, i) => AnimatedListItem(
+              index: i,
+              child: _PoTile(order: order),
             ),
           );
         },

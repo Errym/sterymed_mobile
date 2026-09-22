@@ -1,6 +1,7 @@
 import '../../../../core/cache/cache.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/network/cursor_page.dart';
 import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
@@ -29,15 +30,20 @@ class PurchaseRepository {
         _connectivity = connectivity,
         _syncStatus = syncStatus;
 
-  Future<List<PurchaseOrderData>> list({bool forceRefresh = false}) async {
+  Future<CursorPage<PurchaseOrderData>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = _cache.get<List<PurchaseOrderData>>('purchase_orders');
+      final cached = _cache.get<CursorPage<PurchaseOrderData>>('purchase_orders');
       if (cached != null) return cached;
     }
     final fresh = await _remote.listOrders();
     _cache.put('purchase_orders', fresh);
     return fresh;
   }
+
+  /// Paginated fetches always hit the network — same reasoning as
+  /// Alerts/Audit/Cycles.
+  Future<CursorPage<PurchaseOrderData>> loadMore(String cursor) =>
+      _remote.listOrders(cursor: cursor);
 
   Future<PurchaseOrderData> show(String id) => _remote.show(id);
 

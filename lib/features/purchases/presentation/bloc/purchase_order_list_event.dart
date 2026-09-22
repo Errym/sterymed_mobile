@@ -13,3 +13,7 @@ class LoadPurchaseOrders extends PurchaseOrderListEvent {
 class RefreshPurchaseOrders extends PurchaseOrderListEvent {
   const RefreshPurchaseOrders();
 }
+
+class LoadMorePurchaseOrders extends PurchaseOrderListEvent {
+  const LoadMorePurchaseOrders();
+}

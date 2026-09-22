@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import '../../../../core/cache/cache.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/network/cursor_page.dart';
 import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
@@ -42,15 +43,25 @@ class CycleRepository {
         _connectivity = connectivity,
         _syncStatus = syncStatus;
 
-  Future<List<CycleData>> list({bool forceRefresh = false}) async {
+  Future<CursorPage<CycleData>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = _cache.get<List<CycleData>>('cycles');
+      final cached = _cache.get<CursorPage<CycleData>>('cycles');
       if (cached != null) return cached;
     }
-    final raw = await _remote.list();
-    final enriched = await _enrichAll(raw);
-    _cache.put('cycles', enriched);
-    return enriched;
+    final page = await _remote.list();
+    final enriched = await _enrichAll(page.items);
+    final result = CursorPage(items: enriched, nextCursor: page.nextCursor);
+    _cache.put('cycles', result);
+    return result;
+  }
+
+  /// Paginated fetches always hit the network — same reasoning as
+  /// Alerts/Audit: caching a "page" under a cursor-keyed slot isn't
+  /// worth it for an infinite-scroll list.
+  Future<CursorPage<CycleData>> loadMore(String cursor) async {
+    final page = await _remote.list(cursor: cursor);
+    final enriched = await _enrichAll(page.items);
+    return CursorPage(items: enriched, nextCursor: page.nextCursor);
   }
 
   Future<CycleData> show(String id) async {

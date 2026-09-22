@@ -57,11 +57,10 @@ class _NcCreateSheetState extends State<NcCreateSheet> {
 
   Future<void> _loadCycles() async {
     try {
-      final cycles =
-          await getIt<CycleRepository>().list(forceRefresh: true);
+      final page = await getIt<CycleRepository>().list(forceRefresh: true);
       if (!mounted) return;
       setState(() {
-        _cycles = cycles;
+        _cycles = page.items;
         _loading = false;
       });
     } catch (_) {

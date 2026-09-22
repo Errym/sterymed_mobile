@@ -14,6 +14,7 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
   CycleListBloc(this._repository) : super(const CycleListState()) {
     on<LoadCycles>(_onLoad);
     on<RefreshCycles>(_onRefresh);
+    on<LoadMoreCycles>(_onLoadMore);
     on<FilterCycles>(_onFilter);
     on<SearchCycles>(_onSearch);
   }
@@ -21,8 +22,13 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
   Future<void> _onLoad(LoadCycles event, Emitter<CycleListState> emit) async {
     emit(state.copyWith(status: CycleListStatus.loading, error: null));
     try {
-      final cycles = await _repository.list(forceRefresh: true);
-      emit(state.copyWith(status: CycleListStatus.success, cycles: cycles));
+      final page = await _repository.list(forceRefresh: true);
+      emit(state.copyWith(
+        status: CycleListStatus.success,
+        cycles: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+      ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CycleListStatus.failure, error: e.message));
     }
@@ -33,10 +39,35 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
     Emitter<CycleListState> emit,
   ) async {
     try {
-      final cycles = await _repository.list(forceRefresh: true);
-      emit(state.copyWith(status: CycleListStatus.success, cycles: cycles));
+      final page = await _repository.list(forceRefresh: true);
+      emit(state.copyWith(
+        status: CycleListStatus.success,
+        cycles: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+      ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: CycleListStatus.failure, error: e.message));
+    }
+  }
+
+  Future<void> _onLoadMore(
+    LoadMoreCycles event,
+    Emitter<CycleListState> emit,
+  ) async {
+    final cursor = state.nextCursor;
+    if (cursor == null || state.isLoadingMore) return;
+    emit(state.copyWith(isLoadingMore: true));
+    try {
+      final page = await _repository.loadMore(cursor);
+      emit(state.copyWith(
+        cycles: [...state.cycles, ...page.items],
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+        isLoadingMore: false,
+      ));
+    } on ApiException catch (e) {
+      emit(state.copyWith(isLoadingMore: false, error: e.message));
     }
   }
 

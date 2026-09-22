@@ -8,6 +8,7 @@ import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/config/env.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/network/cursor_page.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../../../../di/di.dart';
@@ -21,15 +22,17 @@ class CycleRemoteDatasource {
   final Dio _dio;
   CycleRemoteDatasource(this._dio);
 
-  Future<List<CycleData>> list({String? cursor}) async {
+  Future<CursorPage<CycleData>> list({String? cursor}) async {
     try {
       final res = await _dio.get(ApiEndpoints.cycles, queryParameters: {
         if (cursor != null) 'cursor': cursor,
         'per_page': 20,
       });
-      return (res.data['data'] as List)
+      final json = (res.data as Map).cast<String, dynamic>();
+      final items = (json['data'] as List)
           .map((e) => CycleData.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
+      return CursorPage(items: items, nextCursor: CursorPage.cursorFromMeta(json));
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
