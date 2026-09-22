@@ -9,7 +9,6 @@ on:
       - "pubspec.lock"
       - ".github/workflows/mobile-test.yml"
   push:
-    branches: [main]
 
 jobs:
   test:

@@ -10,7 +10,6 @@ on:
       - "analysis_options.yaml"
       - ".github/workflows/mobile-analyze.yml"
   push:
-    branches: [main]
 
 jobs:
   analyze:

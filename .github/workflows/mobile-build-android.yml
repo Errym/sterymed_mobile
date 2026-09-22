@@ -9,7 +9,6 @@ on:
       - "pubspec.lock"
       - ".github/workflows/mobile-build-android.yml"
   push:
-    branches: [main]
 
 jobs:
   build-android:
