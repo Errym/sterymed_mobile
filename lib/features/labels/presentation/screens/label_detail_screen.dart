@@ -262,10 +262,12 @@ class _UsageHistorySection extends StatelessWidget {
                   const Icon(Icons.history,
                       color: AppColors.textTertiary, size: 18),
                   const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'Aucune utilisation enregistrée pour cette étiquette.',
-                    style: AppTypography.body
-                        .copyWith(color: AppColors.textSecondary),
+                  Expanded(
+                    child: Text(
+                      'Aucune utilisation enregistrée pour cette étiquette.',
+                      style: AppTypography.body
+                          .copyWith(color: AppColors.textSecondary),
+                    ),
                   ),
                 ],
               ),

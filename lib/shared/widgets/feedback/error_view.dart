@@ -40,13 +40,11 @@ class ErrorView extends StatelessWidget {
             ],
             if (onRetry != null) ...[
               const SizedBox(height: AppSpacing.lg),
-              SizedBox(
-                width: 200,
-                child: PrimaryButton(
-                  label: 'Réessayer',
-                  onPressed: onRetry,
-                  icon: Icons.refresh,
-                ),
+              PrimaryButton(
+                label: 'Réessayer',
+                onPressed: onRetry,
+                icon: Icons.refresh,
+                isFullWidth: false,
               ),
             ],
           ],
