@@ -20,3 +20,12 @@ class SearchStockLevels extends StockLevelListEvent {
   @override
   List<Object?> get props => [query];
 }
+
+/// Internal — dispatched by StockLevelListBloc itself after debouncing a
+/// SearchStockLevels event, never by the UI directly.
+class _StockSearchDebounced extends StockLevelListEvent {
+  final String query;
+  const _StockSearchDebounced(this.query);
+  @override
+  List<Object?> get props => [query];
+}

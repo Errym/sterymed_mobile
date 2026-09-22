@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../data/models/stock_level_data.dart';
 import '../../data/repositories/stock_repository.dart';
 
@@ -11,11 +12,23 @@ part 'stock_level_list_state.dart';
 class StockLevelListBloc
     extends Bloc<StockLevelListEvent, StockLevelListState> {
   final StockRepository _repository;
+  final _debouncer = Debouncer(delay: const Duration(milliseconds: 300));
 
   StockLevelListBloc(this._repository) : super(const StockLevelListState()) {
     on<LoadStockLevels>(_onLoad);
     on<RefreshStockLevels>(_onRefresh);
-    on<SearchStockLevels>(_onSearch);
+    on<SearchStockLevels>(_onSearchQueryChanged);
+    on<_StockSearchDebounced>(_onSearch);
+  }
+
+  void _onSearchQueryChanged(
+    SearchStockLevels event,
+    Emitter<StockLevelListState> emit,
+  ) {
+    emit(state.copyWith(query: event.query));
+    _debouncer.run(() {
+      if (!isClosed) add(_StockSearchDebounced(event.query));
+    });
   }
 
   Future<void> _onLoad(
@@ -50,15 +63,21 @@ class StockLevelListBloc
   }
 
   Future<void> _onSearch(
-    SearchStockLevels event,
+    _StockSearchDebounced event,
     Emitter<StockLevelListState> emit,
   ) async {
-    emit(state.copyWith(query: event.query));
+    emit(state.copyWith(status: StockLevelStatus.loading, error: null));
     try {
       final levels = await _repository.listLevels(search: event.query);
       emit(state.copyWith(status: StockLevelStatus.success, levels: levels));
     } on ApiException catch (e) {
       emit(state.copyWith(status: StockLevelStatus.failure, error: e.message));
     }
+  }
+
+  @override
+  Future<void> close() {
+    _debouncer.dispose();
+    return super.close();
   }
 }
