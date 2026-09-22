@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../patients/data/models/patient_data.dart';
 import '../../../patients/presentation/widgets/patient_picker_sheet.dart';
+import '../../data/local/label_usage_draft_store.dart';
 import '../../data/models/label_data.dart';
 import '../../data/repositories/label_usage_repository.dart';
 
@@ -26,11 +28,44 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _procedureCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  final _draftDebouncer = Debouncer(delay: const Duration(milliseconds: 400));
+  final _drafts = getIt<LabelUsageDraftStore>();
   PatientData? _patient;
   bool _submitting = false;
+  bool _restoredDraft = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = _drafts.load(widget.labelId);
+    if (draft != null) {
+      _patient = draft.patient;
+      _procedureCtrl.text = draft.procedure;
+      _notesCtrl.text = draft.notes;
+      _restoredDraft = !draft.isEmpty;
+    }
+    _procedureCtrl.addListener(_saveDraft);
+    _notesCtrl.addListener(_saveDraft);
+  }
+
+  void _saveDraft() {
+    _draftDebouncer.run(() {
+      _drafts.save(
+        widget.labelId,
+        LabelUsageDraft(
+          patientId: _patient?.id,
+          patientFirstName: _patient?.firstName,
+          patientLastName: _patient?.lastName,
+          procedure: _procedureCtrl.text,
+          notes: _notesCtrl.text,
+        ),
+      );
+    });
+  }
 
   @override
   void dispose() {
+    _draftDebouncer.dispose();
     _procedureCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
@@ -40,6 +75,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
     final picked = await PatientPickerSheet.show(context);
     if (picked != null && mounted) {
       setState(() => _patient = picked);
+      _saveDraft();
     }
   }
 
@@ -67,6 +103,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
             notes:
                 _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
+      await _drafts.clear(widget.labelId);
       if (!mounted) return;
       AppSnackbar.show(context, 'Utilisation enregistrée.',
           kind: SnackKind.success);
@@ -135,6 +172,33 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                 ],
               ),
             ),
+            if (_restoredDraft) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.history, size: 16, color: AppColors.warning),
+                    const SizedBox(width: AppSpacing.xs),
+                    Expanded(
+                      child: Text(
+                        'Brouillon restauré depuis votre dernière saisie.',
+                        style: AppTypography.caption
+                            .copyWith(color: AppColors.warning),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             const _SectionLabel('PATIENT'),
             InkWell(

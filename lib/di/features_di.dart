@@ -81,8 +81,10 @@ import '../features/identity/data/repositories/team_repository.dart';
 import '../features/identity/presentation/bloc/team_list_bloc.dart';
 
 // ── Labels ──────────────────────────────────────────────────────────────────
+import '../core/storage/key_value_store.dart';
 import '../features/labels/data/datasources/label_remote_datasource.dart';
 import '../features/labels/data/datasources/label_usage_remote_datasource.dart';
+import '../features/labels/data/local/label_usage_draft_store.dart';
 import '../features/labels/data/repositories/label_repository.dart';
 import '../features/labels/data/repositories/label_usage_repository.dart';
 
@@ -164,6 +166,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   );
   getIt.registerLazySingleton<LabelRepository>(
     () => LabelRepository(getIt<LabelRemoteDatasource>()),
+  );
+  getIt.registerLazySingleton<LabelUsageDraftStore>(
+    () => LabelUsageDraftStore(getIt<KeyValueStore>()),
   );
   getIt.registerLazySingleton<LabelUsageRepository>(
     () => LabelUsageRepository(
