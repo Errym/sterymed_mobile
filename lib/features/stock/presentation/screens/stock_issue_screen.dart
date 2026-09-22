@@ -8,10 +8,11 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
-import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/stock_option.dart';
 import '../../data/repositories/stock_repository.dart';
+import '../widgets/quantity_stepper.dart';
 import '../widgets/stock_options_loader.dart';
 
 class StockIssueScreen extends StatelessWidget {
@@ -61,6 +62,7 @@ class _StockIssueFormState extends State<_StockIssueForm> {
     super.initState();
     _batchId = widget.batches.first.id;
     _locationId = widget.locations.first.id;
+    _qtyCtrl.text = '1';
   }
 
   @override
@@ -80,13 +82,11 @@ class _StockIssueFormState extends State<_StockIssueForm> {
         batchId: _batchId!,
         locationId: _locationId!,
         qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
-        reason: _reasonCtrl.text.trim().isEmpty
-            ? null
-            : _reasonCtrl.text.trim(),
+        reason:
+            _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
       );
       if (!mounted) return;
-      AppSnackbar.show(context, 'Sortie enregistrée.',
-          kind: SnackKind.success);
+      AppSnackbar.show(context, 'Sortie enregistrée.', kind: SnackKind.success);
       context.pop();
     } catch (e) {
       if (!mounted) return;
@@ -103,47 +103,60 @@ class _StockIssueFormState extends State<_StockIssueForm> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          AppDropdown<String>(
-            label: 'Lot *',
-            value: _batchId,
-            options: widget.batches
-                .map((b) => AppDropdownOption(value: b.id, label: b.label))
-                .toList(),
-            onChanged: (v) => setState(() => _batchId = v),
+          AnimatedListItem(
+            index: 0,
+            child: AppDropdown<String>(
+              label: 'Lot *',
+              value: _batchId,
+              options: widget.batches
+                  .map((b) => AppDropdownOption(value: b.id, label: b.label))
+                  .toList(),
+              onChanged: (v) => setState(() => _batchId = v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppDropdown<String>(
-            label: 'Emplacement *',
-            value: _locationId,
-            options: widget.locations
-                .map((l) => AppDropdownOption(value: l.id, label: l.label))
-                .toList(),
-            onChanged: (v) => setState(() => _locationId = v),
+          AnimatedListItem(
+            index: 1,
+            child: AppDropdown<String>(
+              label: 'Emplacement *',
+              value: _locationId,
+              options: widget.locations
+                  .map((l) => AppDropdownOption(value: l.id, label: l.label))
+                  .toList(),
+              onChanged: (v) => setState(() => _locationId = v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Quantité *',
-            hint: 'ex. 2',
-            keyboardType: TextInputType.number,
-            controller: _qtyCtrl,
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Requis.';
-              final n = int.tryParse(v.trim());
-              if (n == null || n <= 0) return 'Entrez un nombre positif.';
-              return null;
-            },
+          AnimatedListItem(
+            index: 2,
+            child: QuantityStepper(
+              label: 'Quantité *',
+              controller: _qtyCtrl,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Requis.';
+                final n = int.tryParse(v.trim());
+                if (n == null || n <= 0) return 'Entrez un nombre positif.';
+                return null;
+              },
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppTextArea(
-            label: 'Motif (optionnel)',
-            controller: _reasonCtrl,
-            maxLines: 2,
+          AnimatedListItem(
+            index: 3,
+            child: AppTextArea(
+              label: 'Motif (optionnel)',
+              controller: _reasonCtrl,
+              maxLines: 2,
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          PrimaryButton(
-            label: 'Enregistrer la sortie',
-            isLoading: _submitting,
-            onPressed: _submitting ? null : _submit,
+          AnimatedListItem(
+            index: 4,
+            child: PrimaryButton(
+              label: 'Enregistrer la sortie',
+              isLoading: _submitting,
+              onPressed: _submitting ? null : _submit,
+            ),
           ),
         ],
       ),
@@ -179,8 +192,7 @@ class _NoStockCard extends StatelessWidget {
                 size: 56, color: AppColors.textTertiary),
             const SizedBox(height: AppSpacing.md),
             Text(msg,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyStrong),
+                textAlign: TextAlign.center, style: AppTypography.bodyStrong),
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton.icon(
               onPressed: () => onReload(),

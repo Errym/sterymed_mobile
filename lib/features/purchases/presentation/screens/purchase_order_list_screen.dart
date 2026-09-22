@@ -11,6 +11,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/purchase_order_data.dart';
 import '../../data/repositories/purchase_repository.dart';
 import '../bloc/purchase_order_list_bloc.dart';
@@ -45,7 +46,9 @@ class _PoListView extends StatelessWidget {
             onPressed: () async {
               final ok = await PurchaseOrderCreateSheet.show(context);
               if (ok == true && context.mounted) {
-                context.read<PurchaseOrderListBloc>().add(const LoadPurchaseOrders());
+                context
+                    .read<PurchaseOrderListBloc>()
+                    .add(const LoadPurchaseOrders());
               }
             },
           ),
@@ -92,8 +95,12 @@ class _PoListView extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: state.orders.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (_, i) => _PoTile(order: state.orders[i]),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (_, i) => AnimatedListItem(
+                index: i,
+                child: _PoTile(order: state.orders[i]),
+              ),
             ),
           );
         },
@@ -126,8 +133,8 @@ class _PoTile extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(order.reference,
-                        style: AppTypography.bodyStrong),
+                    child:
+                        Text(order.reference, style: AppTypography.bodyStrong),
                   ),
                   TypeBadge(
                     label: _statusLabel(order.status),

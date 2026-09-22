@@ -8,10 +8,11 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
-import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/stock_option.dart';
 import '../../data/repositories/stock_repository.dart';
+import '../widgets/quantity_stepper.dart';
 import '../widgets/stock_options_loader.dart';
 
 class StockTransferScreen extends StatelessWidget {
@@ -63,6 +64,7 @@ class _StockTransferFormState extends State<_StockTransferForm> {
     _batchId = widget.batches.first.id;
     _fromId = widget.locations.first.id;
     _toId = widget.locations.length > 1 ? widget.locations[1].id : null;
+    _qtyCtrl.text = '1';
   }
 
   @override
@@ -88,9 +90,8 @@ class _StockTransferFormState extends State<_StockTransferForm> {
         fromLocationId: _fromId!,
         toLocationId: _toId!,
         qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
-        reason: _reasonCtrl.text.trim().isEmpty
-            ? null
-            : _reasonCtrl.text.trim(),
+        reason:
+            _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
       );
       if (!mounted) return;
       AppSnackbar.show(context, 'Transfert enregistré.',
@@ -111,56 +112,72 @@ class _StockTransferFormState extends State<_StockTransferForm> {
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          AppDropdown<String>(
-            label: 'Lot *',
-            value: _batchId,
-            options: widget.batches
-                .map((b) => AppDropdownOption(value: b.id, label: b.label))
-                .toList(),
-            onChanged: (v) => setState(() => _batchId = v),
+          AnimatedListItem(
+            index: 0,
+            child: AppDropdown<String>(
+              label: 'Lot *',
+              value: _batchId,
+              options: widget.batches
+                  .map((b) => AppDropdownOption(value: b.id, label: b.label))
+                  .toList(),
+              onChanged: (v) => setState(() => _batchId = v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppDropdown<String>(
-            label: 'Depuis *',
-            value: _fromId,
-            options: widget.locations
-                .map((l) => AppDropdownOption(value: l.id, label: l.label))
-                .toList(),
-            onChanged: (v) => setState(() => _fromId = v),
+          AnimatedListItem(
+            index: 1,
+            child: AppDropdown<String>(
+              label: 'Depuis *',
+              value: _fromId,
+              options: widget.locations
+                  .map((l) => AppDropdownOption(value: l.id, label: l.label))
+                  .toList(),
+              onChanged: (v) => setState(() => _fromId = v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppDropdown<String>(
-            label: 'Vers *',
-            value: _toId,
-            options: widget.locations
-                .map((l) => AppDropdownOption(value: l.id, label: l.label))
-                .toList(),
-            onChanged: (v) => setState(() => _toId = v),
+          AnimatedListItem(
+            index: 2,
+            child: AppDropdown<String>(
+              label: 'Vers *',
+              value: _toId,
+              options: widget.locations
+                  .map((l) => AppDropdownOption(value: l.id, label: l.label))
+                  .toList(),
+              onChanged: (v) => setState(() => _toId = v),
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppTextField(
-            label: 'Quantité *',
-            hint: 'ex. 3',
-            keyboardType: TextInputType.number,
-            controller: _qtyCtrl,
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return 'Requis.';
-              final n = int.tryParse(v.trim());
-              if (n == null || n <= 0) return 'Entrez un nombre positif.';
-              return null;
-            },
+          AnimatedListItem(
+            index: 3,
+            child: QuantityStepper(
+              label: 'Quantité *',
+              controller: _qtyCtrl,
+              validator: (v) {
+                if (v == null || v.trim().isEmpty) return 'Requis.';
+                final n = int.tryParse(v.trim());
+                if (n == null || n <= 0) return 'Entrez un nombre positif.';
+                return null;
+              },
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-          AppTextArea(
-            label: 'Motif (optionnel)',
-            controller: _reasonCtrl,
-            maxLines: 2,
+          AnimatedListItem(
+            index: 4,
+            child: AppTextArea(
+              label: 'Motif (optionnel)',
+              controller: _reasonCtrl,
+              maxLines: 2,
+            ),
           ),
           const SizedBox(height: AppSpacing.xl),
-          PrimaryButton(
-            label: 'Enregistrer le transfert',
-            isLoading: _submitting,
-            onPressed: _submitting ? null : _submit,
+          AnimatedListItem(
+            index: 5,
+            child: PrimaryButton(
+              label: 'Enregistrer le transfert',
+              isLoading: _submitting,
+              onPressed: _submitting ? null : _submit,
+            ),
           ),
         ],
       ),
@@ -196,8 +213,7 @@ class _NoTransferCard extends StatelessWidget {
                 size: 56, color: AppColors.textTertiary),
             const SizedBox(height: AppSpacing.md),
             Text(msg,
-                textAlign: TextAlign.center,
-                style: AppTypography.bodyStrong),
+                textAlign: TextAlign.center, style: AppTypography.bodyStrong),
             const SizedBox(height: AppSpacing.lg),
             OutlinedButton.icon(
               onPressed: () => onReload(),

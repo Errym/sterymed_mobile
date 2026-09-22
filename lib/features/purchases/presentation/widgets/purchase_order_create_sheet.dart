@@ -35,9 +35,13 @@ class PurchaseOrderCreateSheet extends StatefulWidget {
 class _PoLine {
   ProductData? product;
   int qty = 1;
+  final TextEditingController qtyCtrl = TextEditingController(text: '1');
   final TextEditingController priceCtrl = TextEditingController();
 
-  void dispose() => priceCtrl.dispose();
+  void dispose() {
+    qtyCtrl.dispose();
+    priceCtrl.dispose();
+  }
 }
 
 class _PurchaseOrderCreateSheetState extends State<PurchaseOrderCreateSheet> {
@@ -257,7 +261,7 @@ class _LineEditor extends StatelessWidget {
               Expanded(
                 child: AppTextField(
                   label: 'Quantité',
-                  controller: TextEditingController(text: line.qty.toString()),
+                  controller: line.qtyCtrl,
                   keyboardType: TextInputType.number,
                   onChanged: (v) {
                     line.qty = int.tryParse(v) ?? 1;
