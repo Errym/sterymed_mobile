@@ -1,6 +1,14 @@
 import 'dart:typed_data';
 
 import '../../../../core/cache/cache.dart';
+import '../../../../core/config/api_endpoints.dart';
+import '../../../../core/errors/api_exception.dart';
+import '../../../../core/storage/outbox/outbox_item.dart';
+import '../../../../core/storage/outbox/outbox_operation.dart';
+import '../../../../core/storage/outbox/outbox_store.dart';
+import '../../../../core/sync/connectivity_service.dart';
+import '../../../../core/sync/sync_status_cubit.dart';
+import '../../../../core/utils/idempotency_key.dart';
 import '../../../../core/utils/logger.dart';
 import '../datasources/cycle_remote_datasource.dart';
 import '../models/control_test_data.dart';
@@ -16,6 +24,9 @@ class CycleRepository {
   final AppCache _cache;
   final DeviceRepository _devices;
   final DeviceProgramRepository _programs;
+  final OutboxStore _outbox;
+  final ConnectivityService _connectivity;
+  final SyncStatusCubit _syncStatus;
 
   static const _enrichTimeout = Duration(seconds: 3);
 
@@ -23,8 +34,13 @@ class CycleRepository {
     this._remote,
     this._cache,
     this._devices,
-    this._programs,
-  );
+    this._programs, {
+    required OutboxStore outbox,
+    required ConnectivityService connectivity,
+    required SyncStatusCubit syncStatus,
+  })  : _outbox = outbox,
+        _connectivity = connectivity,
+        _syncStatus = syncStatus;
 
   Future<List<CycleData>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
@@ -49,25 +65,75 @@ class CycleRepository {
     return _enrich(c);
   }
 
-  Future<CycleData> start(String id) async {
-    final c = await _remote.start(id);
-    _cache.invalidate('cycles');
-    _cache.invalidate('dashboard');
-    return _enrich(c);
-  }
+  Future<CycleData> start(String id) => _submitTransition(
+        operation: OutboxOperation.cycleTransition,
+        endpoint: ApiEndpoints.cycleStart(id),
+        cycleId: id,
+        status: 'in_progress',
+        online: () => _remote.start(id),
+      );
 
-  Future<CycleData> complete(String id) async {
-    final c = await _remote.complete(id);
-    _cache.invalidate('cycles');
-    _cache.invalidate('dashboard');
-    return _enrich(c);
-  }
+  Future<CycleData> complete(String id) => _submitTransition(
+        operation: OutboxOperation.cycleTransition,
+        endpoint: ApiEndpoints.cycleComplete(id),
+        cycleId: id,
+        status: 'completed',
+        online: () => _remote.complete(id),
+      );
 
-  Future<CycleData> submitForRelease(String id) async {
-    final c = await _remote.submitForRelease(id);
-    _cache.invalidate('cycles');
-    _cache.invalidate('dashboard');
-    return _enrich(c);
+  Future<CycleData> submitForRelease(String id) => _submitTransition(
+        operation: OutboxOperation.cycleTransition,
+        endpoint: ApiEndpoints.cycleSubmit(id),
+        cycleId: id,
+        status: 'pending_release',
+        online: () => _remote.submitForRelease(id),
+      );
+
+  /// Online-first with an offline outbox fallback, same pattern as
+  /// StockRepository/LabelUsageRepository. The synthetic CycleData is
+  /// intentionally minimal — cycle_detail_screen never reads its fields
+  /// on a transition's success, it just triggers a refetch, which is
+  /// the correct behavior offline too (shows cached state until the
+  /// queued transition actually syncs).
+  Future<CycleData> _submitTransition({
+    required OutboxOperation operation,
+    required String endpoint,
+    required String cycleId,
+    required String status,
+    required Future<CycleData> Function() online,
+  }) async {
+    final isOnline = await _connectivity.isConnected;
+    if (isOnline) {
+      try {
+        final result = await online();
+        _cache.invalidate('cycles');
+        _cache.invalidate('dashboard');
+        return await _enrich(result);
+      } on ApiException catch (e) {
+        if (!e.isNetwork && !e.isTimeout) rethrow;
+      }
+    }
+
+    final itemId = generateIdempotencyKey();
+    await _outbox.enqueue(OutboxItem(
+      id: itemId,
+      operation: operation,
+      endpoint: endpoint,
+      method: 'POST',
+      payload: const {},
+      idempotencyKey: generateIdempotencyKey(),
+      createdAt: DateTime.now(),
+    ));
+    _syncStatus.refreshNow();
+
+    return CycleData(
+      id: cycleId,
+      number: '',
+      status: status,
+      deviceId: '',
+      deviceName: '',
+      createdAt: DateTime.now(),
+    );
   }
 
   Future<CycleReleaseData> release(
@@ -75,10 +141,43 @@ class CycleRepository {
     required String decision,
     String? reason,
   }) async {
-    final r = await _remote.release(id, decision: decision, reason: reason);
-    _cache.invalidate('cycles');
-    _cache.invalidate('dashboard');
-    return r;
+    final isOnline = await _connectivity.isConnected;
+    if (isOnline) {
+      try {
+        final r =
+            await _remote.release(id, decision: decision, reason: reason);
+        _cache.invalidate('cycles');
+        _cache.invalidate('dashboard');
+        return r;
+      } on ApiException catch (e) {
+        if (!e.isNetwork && !e.isTimeout) rethrow;
+      }
+    }
+
+    final itemId = generateIdempotencyKey();
+    await _outbox.enqueue(OutboxItem(
+      id: itemId,
+      operation: OutboxOperation.cycleTransition,
+      endpoint: ApiEndpoints.cycleRelease(id),
+      method: 'POST',
+      payload: {
+        'decision': decision,
+        if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
+      },
+      idempotencyKey: generateIdempotencyKey(),
+      createdAt: DateTime.now(),
+    ));
+    _syncStatus.refreshNow();
+
+    return CycleReleaseData(
+      id: itemId,
+      cycleId: id,
+      decision: decision == 'compliant'
+          ? CycleReleaseDecision.compliant
+          : CycleReleaseDecision.rejected,
+      reason: reason,
+      releasedAt: DateTime.now(),
+    );
   }
 
   // ── Items ─────────────────────────────────────────────────────────────

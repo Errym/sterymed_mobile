@@ -284,6 +284,9 @@ Future<void> registerFeatures(GetIt getIt) async {
         getIt<AppCache>(),
         getIt<DeviceRepository>(),
         getIt<DeviceProgramRepository>(),
+        outbox: getIt<OutboxStore>(),
+        connectivity: getIt<ConnectivityService>(),
+        syncStatus: getIt<SyncStatusCubit>(),
       ));
   getIt.registerLazySingleton<DeviceDetailDatasource>(
     () => DeviceDetailDatasource(getIt<DioClient>().dio),
