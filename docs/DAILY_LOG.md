@@ -52,3 +52,16 @@ Resolved without needing seeded stock data: read the backend's own `EnsureIdempo
 - **TODO (blocking full Gate 1 close-out): need a real Sentry DSN.** Code is done and is a safe no-op with an empty DSN (`Env.sentryDsn` defaults to `''`). Owner: you — deferred until before Phase 9 per your instruction. Once supplied via `--dart-define=SENTRY_DSN=...`, still need to send a test event and verify it lands in the Sentry dashboard to close Gate 1's "Sentry receives a test event" checkbox.
 - Added debug-only `android/app/src/debug/res/xml/network_security_config.xml` (cleartext allowed for `10.0.2.2`/`localhost`/`127.0.0.1` only, debug build variant only) — real Android devices block cleartext HTTP by default since API 28, which would otherwise block every request to a non-HTTPS local dev backend.
 - Filled `test/unit/core/env_test.dart` (previously an empty stub, explicitly required by Gate 1's T1.62 checklist).
+
+---
+
+### 2026-09-22 — CI actually runs for the first time; Android fixed, iOS parked
+
+All 5 real CI workflows had `push: branches: [main]`, but every push this session went to `phase-2-offline-outbox` — none of them had ever actually run against real work. Confirmed via `gh run list`: only the 2 still-empty release workflows fired (failing in 0s, as expected), and the 5 real ones had no run history past 2026-09-18, before this branch started. Fixed by dropping the branch restriction on `push`.
+
+Once CI actually ran, it caught two real, previously-undetected native build failures that my own local `flutter build apk --debug` never reached (killed early by low memory):
+
+- **Android — fixed.** `sentry_flutter` 8.14.2's `android/build.gradle` hardcoded Kotlin `languageVersion = "1.6"`, which Kotlin 2.x (this project's KGP is 2.4.0) no longer supports at all — `compileDebugKotlin` failed outright. Upgraded `sentry_flutter` to `^9.30.1`, which dropped that pin. Verified: Android build now passes in CI.
+- **iOS — fixed one bug, hit a second, parked.** 8.14.2's Swift plugin code also called a `SentryBinaryImageCache` member that no longer exists in the `sentry-cocoa` version Swift Package Manager resolves — the same 9.30.1 upgrade fixed this (confirmed: that specific compile error is gone). But the build still fails afterward with `Framework 'Pods_Runner' not found` / linker error. Root cause is unrelated to Sentry: this project has no committed `ios/Podfile` (it predates Flutter defaulting new projects to Swift Package Manager), and `flutter_secure_storage`/`mobile_scanner` don't support SPM yet, so Flutter falls back to an auto-generated CocoaPods setup that isn't linking correctly against the Xcode project.
+  - Tried `flutter config --no-enable-swift-package-manager` in CI (Flutter's documented remedy for exactly this class of problem) — did not fix it. Read `flutter_tools`' own source (`darwin_dependency_management.dart`) and confirmed the "plugins do not support Swift Package Manager" message is an unconditional warning, unrelated to the actual linker failure — so that fix was targeting the wrong thing.
+  - **Parked per your instruction.** Needs interactive Xcode/macOS debugging (Pods target build phases, framework search paths) that isn't possible from CI log inspection alone. `mobile-build-ios.yml` will keep failing until someone with Mac access investigates.

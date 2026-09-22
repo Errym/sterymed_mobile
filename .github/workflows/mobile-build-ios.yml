@@ -25,13 +25,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # flutter_secure_storage and mobile_scanner don't support Swift
-      # Package Manager yet, and this project has no committed ios/Podfile
-      # (never needed one before Flutter defaulted to SPM) — the resulting
-      # SPM+auto-generated-CocoaPods hybrid fails to link Pods_Runner.
-      # Force pure CocoaPods, Flutter's documented workaround.
-      - name: Disable Swift Package Manager (unsupported plugins)
-        run: flutter config --no-enable-swift-package-manager
-
+      # KNOWN FAILING as of 2026-09-22 — "Framework 'Pods_Runner' not
+      # found" linker error. Root cause: no committed ios/Podfile, plus
+      # flutter_secure_storage/mobile_scanner not supporting Swift Package
+      # Manager, leaves the project in a broken SPM/CocoaPods hybrid state.
+      # `flutter config --no-enable-swift-package-manager` does NOT fix
+      # this (confirmed against flutter_tools source — the SPM warning is
+      # unconditional and unrelated to the actual linker failure). Needs
+      # interactive Xcode/macOS debugging. See docs/DAILY_LOG.md.
       - name: Build for simulator (no code signing)
         run: flutter build ios --simulator --no-codesign
