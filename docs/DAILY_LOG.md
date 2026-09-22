@@ -41,7 +41,7 @@ Resolved without needing seeded stock data: read the backend's own `EnsureIdempo
 
 **Conclusion:** the master plan's ground rule ("the 409 is success, not error... replayed idempotency keys mean already recorded") and the old `docs/ERROR_MATRIX.md` entry ("409 = idempotency replay") were both wrong. A benign replay is a 200 (or the original success status), not a 409. 409 only fires on genuine key misuse (same key, different payload) and should be treated as a bug/logged, not swallowed.
 
-**Impact on mobile code:** none needed. `SyncEngine` treats any non-throwing response as success and removes the outbox item regardless of status code, so a replayed 200 is already handled correctly — it just wasn't happening for the reason the comments described. `docs/ERROR_MATRIX.md` and `docs/BACKEND_BUGS.md#BUG-006` updated to match. Phase 0 API-contract verification is now complete.
+**Impact on mobile code (revised 2026-09-22, see below):** at the time, I claimed none was needed because `SyncEngine` treats any non-throwing response as success — true for the benign-replay case, but I never actually re-read the explicit 409-*throwing* branch's code before writing that. It was wrong; see the Phase 5 entry below. `docs/ERROR_MATRIX.md` and `docs/BACKEND_BUGS.md#BUG-006` updated to match. Phase 0 API-contract verification is now complete.
 
 ---
 
@@ -65,3 +65,15 @@ Once CI actually ran, it caught two real, previously-undetected native build fai
 - **iOS — fixed one bug, hit a second, parked.** 8.14.2's Swift plugin code also called a `SentryBinaryImageCache` member that no longer exists in the `sentry-cocoa` version Swift Package Manager resolves — the same 9.30.1 upgrade fixed this (confirmed: that specific compile error is gone). But the build still fails afterward with `Framework 'Pods_Runner' not found` / linker error. Root cause is unrelated to Sentry: this project has no committed `ios/Podfile` (it predates Flutter defaulting new projects to Swift Package Manager), and `flutter_secure_storage`/`mobile_scanner` don't support SPM yet, so Flutter falls back to an auto-generated CocoaPods setup that isn't linking correctly against the Xcode project.
   - Tried `flutter config --no-enable-swift-package-manager` in CI (Flutter's documented remedy for exactly this class of problem) — did not fix it. Read `flutter_tools`' own source (`darwin_dependency_management.dart`) and confirmed the "plugins do not support Swift Package Manager" message is an unconditional warning, unrelated to the actual linker failure — so that fix was targeting the wrong thing.
   - **Parked per your instruction.** Needs interactive Xcode/macOS debugging (Pods target build phases, framework search paths) that isn't possible from CI log inspection alone. `mobile-build-ios.yml` will keep failing until someone with Mac access investigates.
+
+---
+
+### 2026-09-22 — Phase 5 audit: SyncEngine 409 handling was silently unsafe
+
+Auditing Phase 5 ("Usage + patients + offline outbox — the phase that makes or breaks the app") against the actual codebase before building anything, same as every phase this session. Patients, label usage form, and the full outbox/sync infrastructure (`OutboxItem`, `OutboxStore`, `SyncEngine`, `ConnectivityService`, `SyncStatusCubit`) already exist. While re-reading `sync_engine.dart` I found it still carried the exact stale idempotency assumption from earlier today ("409 → already recorded, mark done") — I'd corrected the docs but never actually went back and fixed the code, and my own earlier claim that "no code change was required" turned out to be wrong (see the correction above).
+
+**The real risk:** a genuine 409 (`IDEMPOTENCY_KEY_REUSED`) means the same key was reused with a *different* payload — the backend never recorded *this* item's data under that key. The old code removed the item from the outbox anyway, treating it as done. That's silent data loss on a sterilization-traceability app. A benign replay (the actual common case, same key + same payload) never reaches this branch at all — it returns the original 2xx and is already handled by the success path.
+
+**Fixed:** 409 now routes through the same manual-review path as 422/403 (kept in the outbox, surfaced for review, not silently discarded). Removed the now-dead `SyncResult.conflict` enum value (was only ever produced by the buggy branch). Updated `test/unit/storage/sync_engine_test.dart`'s 409 test, which had explicitly asserted the old (wrong) behavior.
+
+In practice this should be very rare — outbox items each get their own UUID v4 key, so a genuine collision-with-different-payload shouldn't happen under normal operation — but "shouldn't happen" is exactly the case a sync engine needs to fail safe on, not silently swallow.

@@ -14,14 +14,14 @@ class SyncEngine {
   SyncEngine(this._store, this._dio);
 
   /// Flush every pending item, in order, one at a time.
-  /// Returns the number of items that succeeded (success + conflict).
+  /// Returns the number of items that succeeded.
   Future<int> flush() async {
     final pending = _store.pending();
     int synced = 0;
 
     for (final item in pending) {
       final result = await _syncOne(item);
-      if (result == SyncResult.success || result == SyncResult.conflict) {
+      if (result == SyncResult.success) {
         synced++;
       }
     }
@@ -46,15 +46,22 @@ class SyncEngine {
     } on DioException catch (e) {
       final api = e.error;
 
-      // 409 → already recorded. Backend idempotency replay.
-      if (api is ApiException && api.statusCode == 409) {
-        await _store.remove(item.id);
-        return SyncResult.conflict;
-      }
-
-      // 422 / 403 → hard errors, keep for manual review.
+      // 409 / 422 / 403 → hard errors, keep for manual review.
+      //
+      // A benign idempotency replay (same key, same payload) never
+      // reaches this branch — the backend replays the cached response
+      // verbatim at its ORIGINAL status (e.g. 200), which the success
+      // path above already handles correctly. A 409 here means the
+      // Idempotency-Key was reused with a DIFFERENT payload — a genuine
+      // anomaly (should never happen with our own UUID v4 keys) where
+      // this item's data was NOT actually recorded under this key.
+      // Silently discarding it would be silent data loss, so it gets
+      // the same manual-review treatment as a real validation/permission
+      // error, not an auto-remove.
       if (api is ApiException &&
-          (api.statusCode == 422 || api.statusCode == 403)) {
+          (api.statusCode == 409 ||
+              api.statusCode == 422 ||
+              api.statusCode == 403)) {
         await _store.update(
           item.copyWith(
             status: OutboxStatus.manualReview,

@@ -1,1 +1,1 @@
-enum SyncResult { success, conflict, error, manualReview }
+enum SyncResult { success, error, manualReview }

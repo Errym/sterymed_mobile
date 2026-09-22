@@ -45,11 +45,12 @@ void main() {
   });
 
   test(
-    'a 409 response marks the item done (removed), not manual review',
+    'a 409 (genuine idempotency-key reuse) keeps the item for manual '
+    'review, not removed — a benign replay never reaches this branch, '
+    'it returns the original 2xx status and hits the success path',
     () async {
       final item = buildOutboxItem();
       when(() => store.pending()).thenReturn([item]);
-      when(() => store.remove(item.id)).thenAnswer((_) async {});
       when(
         () => dio.request(
           any(),
@@ -60,8 +61,8 @@ void main() {
         DioException(
           requestOptions: RequestOptions(path: item.endpoint),
           error: const ApiException(
-            code: 'conflict',
-            message: 'Enregistré précédemment.',
+            code: 'IDEMPOTENCY_KEY_REUSED',
+            message: 'This Idempotency-Key was already used with a different request.',
             statusCode: 409,
           ),
         ),
@@ -69,11 +70,11 @@ void main() {
 
       final synced = await engine.flush();
 
-      expect(synced, 1);
-      verify(() => store.remove(item.id)).called(1);
-      // Only the initial "syncing" transition — the manual-review branch
-      // would have called update() a second time instead of remove().
-      verify(() => store.update(any())).called(1);
+      expect(synced, 0);
+      verifyNever(() => store.remove(item.id));
+      final captured = verify(() => store.update(captureAny())).captured;
+      expect(captured.last, isA<OutboxItem>());
+      expect((captured.last as OutboxItem).status, OutboxStatus.manualReview);
     },
   );
 
