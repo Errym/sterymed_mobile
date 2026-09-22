@@ -25,5 +25,13 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # flutter_secure_storage and mobile_scanner don't support Swift
+      # Package Manager yet, and this project has no committed ios/Podfile
+      # (never needed one before Flutter defaulted to SPM) — the resulting
+      # SPM+auto-generated-CocoaPods hybrid fails to link Pods_Runner.
+      # Force pure CocoaPods, Flutter's documented workaround.
+      - name: Disable Swift Package Manager (unsupported plugins)
+        run: flutter config --no-enable-swift-package-manager
+
       - name: Build for simulator (no code signing)
         run: flutter build ios --simulator --no-codesign
