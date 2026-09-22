@@ -17,6 +17,13 @@ class FilterTeam extends TeamListEvent {
   List<Object?> get props => [role];
 }
 
+class SearchTeam extends TeamListEvent {
+  final String query;
+  const SearchTeam(this.query);
+  @override
+  List<Object?> get props => [query];
+}
+
 class InviteTeamMember extends TeamListEvent {
   final String email;
   final String role;

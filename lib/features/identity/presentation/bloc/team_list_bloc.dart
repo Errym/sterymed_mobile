@@ -14,6 +14,7 @@ class TeamListBloc extends Bloc<TeamListEvent, TeamListState> {
   TeamListBloc(this._repository) : super(const TeamListState()) {
     on<LoadTeam>(_onLoad);
     on<FilterTeam>(_onFilter);
+    on<SearchTeam>(_onSearch);
     on<InviteTeamMember>(_onInvite);
   }
 
@@ -28,7 +29,15 @@ class TeamListBloc extends Bloc<TeamListEvent, TeamListState> {
   }
 
   void _onFilter(FilterTeam event, Emitter<TeamListState> emit) {
-    emit(state.copyWith(roleFilter: event.role));
+    if (event.role == null) {
+      emit(state.copyWith(clearFilter: true));
+    } else {
+      emit(state.copyWith(roleFilter: event.role));
+    }
+  }
+
+  void _onSearch(SearchTeam event, Emitter<TeamListState> emit) {
+    emit(state.copyWith(searchQuery: event.query));
   }
 
   Future<void> _onInvite(

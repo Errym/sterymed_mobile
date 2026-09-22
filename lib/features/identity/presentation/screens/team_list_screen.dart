@@ -10,6 +10,7 @@ import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/media/app_avatar.dart';
 import '../../data/models/team_member_data.dart';
 import '../../data/repositories/team_repository.dart';
@@ -22,8 +23,8 @@ class TeamListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => TeamListBloc(getIt<TeamRepository>())
-        ..add(const LoadTeam()),
+      create: (_) =>
+          TeamListBloc(getIt<TeamRepository>())..add(const LoadTeam()),
       child: const _TeamListView(),
     );
   }
@@ -79,11 +80,11 @@ class _TeamListView extends StatelessWidget {
           return Column(
             children: [
               Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: AppSearchField(
                   hint: 'Rechercher par nom, e-mail...',
-                  onChanged: (_) {},
+                  onChanged: (q) =>
+                      context.read<TeamListBloc>().add(SearchTeam(q)),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -94,10 +95,8 @@ class _TeamListView extends StatelessWidget {
                 options: const [
                   FilterChipOption(value: null, label: 'Tous'),
                   FilterChipOption(value: 'owner', label: 'Direction'),
-                  FilterChipOption(
-                      value: 'practitioner', label: 'Praticiens'),
-                  FilterChipOption(
-                      value: 'stock_manager', label: 'Stock'),
+                  FilterChipOption(value: 'practitioner', label: 'Praticiens'),
+                  FilterChipOption(value: 'stock_manager', label: 'Stock'),
                   FilterChipOption(value: 'reception', label: 'Accueil'),
                 ],
               ),
@@ -108,8 +107,10 @@ class _TeamListView extends StatelessWidget {
                   itemCount: state.filtered.length,
                   separatorBuilder: (_, __) =>
                       const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) =>
-                      _StaffCard(member: state.filtered[i]),
+                  itemBuilder: (_, i) => AnimatedListItem(
+                    index: i,
+                    child: _StaffCard(member: state.filtered[i]),
+                  ),
                 ),
               ),
             ],
