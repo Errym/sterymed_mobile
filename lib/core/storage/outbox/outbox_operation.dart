@@ -5,7 +5,6 @@ enum OutboxOperation {
   stockTransfer,
   goodsReceipt,
   cycleTransition,
-  payment,
 }
 
 extension OutboxOperationLabel on OutboxOperation {
@@ -23,8 +22,6 @@ extension OutboxOperationLabel on OutboxOperation {
         return 'Réception marchandise';
       case OutboxOperation.cycleTransition:
         return 'Transition cycle';
-      case OutboxOperation.payment:
-        return 'Paiement';
     }
   }
 }

@@ -1,4 +1,12 @@
 import '../../../../core/cache/cache.dart';
+import '../../../../core/config/api_endpoints.dart';
+import '../../../../core/errors/api_exception.dart';
+import '../../../../core/storage/outbox/outbox_item.dart';
+import '../../../../core/storage/outbox/outbox_operation.dart';
+import '../../../../core/storage/outbox/outbox_store.dart';
+import '../../../../core/sync/connectivity_service.dart';
+import '../../../../core/sync/sync_status_cubit.dart';
+import '../../../../core/utils/idempotency_key.dart';
 import '../datasources/purchase_remote_datasource.dart';
 import '../models/goods_receipt_data.dart';
 import '../models/purchase_order_data.dart';
@@ -7,8 +15,19 @@ import '../models/supplier_data.dart';
 class PurchaseRepository {
   final PurchaseRemoteDatasource _remote;
   final AppCache _cache;
+  final OutboxStore _outbox;
+  final ConnectivityService _connectivity;
+  final SyncStatusCubit _syncStatus;
 
-  PurchaseRepository(this._remote, this._cache);
+  PurchaseRepository(
+    this._remote,
+    this._cache, {
+    required OutboxStore outbox,
+    required ConnectivityService connectivity,
+    required SyncStatusCubit syncStatus,
+  })  : _outbox = outbox,
+        _connectivity = connectivity,
+        _syncStatus = syncStatus;
 
   Future<List<PurchaseOrderData>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
@@ -43,18 +62,48 @@ class PurchaseRepository {
     return po;
   }
 
+  /// Online-first with an offline outbox fallback — same pattern as
+  /// Stock/Label Usage/Cycles. goods_receipt_screen discards the return
+  /// value on success (it just navigates back), so the synthetic result
+  /// needs no real fidelity.
   Future<GoodsReceiptData> receive({
     required String poId,
     required String locationId,
     required List<Map<String, dynamic>> lines,
   }) async {
-    final r = await _remote.receive(
-      poId: poId,
-      locationId: locationId,
-      lines: lines,
+    final isOnline = await _connectivity.isConnected;
+    if (isOnline) {
+      try {
+        final r = await _remote.receive(
+          poId: poId,
+          locationId: locationId,
+          lines: lines,
+        );
+        _cache.invalidateAll();
+        return r;
+      } on ApiException catch (e) {
+        if (!e.isNetwork && !e.isTimeout) rethrow;
+      }
+    }
+
+    final itemId = generateIdempotencyKey();
+    await _outbox.enqueue(OutboxItem(
+      id: itemId,
+      operation: OutboxOperation.goodsReceipt,
+      endpoint: ApiEndpoints.purchaseOrderReceipts(poId),
+      method: 'POST',
+      payload: {'location_id': locationId, 'lines': lines},
+      idempotencyKey: generateIdempotencyKey(),
+      createdAt: DateTime.now(),
+    ));
+    _syncStatus.refreshNow();
+
+    return GoodsReceiptData(
+      id: itemId,
+      purchaseOrderId: poId,
+      totalLines: lines.length,
+      receivedAt: DateTime.now(),
     );
-    _cache.invalidateAll();
-    return r;
   }
 
   Future<List<SupplierData>> listSuppliers({bool forceRefresh = false}) async {

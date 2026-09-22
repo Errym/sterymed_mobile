@@ -397,6 +397,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<PurchaseRepository>(() => PurchaseRepository(
         getIt<PurchaseRemoteDatasource>(),
         getIt<AppCache>(),
+        outbox: getIt<OutboxStore>(),
+        connectivity: getIt<ConnectivityService>(),
+        syncStatus: getIt<SyncStatusCubit>(),
       ));
   getIt.registerFactory<PurchaseOrderListBloc>(
     () => PurchaseOrderListBloc(getIt<PurchaseRepository>()),
