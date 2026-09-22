@@ -166,7 +166,12 @@ Future<void> registerFeatures(GetIt getIt) async {
     () => LabelRepository(getIt<LabelRemoteDatasource>()),
   );
   getIt.registerLazySingleton<LabelUsageRepository>(
-    () => LabelUsageRepository(getIt<LabelUsageRemoteDatasource>()),
+    () => LabelUsageRepository(
+      getIt<LabelUsageRemoteDatasource>(),
+      outbox: getIt<OutboxStore>(),
+      connectivity: getIt<ConnectivityService>(),
+      syncStatus: getIt<SyncStatusCubit>(),
+    ),
   );
 
   // ─────────────────────────────────────────────────────────────────────────

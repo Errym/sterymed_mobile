@@ -60,7 +60,9 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
       await context.read<LabelUsageRepository>().recordUsage(
             labelId: widget.labelId,
             patientId: _patient!.id,
+            patientName: _patient!.fullName,
             practitionerId: practitionerId,
+            practitionerName: getIt<SessionStore>().userName ?? '',
             procedure: _procedureCtrl.text.trim(),
             notes:
                 _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
