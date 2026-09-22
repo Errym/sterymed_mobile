@@ -13,6 +13,7 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/local/cycle_notes_cache.dart';
 import '../../data/models/control_test_data.dart';
 import '../../data/models/cycle_attachment_data.dart';
@@ -77,9 +78,7 @@ class _CycleDetailView extends StatelessWidget {
         listenWhen: (p, c) => p.status != c.status,
         listener: (context, state) {
           if (state.status == CycleTransitionStatus.success) {
-            context
-                .read<CycleDetailBloc>()
-                .add(RefreshCycleDetail(cycleId));
+            context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
             AppSnackbar.show(context, 'Cycle mis à jour.',
                 kind: SnackKind.success);
             Future.delayed(const Duration(milliseconds: 300), () {
@@ -132,139 +131,198 @@ class _CycleDetailView extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
-                  // ── Header ──
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text('Cycle ${c.number}',
-                            style: AppTypography.pageTitle),
-                      ),
-                      CycleStatusBadge(status: c.status),
-                    ],
+                  // ── Header + info card ──
+                  AnimatedListItem(
+                    index: 0,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text('Cycle ${c.number}',
+                                  style: AppTypography.pageTitle),
+                            ),
+                            CycleStatusBadge(status: c.status),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _infoCard(c),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-
-                  // ── Info card ──
-                  _infoCard(c),
 
                   // ── Timeline ──
-                  const SizedBox(height: AppSpacing.lg),
-                  const SectionHeader(title: 'Chronologie'),
-                  CycleTimeline(cycle: c),
+                  AnimatedListItem(
+                    index: 1,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        const SectionHeader(title: 'Chronologie'),
+                        CycleTimeline(cycle: c),
+                      ],
+                    ),
+                  ),
 
                   // ── Notes ──
-                  const SizedBox(height: AppSpacing.lg),
-                  const SectionHeader(title: 'Notes de suivi'),
-                  _NotesSection(cycleId: cycleId, initialNotes: c.notes),
+                  AnimatedListItem(
+                    index: 2,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        const SectionHeader(title: 'Notes de suivi'),
+                        _NotesSection(cycleId: cycleId, initialNotes: c.notes),
+                      ],
+                    ),
+                  ),
 
                   // ── Instruments ──
-                  const SizedBox(height: AppSpacing.lg),
-                  SectionHeader(
-                    title: 'Instruments (${state.items.length})',
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      tooltip: canAddItems
-                          ? 'Ajouter un instrument'
-                          : 'Cycle clôturé',
-                      onPressed: canAddItems
-                          ? () => _addItem(context, cycleId)
-                          : null,
+                  AnimatedListItem(
+                    index: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        SectionHeader(
+                          title: 'Instruments (${state.items.length})',
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            tooltip: canAddItems
+                                ? 'Ajouter un instrument'
+                                : 'Cycle clôturé',
+                            onPressed: canAddItems
+                                ? () => _addItem(context, cycleId)
+                                : null,
+                          ),
+                        ),
+                        if (state.items.isEmpty)
+                          const _EmptyHint('Aucun instrument enregistré.')
+                        else
+                          ...state.items.map((i) => _ItemRow(
+                                item: i,
+                                onEdit: canAddItems
+                                    ? () => _editItem(context, cycleId, i)
+                                    : null,
+                                onDelete: canAddItems
+                                    ? () => _deleteItem(context, cycleId, i)
+                                    : null,
+                              )),
+                      ],
                     ),
                   ),
-                  if (state.items.isEmpty)
-                    const _EmptyHint('Aucun instrument enregistré.')
-                  else
-                    ...state.items.map((i) => _ItemRow(
-                          item: i,
-                          onEdit: canAddItems
-                              ? () => _editItem(context, cycleId, i)
-                              : null,
-                          onDelete: canAddItems
-                              ? () => _deleteItem(context, cycleId, i)
-                              : null,
-                        )),
 
                   // ── Control tests ──
-                  const SizedBox(height: AppSpacing.lg),
-                  SectionHeader(
-                    title: 'Contrôles (${state.controlTests.length})',
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      tooltip: canAddTests
-                          ? 'Enregistrer un contrôle'
-                          : 'Disponible après la fin du cycle',
-                      onPressed: canAddTests
-                          ? () => _addControlTest(context, cycleId)
-                          : null,
+                  AnimatedListItem(
+                    index: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        SectionHeader(
+                          title: 'Contrôles (${state.controlTests.length})',
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            tooltip: canAddTests
+                                ? 'Enregistrer un contrôle'
+                                : 'Disponible après la fin du cycle',
+                            onPressed: canAddTests
+                                ? () => _addControlTest(context, cycleId)
+                                : null,
+                          ),
+                        ),
+                        if (!canAddTests && state.controlTests.isEmpty) ...[
+                          const _InfoBanner(
+                            message:
+                                'Les contrôles (Bowie-Dick, Helix, biologique) se '
+                                'saisissent une fois le cycle terminé.',
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                        ],
+                        if (state.controlTests.isEmpty && canAddTests)
+                          const _EmptyHint('Aucun contrôle enregistré.')
+                        else ...[
+                          if (state.controlTests.isNotEmpty) ...[
+                            const _InfoBanner(
+                              message:
+                                  'Les contrôles ne peuvent pas être supprimés une '
+                                  'fois enregistrés (exigence de traçabilité).',
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                          ],
+                          ...state.controlTests
+                              .map((t) => _ControlTestRow(test: t)),
+                        ],
+                      ],
                     ),
                   ),
-                  if (!canAddTests && state.controlTests.isEmpty) ...[
-                    const _InfoBanner(
-                      message:
-                          'Les contrôles (Bowie-Dick, Helix, biologique) se '
-                          'saisissent une fois le cycle terminé.',
-                    ),
-                    const SizedBox(height: AppSpacing.sm),
-                  ],
-                  if (state.controlTests.isEmpty && canAddTests)
-                    const _EmptyHint('Aucun contrôle enregistré.')
-                  else ...[
-                    if (state.controlTests.isNotEmpty) ...[
-                      const _InfoBanner(
-                        message:
-                            'Les contrôles ne peuvent pas être supprimés une '
-                            'fois enregistrés (exigence de traçabilité).',
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                    ],
-                    ...state.controlTests
-                        .map((t) => _ControlTestRow(test: t)),
-                  ],
 
                   // ── Attachments ──
-                  const SizedBox(height: AppSpacing.lg),
-                  SectionHeader(
-                    title: 'Pièces jointes (${state.attachments.length})',
-                    trailing: IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
-                      tooltip: 'Ajouter une pièce jointe',
-                      onPressed: () =>
-                          context.go(Routes.cyclesAttachments(cycleId)),
+                  AnimatedListItem(
+                    index: 5,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: AppSpacing.lg),
+                        SectionHeader(
+                          title: 'Pièces jointes (${state.attachments.length})',
+                          trailing: IconButton(
+                            icon: const Icon(Icons.add_circle_outline),
+                            tooltip: 'Ajouter une pièce jointe',
+                            onPressed: () =>
+                                context.go(Routes.cyclesAttachments(cycleId)),
+                          ),
+                        ),
+                        if (state.attachments.isEmpty)
+                          const _EmptyHint('Aucune pièce jointe.')
+                        else
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            runSpacing: AppSpacing.sm,
+                            children: state.attachments
+                                .map((a) => _AttachmentTile(
+                                      a: a,
+                                      onDelete: () => _deleteAttachment(
+                                          context, cycleId, a),
+                                    ))
+                                .toList(),
+                          ),
+                      ],
                     ),
                   ),
-                  if (state.attachments.isEmpty)
-                    const _EmptyHint('Aucune pièce jointe.')
-                  else
-                    Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
-                      children: state.attachments
-                          .map((a) => _AttachmentTile(
-                                a: a,
-                                onDelete: () =>
-                                    _deleteAttachment(context, cycleId, a),
-                              ))
-                          .toList(),
-                    ),
 
                   // ── Release info ──
-                  if (state.release != null) ...[
-                    const SizedBox(height: AppSpacing.lg),
-                    const SectionHeader(title: 'Libération'),
-                    _releaseCard(state.release!),
-                  ],
+                  if (state.release != null)
+                    AnimatedListItem(
+                      index: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: AppSpacing.lg),
+                          const SectionHeader(title: 'Libération'),
+                          _releaseCard(state.release!),
+                        ],
+                      ),
+                    ),
 
                   // ── Action button ──
-                  const SizedBox(height: AppSpacing.xxl),
-                  BlocBuilder<CycleTransitionBloc, CycleTransitionState>(
-                    builder: (context, transitionState) {
-                      final isLoading =
-                          transitionState.status ==
-                              CycleTransitionStatus.loading;
-                      return _actionButton(context, c, isLoading);
-                    },
+                  AnimatedListItem(
+                    index: 7,
+                    child: Column(
+                      children: [
+                        const SizedBox(height: AppSpacing.xxl),
+                        BlocBuilder<CycleTransitionBloc, CycleTransitionState>(
+                          builder: (context, transitionState) {
+                            final isLoading = transitionState.status ==
+                                CycleTransitionStatus.loading;
+                            return _actionButton(context, c, isLoading);
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: AppSpacing.xl),
                 ],
               ),
             );
@@ -330,8 +388,7 @@ class _CycleDetailView extends StatelessWidget {
           label: 'Démarrer le cycle',
           icon: Icons.play_arrow,
           isLoading: isLoading,
-          onPressed:
-              isLoading ? null : () => _confirmAndStart(context, c.id),
+          onPressed: isLoading ? null : () => _confirmAndStart(context, c.id),
         );
       case 'in_progress':
         return PrimaryButton(
@@ -346,8 +403,7 @@ class _CycleDetailView extends StatelessWidget {
           label: 'Soumettre pour libération',
           icon: Icons.assignment_turned_in_outlined,
           isLoading: isLoading,
-          onPressed:
-              isLoading ? null : () => _confirmAndSubmit(context, c.id),
+          onPressed: isLoading ? null : () => _confirmAndSubmit(context, c.id),
         );
       case 'awaiting_release':
         return PrimaryButton(
@@ -427,13 +483,11 @@ class _CycleDetailView extends StatelessWidget {
         'description': result.description,
       });
       if (!context.mounted) return;
-      AppSnackbar.show(context, 'Instrument ajouté.',
-          kind: SnackKind.success);
+      AppSnackbar.show(context, 'Instrument ajouté.', kind: SnackKind.success);
       context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e),
-          kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -454,13 +508,11 @@ class _CycleDetailView extends StatelessWidget {
         'description': result.description,
       });
       if (!context.mounted) return;
-      AppSnackbar.show(context, 'Instrument modifié.',
-          kind: SnackKind.success);
+      AppSnackbar.show(context, 'Instrument modifié.', kind: SnackKind.success);
       context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e),
-          kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -485,8 +537,7 @@ class _CycleDetailView extends StatelessWidget {
       context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e),
-          kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -515,8 +566,7 @@ class _CycleDetailView extends StatelessWidget {
       context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e),
-          kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -598,8 +648,7 @@ class _CycleDetailView extends StatelessWidget {
       context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
     } catch (e) {
       if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e),
-          kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -713,8 +762,7 @@ class _NotesSectionState extends State<_NotesSection> {
       _saving = false;
       _editing = false;
     });
-    AppSnackbar.show(context, 'Notes enregistrées.',
-        kind: SnackKind.success);
+    AppSnackbar.show(context, 'Notes enregistrées.', kind: SnackKind.success);
   }
 
   void _cancel() {
@@ -786,9 +834,7 @@ class _NotesSectionState extends State<_NotesSection> {
               Expanded(
                 child: Text(
                   hasNotes ? _notesCtrl.text : 'Aucune note pour ce cycle.',
-                  style: hasNotes
-                      ? AppTypography.body
-                      : AppTypography.caption,
+                  style: hasNotes ? AppTypography.body : AppTypography.caption,
                 ),
               ),
               IconButton(
@@ -845,8 +891,7 @@ class _InfoBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline,
-              size: 16, color: AppColors.info),
+          const Icon(Icons.info_outline, size: 16, color: AppColors.info),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
@@ -893,8 +938,7 @@ class _ItemRow extends StatelessWidget {
                 Text(item.description, style: AppTypography.bodyStrong),
                 if (item.batchNumber != null) ...[
                   const SizedBox(height: 2),
-                  Text('Lot ${item.batchNumber}',
-                      style: AppTypography.caption),
+                  Text('Lot ${item.batchNumber}', style: AppTypography.caption),
                 ],
               ],
             ),
@@ -967,8 +1011,7 @@ class _ControlTestRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
               color: isPass ? AppColors.successLight : AppColors.dangerLight,
               borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -1027,8 +1070,7 @@ class _AttachmentTile extends StatelessWidget {
                   onTap: onDelete,
                   child: const Padding(
                     padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close,
-                        size: 14, color: AppColors.danger),
+                    child: Icon(Icons.close, size: 14, color: AppColors.danger),
                   ),
                 ),
               ),

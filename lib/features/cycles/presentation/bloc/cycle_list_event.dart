@@ -20,3 +20,10 @@ class FilterCycles extends CycleListEvent {
   @override
   List<Object?> get props => [status];
 }
+
+class SearchCycles extends CycleListEvent {
+  final String query;
+  const SearchCycles(this.query);
+  @override
+  List<Object?> get props => [query];
+}

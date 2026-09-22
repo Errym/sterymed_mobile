@@ -10,6 +10,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/cycle_data.dart';
 import '../bloc/cycle_list_bloc.dart';
@@ -65,7 +66,8 @@ class _CycleListView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: AppSearchField(
               hint: 'Rechercher cycle par ID, lot, autoclave...',
-              onChanged: (_) {},
+              onChanged: (v) =>
+                  context.read<CycleListBloc>().add(SearchCycles(v)),
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
@@ -119,9 +121,12 @@ class _CycleListView extends StatelessWidget {
                         const SizedBox(height: AppSpacing.sm),
                     itemBuilder: (_, i) {
                       final c = filtered[i];
-                      return _CycleCard(
-                        cycle: c,
-                        onTap: () => context.go(Routes.cyclesDetail(c.id)),
+                      return AnimatedListItem(
+                        index: i,
+                        child: _CycleCard(
+                          cycle: c,
+                          onTap: () => context.go(Routes.cyclesDetail(c.id)),
+                        ),
                       );
                     },
                   ),

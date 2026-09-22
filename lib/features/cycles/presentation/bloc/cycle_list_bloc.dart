@@ -15,6 +15,7 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
     on<LoadCycles>(_onLoad);
     on<RefreshCycles>(_onRefresh);
     on<FilterCycles>(_onFilter);
+    on<SearchCycles>(_onSearch);
   }
 
   Future<void> _onLoad(LoadCycles event, Emitter<CycleListState> emit) async {
@@ -46,5 +47,9 @@ class CycleListBloc extends Bloc<CycleListEvent, CycleListState> {
     } else {
       emit(state.copyWith(selectedStatus: event.status));
     }
+  }
+
+  void _onSearch(SearchCycles event, Emitter<CycleListState> emit) {
+    emit(state.copyWith(searchQuery: event.query));
   }
 }

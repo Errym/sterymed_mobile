@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/cycle_release_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../widgets/release_decision_sheet.dart';
@@ -16,7 +17,7 @@ class CycleReleaseScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(title: const Text('Décision de libération')),
+      appBar: const AppAppBar(title: 'Décision de libération'),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -41,8 +42,7 @@ class CycleReleaseScreen extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () async {
                   final result = await ReleaseDecisionSheet.show(context);
-                  if (result == null) return;
-                  if (!context.mounted) return; // ← ADD THIS
+                  if (result == null || !context.mounted) return;
 
                   try {
                     final CycleReleaseData release =

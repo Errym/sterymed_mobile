@@ -6,6 +6,8 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/control_test_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../widgets/control_test_row.dart';
@@ -95,8 +97,7 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
         ),
       ),
     );
-    if (ok != true) return;
-    if (!mounted) return; // ← ADD THIS
+    if (ok != true || !mounted) return;
 
     try {
       await context.read<CycleRepository>().addControlTest(widget.cycleId, {
@@ -132,7 +133,7 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(title: const Text('Contrôles')),
+      appBar: const AppAppBar(title: 'Contrôles'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _tests.isEmpty
@@ -141,9 +142,18 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
                   message: 'Enregistrez les contrôles de stérilisation.',
                   icon: Icons.science_outlined,
                 )
-              : ListView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  children: _tests.map((t) => ControlTestRow(test: t)).toList(),
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
+                      for (var i = 0; i < _tests.length; i++)
+                        AnimatedListItem(
+                          index: i,
+                          child: ControlTestRow(test: _tests[i]),
+                        ),
+                    ],
+                  ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,

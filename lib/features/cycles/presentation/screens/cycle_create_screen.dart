@@ -12,6 +12,7 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/device_data.dart';
 import '../../data/models/device_program_data.dart';
 import '../../data/repositories/cycle_repository.dart';
@@ -68,8 +69,8 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       repo.invalidateCache();
       final devices = await repo.list(forceRefresh: true);
       if (!mounted) return;
-      final selected = _deviceId ??
-          (devices.isNotEmpty ? devices.first.id : null);
+      final selected =
+          _deviceId ?? (devices.isNotEmpty ? devices.first.id : null);
       setState(() {
         _devices = devices;
         _deviceId = selected;
@@ -188,39 +189,74 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            const _BannerCard(),
+            const AnimatedListItem(index: 0, child: _BannerCard()),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Device ──
-            const _SectionLabel('APPAREIL AUTOCLAVE'),
-            _buildDeviceSection(),
+            AnimatedListItem(
+              index: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SectionLabel('APPAREIL AUTOCLAVE'),
+                  _buildDeviceSection(),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Programme ──
-            const _SectionLabel('PROGRAMME DE STÉRILISATION'),
-            _buildProgrammeSection(),
+            AnimatedListItem(
+              index: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SectionLabel('PROGRAMME DE STÉRILISATION'),
+                  _buildProgrammeSection(),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Operator ──
-            const _SectionLabel('OPÉRATEUR CHARGÉ DU CYCLE'),
-            _OperatorCard(name: operatorName),
+            AnimatedListItem(
+              index: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SectionLabel('OPÉRATEUR CHARGÉ DU CYCLE'),
+                  _OperatorCard(name: operatorName),
+                ],
+              ),
+            ),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Notes ──
-            const _SectionLabel('NOTES SUR LA CHARGE (OPTIONNEL)'),
-            AppTextArea(
-              controller: _notesCtrl,
-              hint:
-                  'Ex : Cassettes chirurgicales Dr. Watson, sachets turbines...',
-              maxLines: 3,
+            AnimatedListItem(
+              index: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _SectionLabel('NOTES SUR LA CHARGE (OPTIONNEL)'),
+                  AppTextArea(
+                    controller: _notesCtrl,
+                    hint: 'Ex : Cassettes chirurgicales Dr. Watson, sachets '
+                        'turbines...',
+                    maxLines: 3,
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            PrimaryButton(
-              label: 'Initialiser & Charger les Sachets',
-              icon: Icons.add_circle_outline,
-              isLoading: _submitting,
-              onPressed: _canSubmit() ? _submit : null,
+            AnimatedListItem(
+              index: 5,
+              child: PrimaryButton(
+                label: 'Initialiser & Charger les Sachets',
+                icon: Icons.add_circle_outline,
+                isLoading: _submitting,
+                onPressed: _canSubmit() ? _submit : null,
+              ),
             ),
             if (!_canSubmit() && !_loadingDevices && !_loadingPrograms) ...[
               const SizedBox(height: AppSpacing.xs),
@@ -484,8 +520,7 @@ class _ErrorCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.error_outline,
-                  color: AppColors.danger, size: 20),
+              Icon(Icons.error_outline, color: AppColors.danger, size: 20),
               SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Text(

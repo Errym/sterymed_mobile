@@ -3,8 +3,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/cycle_item_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../widgets/cycle_item_row.dart';
@@ -73,8 +76,7 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
         ],
       ),
     );
-    if (ok != true) return;
-    if (!mounted) return; // ← ADD THIS
+    if (ok != true || !mounted) return;
 
     try {
       await context.read<CycleRepository>().addItem(widget.cycleId, {
@@ -91,8 +93,19 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
   }
 
   Future<void> _delete(CycleItemData item) async {
+    final ok = await ConfirmationDialog.show(
+      context,
+      title: 'Supprimer cet instrument ?',
+      message: item.description,
+      confirmLabel: 'Supprimer',
+      isDestructive: true,
+    );
+    if (!ok || !mounted) return;
     try {
       await context.read<CycleRepository>().deleteItem(widget.cycleId, item.id);
+      if (!mounted) return;
+      AppSnackbar.show(context, 'Instrument supprimé.',
+          kind: SnackKind.success);
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -104,7 +117,7 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(title: const Text('Instruments')),
+      appBar: const AppAppBar(title: 'Instruments'),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _items.isEmpty
@@ -113,12 +126,21 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
                   message: 'Ajoutez les instruments du cycle.',
                   icon: Icons.inventory_2_outlined,
                 )
-              : ListView(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  children: _items
-                      .map((i) =>
-                          CycleItemRow(item: i, onDelete: () => _delete(i)))
-                      .toList(),
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    children: [
+                      for (var i = 0; i < _items.length; i++)
+                        AnimatedListItem(
+                          index: i,
+                          child: CycleItemRow(
+                            item: _items[i],
+                            onDelete: () => _delete(_items[i]),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _add,
