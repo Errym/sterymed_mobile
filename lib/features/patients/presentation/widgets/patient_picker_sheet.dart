@@ -12,7 +12,7 @@ import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_search_bloc.dart';
 import 'patient_tile.dart';
 
-class PatientPickerSheet extends StatelessWidget {
+class PatientPickerSheet extends StatefulWidget {
   const PatientPickerSheet({super.key});
 
   static Future<PatientData?> show(BuildContext context) {
@@ -32,8 +32,20 @@ class PatientPickerSheet extends StatelessWidget {
   }
 
   @override
+  State<PatientPickerSheet> createState() => _PatientPickerSheetState();
+}
+
+class _PatientPickerSheetState extends State<PatientPickerSheet> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final controller = TextEditingController();
     return DraggableScrollableSheet(
       initialChildSize: 0.75,
       minChildSize: 0.4,
@@ -72,7 +84,7 @@ class PatientPickerSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: AppSearchField(
                 hint: 'Rechercher par nom, prénom...',
-                controller: controller,
+                controller: _controller,
                 autofocus: true,
                 onChanged: (q) => context
                     .read<PatientSearchBloc>()

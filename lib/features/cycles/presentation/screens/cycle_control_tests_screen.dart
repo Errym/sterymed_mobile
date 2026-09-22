@@ -53,53 +53,56 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
     var result = ControlTestResult.pass;
     final notesCtrl = TextEditingController();
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Enregistrer un contrôle'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AppDropdown<ControlTestType>(
-                  label: 'Type',
-                  value: type,
-                  options: ControlTestType.values
-                      .map((t) => AppDropdownOption(value: t, label: t.label))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => type = v ?? type),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppDropdown<ControlTestResult>(
-                  label: 'Résultat',
-                  value: result,
-                  options: ControlTestResult.values
-                      .map((r) => AppDropdownOption(value: r, label: r.label))
-                      .toList(),
-                  onChanged: (v) => setDialogState(() => result = v ?? result),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextArea(label: 'Notes', controller: notesCtrl),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (ok != true || !mounted) return;
-
     try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: const Text('Enregistrer un contrôle'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppDropdown<ControlTestType>(
+                    label: 'Type',
+                    value: type,
+                    options: ControlTestType.values
+                        .map((t) =>
+                            AppDropdownOption(value: t, label: t.label))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => type = v ?? type),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppDropdown<ControlTestResult>(
+                    label: 'Résultat',
+                    value: result,
+                    options: ControlTestResult.values
+                        .map((r) =>
+                            AppDropdownOption(value: r, label: r.label))
+                        .toList(),
+                    onChanged: (v) =>
+                        setDialogState(() => result = v ?? result),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  AppTextArea(label: 'Notes', controller: notesCtrl),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Enregistrer'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (ok != true || !mounted) return;
+
       await context.read<CycleRepository>().addControlTest(widget.cycleId, {
         'type': _typeToString(type),
         'result': result == ControlTestResult.pass ? 'pass' : 'fail',
@@ -113,6 +116,8 @@ class _CycleControlTestsScreenState extends State<CycleControlTestsScreen> {
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+    } finally {
+      notesCtrl.dispose();
     }
   }
 

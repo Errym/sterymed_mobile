@@ -49,36 +49,36 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
   Future<void> _add() async {
     final descCtrl = TextEditingController();
     final batchCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Ajouter un instrument'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppTextField(label: 'Description', controller: descCtrl),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Lot (optionnel)',
-              controller: batchCtrl,
+    try {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          title: const Text('Ajouter un instrument'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              AppTextField(label: 'Description', controller: descCtrl),
+              const SizedBox(height: AppSpacing.md),
+              AppTextField(
+                label: 'Lot (optionnel)',
+                controller: batchCtrl,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Ajouter'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ajouter'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true || !mounted) return;
+      );
+      if (ok != true || !mounted) return;
 
-    try {
       await context.read<CycleRepository>().addItem(widget.cycleId, {
         'description': descCtrl.text.trim(),
         if (batchCtrl.text.trim().isNotEmpty) 'batch_id': batchCtrl.text.trim(),
@@ -89,6 +89,9 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+    } finally {
+      descCtrl.dispose();
+      batchCtrl.dispose();
     }
   }
 
