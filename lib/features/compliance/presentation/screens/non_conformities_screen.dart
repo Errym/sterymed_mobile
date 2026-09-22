@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/non_conformity_data.dart';
 import '../../data/repositories/non_conformity_repository.dart';
 import '../bloc/non_conformity_list_bloc.dart';
@@ -82,7 +83,10 @@ class _NcView extends StatelessWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: state.items.length,
             separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (_, i) => _NcCard(item: state.items[i]),
+            itemBuilder: (_, i) => AnimatedListItem(
+              index: i,
+              child: _NcCard(item: state.items[i]),
+            ),
           );
         },
       ),

@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/patient_data.dart';
 import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_list_bloc.dart';
@@ -42,8 +43,7 @@ class _PatientView extends StatelessWidget {
     final ok = await ConfirmationDialog.show(
       context,
       title: 'Supprimer ce patient ?',
-      message:
-          '${p.fullName}\n\nCette action est irréversible. Les événements '
+      message: '${p.fullName}\n\nCette action est irréversible. Les événements '
           'de traçabilité liés resteront dans le journal d\'audit.',
       confirmLabel: 'Supprimer',
       isDestructive: true,
@@ -123,58 +123,60 @@ class _PatientView extends StatelessWidget {
                           const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (_, i) {
                         final p = state.patients[i];
-                        return Dismissible(
-                          key: ValueKey(p.id),
-                          direction: DismissDirection.endToStart,
-                          background: Container(
-                            alignment: Alignment.centerRight,
-                            padding: const EdgeInsets.only(
-                                right: AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.dangerLight,
-                              borderRadius:
-                                  BorderRadius.circular(AppRadius.card),
+                        return AnimatedListItem(
+                          index: i,
+                          child: Dismissible(
+                            key: ValueKey(p.id),
+                            direction: DismissDirection.endToStart,
+                            background: Container(
+                              alignment: Alignment.centerRight,
+                              padding:
+                                  const EdgeInsets.only(right: AppSpacing.md),
+                              decoration: BoxDecoration(
+                                color: AppColors.dangerLight,
+                                borderRadius:
+                                    BorderRadius.circular(AppRadius.card),
+                              ),
+                              child: const Icon(Icons.delete_outline,
+                                  color: AppColors.danger),
                             ),
-                            child: const Icon(Icons.delete_outline,
-                                color: AppColors.danger),
-                          ),
-                          confirmDismiss: (_) async {
-                            await _delete(context, p);
-                            return false; // bloc will refresh; keep row
-                          },
-                          child: GestureDetector(
-                            onLongPress: () => _edit(context, p),
-                            child: PatientTile(
-                              patient: p,
-                              trailing: PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert,
-                                    size: 18,
-                                    color: AppColors.textSecondary),
-                                onSelected: (v) {
-                                  if (v == 'edit') _edit(context, p);
-                                  if (v == 'delete') _delete(context, p);
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Row(children: [
-                                      Icon(Icons.edit_outlined, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Modifier'),
-                                    ]),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'delete',
-                                    child: Row(children: [
-                                      Icon(Icons.delete_outline,
-                                          size: 18, color: AppColors.danger),
-                                      SizedBox(width: 8),
-                                      Text('Supprimer',
-                                          style: TextStyle(
-                                              color: AppColors.danger)),
-                                    ]),
-                                  ),
-                                ],
+                            confirmDismiss: (_) async {
+                              await _delete(context, p);
+                              return false; // bloc will refresh; keep row
+                            },
+                            child: GestureDetector(
+                              onLongPress: () => _edit(context, p),
+                              child: PatientTile(
+                                patient: p,
+                                trailing: PopupMenuButton<String>(
+                                  icon: const Icon(Icons.more_vert,
+                                      size: 18, color: AppColors.textSecondary),
+                                  onSelected: (v) {
+                                    if (v == 'edit') _edit(context, p);
+                                    if (v == 'delete') _delete(context, p);
+                                  },
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: 'edit',
+                                      child: Row(children: [
+                                        Icon(Icons.edit_outlined, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Modifier'),
+                                      ]),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Row(children: [
+                                        Icon(Icons.delete_outline,
+                                            size: 18, color: AppColors.danger),
+                                        SizedBox(width: 8),
+                                        Text('Supprimer',
+                                            style: TextStyle(
+                                                color: AppColors.danger)),
+                                      ]),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),

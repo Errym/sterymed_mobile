@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../cycles/data/repositories/device_repository.dart';
 import '../../data/models/device_detail.dart';
 import '../../data/repositories/device_detail_repository.dart';
@@ -92,14 +93,17 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
               itemCount: devices.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppSpacing.sm),
-              itemBuilder: (_, i) => _DeviceCard(
-                device: devices[i],
-                onTap: () async {
-                  final changed = await context.push<bool>(
-                    '/app/devices/${devices[i].id}',
-                  );
-                  if (changed == true && mounted) _refresh();
-                },
+              itemBuilder: (_, i) => AnimatedListItem(
+                index: i,
+                child: _DeviceCard(
+                  device: devices[i],
+                  onTap: () async {
+                    final changed = await context.push<bool>(
+                      '/app/devices/${devices[i].id}',
+                    );
+                    if (changed == true && mounted) _refresh();
+                  },
+                ),
               ),
             );
           },

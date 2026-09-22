@@ -9,6 +9,7 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/audit_event_data.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../bloc/audit_list_bloc.dart';
@@ -19,8 +20,8 @@ class AuditListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => AuditListBloc(getIt<AuditRepository>())
-        ..add(const LoadAuditEvents()),
+      create: (_) =>
+          AuditListBloc(getIt<AuditRepository>())..add(const LoadAuditEvents()),
       child: const _AuditListView(),
     );
   }
@@ -38,9 +39,8 @@ class _AuditListView extends StatelessWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => context
-                .read<AuditListBloc>()
-                .add(const RefreshAuditEvents()),
+            onPressed: () =>
+                context.read<AuditListBloc>().add(const RefreshAuditEvents()),
           ),
         ],
       ),
@@ -59,8 +59,7 @@ class _AuditListView extends StatelessWidget {
                   FilterChipOption(value: 'cycle.started', label: 'Cycles'),
                   FilterChipOption(
                       value: 'label_usage.recorded', label: 'Utilisations'),
-                  FilterChipOption(
-                      value: 'product.created', label: 'Produits'),
+                  FilterChipOption(value: 'product.created', label: 'Produits'),
                 ],
               );
             },
@@ -98,8 +97,10 @@ class _AuditListView extends StatelessWidget {
                     itemCount: state.events.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (_, i) =>
-                        _AuditTile(event: state.events[i]),
+                    itemBuilder: (_, i) => AnimatedListItem(
+                      index: i,
+                      child: _AuditTile(event: state.events[i]),
+                    ),
                   ),
                 );
               },
@@ -130,8 +131,7 @@ class _AuditTile extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(event.actionLabel,
-                    style: AppTypography.bodyStrong),
+                child: Text(event.actionLabel, style: AppTypography.bodyStrong),
               ),
               Text(
                 DateFormat('dd/MM/yy HH:mm').format(event.occurredAt),
@@ -147,8 +147,7 @@ class _AuditTile extends StatelessWidget {
                     size: 12, color: AppColors.textSecondary),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(event.actorLabel!,
-                      style: AppTypography.caption),
+                  child: Text(event.actorLabel!, style: AppTypography.caption),
                 ),
               ],
             ),

@@ -6,6 +6,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/dlu_rule_data.dart';
 import '../../data/repositories/dlu_repository.dart';
 
@@ -53,8 +54,7 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
             if (list.isEmpty) {
               return const EmptyView(
                 title: 'Aucune règle DLU',
-                message:
-                    'Aucune règle de durée limite d\'utilisation n\'est '
+                message: 'Aucune règle de durée limite d\'utilisation n\'est '
                     'configurée. Les règles sont gérées par votre '
                     'administrateur sur le web.',
                 icon: Icons.timer_outlined,
@@ -63,28 +63,32 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
             return ListView.separated(
               padding: const EdgeInsets.all(AppSpacing.md),
               itemCount: list.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.sm),
               itemBuilder: (_, i) {
                 final r = list[i];
-                return Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(
-                    color: AppColors.backgroundCard,
-                    borderRadius: BorderRadius.circular(AppRadius.card),
-                    border: Border.all(color: AppColors.borderLight),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('${r.packagingType} · ${r.storageCondition}',
-                          style: AppTypography.bodyStrong),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${r.shelfLifeDays} jours',
-                        style: AppTypography.bodyStrong
-                            .copyWith(color: AppColors.brandPrimary),
-                      ),
-                    ],
+                return AnimatedListItem(
+                  index: i,
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: AppColors.borderLight),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('${r.packagingType} · ${r.storageCondition}',
+                            style: AppTypography.bodyStrong),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${r.shelfLifeDays} jours',
+                          style: AppTypography.bodyStrong
+                              .copyWith(color: AppColors.brandPrimary),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },

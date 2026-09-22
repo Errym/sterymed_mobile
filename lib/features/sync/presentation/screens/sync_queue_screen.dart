@@ -11,6 +11,7 @@ import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/badges/status_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../di/di.dart';
 
 class SyncQueueScreen extends StatefulWidget {
@@ -79,9 +80,12 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
                   itemCount: _items.length,
                   separatorBuilder: (_, __) =>
                       const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) => _QueueTile(
-                    item: _items[i],
-                    onRetry: () => _retryOne(_items[i].id),
+                  itemBuilder: (_, i) => AnimatedListItem(
+                    index: i,
+                    child: _QueueTile(
+                      item: _items[i],
+                      onRetry: () => _retryOne(_items[i].id),
+                    ),
                   ),
                 ),
     );

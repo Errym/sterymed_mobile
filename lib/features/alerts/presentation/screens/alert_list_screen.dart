@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/alert_data.dart';
 import '../bloc/alert_list_bloc.dart';
 
@@ -60,22 +61,34 @@ class _AlertListView extends StatelessWidget {
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
                 if (state.criticalAlerts.isNotEmpty)
-                  _Group(
-                    title: 'Critique',
-                    alerts: state.criticalAlerts,
-                    color: AppColors.danger,
+                  AnimatedListItem(
+                    index: 0,
+                    child: _Group(
+                      title: 'Critique',
+                      alerts: state.criticalAlerts,
+                      color: AppColors.danger,
+                      icon: Icons.error_outline,
+                    ),
                   ),
                 if (state.warningAlerts.isNotEmpty)
-                  _Group(
-                    title: 'Avertissement',
-                    alerts: state.warningAlerts,
-                    color: AppColors.warning,
+                  AnimatedListItem(
+                    index: 1,
+                    child: _Group(
+                      title: 'Avertissement',
+                      alerts: state.warningAlerts,
+                      color: AppColors.warning,
+                      icon: Icons.warning_amber_outlined,
+                    ),
                   ),
                 if (state.infoAlerts.isNotEmpty)
-                  _Group(
-                    title: 'Information',
-                    alerts: state.infoAlerts,
-                    color: AppColors.info,
+                  AnimatedListItem(
+                    index: 2,
+                    child: _Group(
+                      title: 'Information',
+                      alerts: state.infoAlerts,
+                      color: AppColors.info,
+                      icon: Icons.info_outline,
+                    ),
                   ),
               ],
             ),
@@ -90,11 +103,13 @@ class _Group extends StatelessWidget {
   final String title;
   final List<AlertData> alerts;
   final Color color;
+  final IconData icon;
 
   const _Group({
     required this.title,
     required this.alerts,
     required this.color,
+    required this.icon,
   });
 
   @override
@@ -104,14 +119,36 @@ class _Group extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-          child: Text(
-            title,
-            style: AppTypography.sectionTitle.copyWith(color: color),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: color),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                title,
+                style: AppTypography.sectionTitle.copyWith(color: color),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
+                ),
+                child: Text(
+                  '${alerts.length}',
+                  style: AppTypography.caption.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         for (final alert in alerts)
           _AlertTile(
             alert: alert,
+            color: color,
             onResolve: () async {
               final confirmed = await ConfirmationDialog.show(
                 context,
@@ -132,48 +169,74 @@ class _Group extends StatelessWidget {
 
 class _AlertTile extends StatelessWidget {
   final AlertData alert;
+  final Color color;
   final VoidCallback onResolve;
 
-  const _AlertTile({required this.alert, required this.onResolve});
+  const _AlertTile({
+    required this.alert,
+    required this.color,
+    required this.onResolve,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.borderLight),
+        boxShadow: AppShadows.card,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              SeverityBadge(severity: alert.severity.name),
-              const Spacer(),
-              Text(
-                DateFormat('dd/MM/yyyy HH:mm').format(alert.createdAt),
-                style: AppTypography.caption,
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: const BorderRadius.horizontal(
+                  left: Radius.circular(AppRadius.card),
+                ),
               ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(alert.message, style: AppTypography.bodyStrong),
-          if (alert.subjectLabel != null) ...[
-            const SizedBox(height: 2),
-            Text(alert.subjectLabel!, style: AppTypography.caption),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: onResolve,
-              child: const Text('Marquer comme résolu'),
             ),
-          ),
-        ],
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        SeverityBadge(severity: alert.severity.name),
+                        const Spacer(),
+                        Text(
+                          DateFormat('dd/MM/yyyy HH:mm')
+                              .format(alert.createdAt),
+                          style: AppTypography.caption,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sm),
+                    Text(alert.message, style: AppTypography.bodyStrong),
+                    if (alert.subjectLabel != null) ...[
+                      const SizedBox(height: 2),
+                      Text(alert.subjectLabel!, style: AppTypography.caption),
+                    ],
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: onResolve,
+                        child: const Text('Marquer comme résolu'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

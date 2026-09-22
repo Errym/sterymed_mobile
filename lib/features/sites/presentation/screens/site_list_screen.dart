@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/site_data.dart';
 import '../../data/repositories/site_repository.dart';
 import '../bloc/site_list_bloc.dart';
@@ -55,8 +56,7 @@ class _SiteListView extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline,
-                    color: AppColors.info, size: 20),
+                const Icon(Icons.info_outline, color: AppColors.info, size: 20),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -87,8 +87,7 @@ class _SiteListView extends StatelessWidget {
                 if (state.sites.isEmpty) {
                   return const EmptyView(
                     title: 'Aucun site',
-                    message:
-                        'Aucun site n\'est configuré.\n\n'
+                    message: 'Aucun site n\'est configuré.\n\n'
                         'Contactez votre administrateur pour créer le '
                         'premier site depuis l\'interface web.',
                     icon: Icons.business_outlined,
@@ -102,7 +101,10 @@ class _SiteListView extends StatelessWidget {
                     itemCount: state.sites.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: AppSpacing.md),
-                    itemBuilder: (_, i) => _SiteCard(site: state.sites[i]),
+                    itemBuilder: (_, i) => AnimatedListItem(
+                      index: i,
+                      child: _SiteCard(site: state.sites[i]),
+                    ),
                   ),
                 );
               },
@@ -123,9 +125,8 @@ class _SiteCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: site.isPrimary
-            ? AppColors.brandPrimary
-            : AppColors.backgroundCard,
+        color:
+            site.isPrimary ? AppColors.brandPrimary : AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
           color:
@@ -141,9 +142,8 @@ class _SiteCard extends StatelessWidget {
                 Text(
                   site.name,
                   style: AppTypography.bodyStrong.copyWith(
-                    color: site.isPrimary
-                        ? Colors.white
-                        : AppColors.textPrimary,
+                    color:
+                        site.isPrimary ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 if (site.addressLine1 != null || site.city != null) ...[
