@@ -2,7 +2,7 @@
 
 **Filed by:** Mobile engineer
 **Date:** 2026-09-18
-**Backend version:** `steriqore` @ commit `_____` (fill in)
+**Backend version:** `steriqore` @ commit `6af6b9c` (verified live 2026-09-22 against local docker instance, port 8010)
 **Staging URL:** `https://staging.example.com`
 
 Every bug below has a `curl` reproduction and a suggested fix.
@@ -54,10 +54,10 @@ curl -X POST "https://staging.example.com/api/v1/cycles/{cycle_id}/attachments" 
 
 ---
 
-## BUG-006 — Missing `PATCH /api/v1/products/{id}`
-**Severity:** 🔴 Blocking
+## BUG-006 — ~~Missing~~ RESOLVED: `PATCH /api/v1/products/{id}` exists
+**Status:** ✅ Closed 2026-09-22 — verified present in the live OpenAPI spec (`http://localhost:8010/docs/api.json`) served by `steriqore` @ `6af6b9c`.
 **Called by:** `ProductFormSheet`
-**Current workaround:** same as BUG-005.
+**Note:** Mobile's `ProductRepository.update()` already calls this endpoint correctly (a real PATCH, not delete+recreate). This bug entry was stale against current backend state; no mobile change needed.
 
 ---
 
@@ -83,6 +83,6 @@ curl -X POST "https://staging.example.com/api/v1/cycles/{cycle_id}/attachments" 
 | BUG-003 | 🔴 | GET /batches |
 | BUG-004 | 🟡 | POST /sites, /locations |
 | BUG-005 | 🔴 | PATCH /patients/{id} |
-| BUG-006 | 🔴 | PATCH /products/{id} |
+| BUG-006 | ✅ Closed | PATCH /products/{id} (confirmed present) |
 | BUG-007 | 🟡 | PATCH /cycles/{id} |
 | BUG-008 | 🔴 | GET /patients (only id+ref) |

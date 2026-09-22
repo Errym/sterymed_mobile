@@ -11,7 +11,7 @@ Every error code the mobile app must handle, with the exact message from the ser
 | 403 | `forbidden` | "This action is unauthorized." | Insufficient role | Toast, block action |
 | 404 | `NOT_FOUND` | "The route api/v1/... could not be found." | Unknown route | Bug — fix URL |
 | 404 | `NOT_FOUND` | "No query results for model [App\\Domain\\...\\Model] <id>" | Valid route, missing resource | Empty state, back |
-| 409 | `conflict` | "Enregistré précédemment." | Idempotency replay | Toast, mark done |
+| 409 | `IDEMPOTENCY_KEY_REUSED` | "This Idempotency-Key was already used with a different request." | Same Idempotency-Key reused with a *different* request body (hash mismatch) — a genuine client bug, not a benign retry | Bug — log to Sentry, do not silently retry |
 | 422 | `VALIDATION_FAILED` | "The given data was invalid." | Field validation | Show field errors |
 | 429 | `RATE_LIMITED` | "Trop de requêtes. Réessayez dans un instant." | Rate limit hit | Backoff, retry |
 | 500 | `SERVER_ERROR` | "Erreur serveur. Réessayez plus tard." | Unhandled exception | Sentry, retry |
@@ -36,4 +36,12 @@ Every error code the mobile app must handle, with the exact message from the ser
 ## Known issues
 
 - Some 422 `details` are in English (e.g., "The selected batch id is invalid."). Tracked in `BACKEND_BUGS.md #009`.
-- Real 409 capture requires seeded stock level. Deferred to Phase 3.
+
+## Idempotency replay (not a 409)
+
+Verified 2026-09-22 against live backend (`EnsureIdempotency` middleware, `steriqore` @ `6af6b9c`) and confirmed with real requests:
+
+- **Same Idempotency-Key + same request (method+path+body hash matches)** → the cached response is replayed **verbatim, at its original status code** (e.g. a successful write replays as `200`/`201`, not `409`). This is the "already recorded" case — no error, no special handling needed beyond treating any successful status as success.
+- **Same Idempotency-Key + different request (hash mismatch)** → `409 IDEMPOTENCY_KEY_REUSED` (the row above). This only happens if a key is wrongly reused across two different payloads — it should not occur in normal outbox operation since each queued item gets its own key.
+
+This corrects the previous entry in this file and the master plan's ground rule ("the 409 is success, not error") — that description does not match the real backend. `SyncEngine` in the mobile app already works correctly regardless: it treats any non-throwing HTTP response (including a replayed 200) as success and removes the item, so no code change was required. See `docs/DAILY_LOG.md` for the test transcript.

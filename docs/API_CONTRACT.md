@@ -1,10 +1,10 @@
 # SteryMed Mobile — API Contract
 
-**Frozen:** YYYY-MM-DD
-**Backend commit:** <hash>
-**Staging URL:** https://...
-**Frozen by:** <your name>
-**Signed off by:** <web engineer>, <you>
+**Frozen:** 2026-09-22
+**Backend commit:** `steriqore` @ `6af6b9c` (verified against live OpenAPI spec, local docker instance, port 8010)
+**Staging URL:** http://localhost:8010 (local dev; no staging deployment exists yet)
+**Frozen by:** Mobile engineer
+**Signed off by:** _pending web/backend engineer sign-off_
 
 Any change to this contract after freeze requires a written change request.
 
