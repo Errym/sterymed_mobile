@@ -38,7 +38,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final session = getIt<SessionStore>();
     final name = session.userName ?? 'Utilisateur';
     final email = session.userEmail ?? '';
-    final role = session.role ?? 'staff';
+    final role = session.role ?? 'Aucun rôle';
     final isOwner = session.isOwner;
 
     return Scaffold(

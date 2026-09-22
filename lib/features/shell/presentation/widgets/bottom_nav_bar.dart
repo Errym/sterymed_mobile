@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/guards/role_guard.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 
 class BottomNavBar extends StatelessWidget {
   final String currentLocation;
@@ -48,16 +51,27 @@ class BottomNavBar extends StatelessWidget {
     ),
   ];
 
-  int _currentIndex() {
-    for (var i = 0; i < _tabs.length; i++) {
-      if (currentLocation.startsWith(_tabs[i].route)) return i;
+  List<_NavTab> _visibleTabs() {
+    final session = getIt<SessionStore>();
+    return _tabs
+        .where((tab) => RoleGuard.isAllowed(
+              route: tab.route,
+              hasPermission: session.hasPermission,
+            ))
+        .toList();
+  }
+
+  int _currentIndex(List<_NavTab> tabs) {
+    for (var i = 0; i < tabs.length; i++) {
+      if (currentLocation.startsWith(tabs[i].route)) return i;
     }
     return 0;
   }
 
   @override
   Widget build(BuildContext context) {
-    final index = _currentIndex();
+    final tabs = _visibleTabs();
+    final index = _currentIndex(tabs);
 
     return Container(
       decoration: const BoxDecoration(
@@ -70,14 +84,14 @@ class BottomNavBar extends StatelessWidget {
           height: 64,
           child: Row(
             children: [
-              for (var i = 0; i < _tabs.length; i++)
+              for (var i = 0; i < tabs.length; i++)
                 Expanded(
                   child: _NavItem(
-                    tab: _tabs[i],
+                    tab: tabs[i],
                     isActive: i == index,
                     onTap: () {
                       if (i == index) return;
-                      context.go(_tabs[i].route);
+                      context.go(tabs[i].route);
                     },
                   ),
                 ),

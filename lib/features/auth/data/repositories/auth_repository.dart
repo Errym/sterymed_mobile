@@ -26,11 +26,10 @@ class AuthRepository {
       password: password,
     );
     await _tokenStorage.save(res.token);
-    final role = _deriveRole(res.user.role, email);
     await _sessionStore.set(
-      user: res.user.copyWith(role: role).toJson(),
+      user: res.user.toJson(),
       tenant: res.tenant.toJson(),
-      fallbackRole: role,
+      fallbackRole: res.user.role,
     );
   }
 
@@ -84,11 +83,10 @@ class AuthRepository {
     if (token == null || token.isEmpty) return false;
     try {
       final res = await _remote.me();
-      final role = _deriveRole(res.user.role, res.user.email);
       await _sessionStore.set(
-        user: res.user.copyWith(role: role).toJson(),
+        user: res.user.toJson(),
         tenant: res.tenant.toJson(),
-        fallbackRole: role,
+        fallbackRole: res.user.role,
       );
       return true;
     } catch (_) {
@@ -96,16 +94,5 @@ class AuthRepository {
       await _sessionStore.clear();
       return false;
     }
-  }
-
-  String _deriveRole(String? backendRole, String email) {
-    if (backendRole != null && backendRole.isNotEmpty) return backendRole;
-    const ownerEmails = {
-      'test@test.com',
-      'admin@sterimed.local',
-      'admin@steriqore.local',
-    };
-    if (ownerEmails.contains(email.toLowerCase())) return 'owner';
-    return 'staff';
   }
 }

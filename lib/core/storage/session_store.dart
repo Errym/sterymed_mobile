@@ -33,6 +33,16 @@ class SessionStore {
   bool get isOwner => role == 'owner' || role == 'admin';
   bool get isStaff => !isOwner;
 
+  List<String> get permissions {
+    final raw = _user?['permissions'];
+    if (raw is! List) return const [];
+    return raw.map((e) => e.toString()).toList();
+  }
+
+  bool hasPermission(String permission) => permissions.contains(permission);
+  bool hasAnyPermission(Iterable<String> anyOf) =>
+      anyOf.any(permissions.contains);
+
   Future<void> load() async {
     final u = await _secure.read(_userKey);
     final t = await _secure.read(_tenantKey);

@@ -3,12 +3,14 @@ class UserData {
   final String name;
   final String email;
   final String? role;
+  final List<String> permissions;
 
   const UserData({
     required this.id,
     required this.name,
     required this.email,
     this.role,
+    this.permissions = const [],
   });
 
   factory UserData.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,10 @@ class UserData {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: resolvedRole,
+      permissions: (json['permissions'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
     );
   }
 
@@ -39,12 +45,14 @@ class UserData {
         'name': name,
         'email': email,
         if (role != null) 'role': role,
+        'permissions': permissions,
       };
 
-  UserData copyWith({String? role}) => UserData(
+  UserData copyWith({String? role, List<String>? permissions}) => UserData(
         id: id,
         name: name,
         email: email,
         role: role ?? this.role,
+        permissions: permissions ?? this.permissions,
       );
 }

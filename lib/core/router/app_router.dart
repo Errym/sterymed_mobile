@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../di/di.dart';
+import '../storage/session_store.dart';
+import 'guards/role_guard.dart';
 // Alerts
 import '../../features/alerts/presentation/screens/alert_list_screen.dart';
 // Auth
@@ -93,9 +96,15 @@ class AppRouter {
           loc == Routes.register ||
           loc == Routes.cameraPermission;
       if (isPublic) return null;
-      if (isAuthenticated()) return null;
-      if (await hasStoredToken()) return null;
-      return Routes.login;
+      final authed = isAuthenticated() || await hasStoredToken();
+      if (!authed) return Routes.login;
+
+      final required = RoleGuard.requiredPermissionFor(loc);
+      if (required != null &&
+          !getIt<SessionStore>().hasPermission(required)) {
+        return Routes.dashboard;
+      }
+      return null;
     },
     routes: [
       GoRoute(
