@@ -23,8 +23,14 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
   }
 
   Future<void> _onScan(ScanDetected e, Emitter<ScannerState> emit) async {
-    if (state.status == ScannerStatus.cooling ||
-        state.status == ScannerStatus.resolving) {
+    // Allowlist, not a denylist: block re-scans during resolving AND
+    // during the resolved/error/cooling display window that follows —
+    // only scanning/initial are ready for a new code. Blocking just
+    // {cooling, resolving} let a second scan slip through and re-fire
+    // while the previous result was still on screen, since nothing ever
+    // actually transitions the state to `cooling` immediately.
+    if (state.status != ScannerStatus.scanning &&
+        state.status != ScannerStatus.initial) {
       return;
     }
     emit(state.copyWith(
