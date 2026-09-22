@@ -30,22 +30,25 @@ class CrashReporter {
 
   SentryEvent? _scrubEvent(SentryEvent event) {
     final message = event.message;
-    if (message == null) return event;
-    return event.copyWith(
-      message: SentryMessage(PiiScrubber.scrub(message.formatted)),
-    );
+    if (message != null) {
+      event.message = SentryMessage(PiiScrubber.scrub(message.formatted));
+    }
+    return event;
   }
 
   Breadcrumb? _scrubBreadcrumb(Breadcrumb? breadcrumb) {
     if (breadcrumb == null) return null;
     final message = breadcrumb.message;
+    if (message != null) {
+      breadcrumb.message = PiiScrubber.scrub(message);
+    }
     final data = breadcrumb.data;
-    return breadcrumb.copyWith(
-      message: message == null ? null : PiiScrubber.scrub(message),
-      data: data?.map((key, value) => MapEntry(
+    if (data != null) {
+      breadcrumb.data = data.map((key, value) => MapEntry(
             key,
             value is String ? PiiScrubber.scrub(value) : value,
-          )),
-    );
+          ));
+    }
+    return breadcrumb;
   }
 }
