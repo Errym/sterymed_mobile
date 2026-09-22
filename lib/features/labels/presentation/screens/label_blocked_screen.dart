@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../bloc/label_detail_bloc.dart';
 
@@ -18,8 +21,34 @@ class LabelBlockedScreen extends StatelessWidget {
   }
 }
 
-class _BlockedView extends StatelessWidget {
+class _BlockedView extends StatefulWidget {
   const _BlockedView();
+
+  @override
+  State<_BlockedView> createState() => _BlockedViewState();
+}
+
+class _BlockedViewState extends State<_BlockedView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 400),
+      vsync: this,
+    );
+    _scale = CurvedAnimation(parent: _controller, curve: Curves.easeOutBack);
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,6 +58,7 @@ class _BlockedView extends StatelessWidget {
         title: const Text('Étiquette bloquée'),
         backgroundColor: AppColors.dangerLight,
         foregroundColor: AppColors.danger,
+        automaticallyImplyLeading: false,
       ),
       body: BlocBuilder<LabelDetailBloc, LabelDetailState>(
         builder: (context, state) {
@@ -36,10 +66,21 @@ class _BlockedView extends StatelessWidget {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Text(
-                  state.error ?? 'Impossible de charger l\'étiquette.',
-                  style: AppTypography.body,
-                  textAlign: TextAlign.center,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      state.error ?? 'Impossible de charger l\'étiquette.',
+                      style: AppTypography.body,
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: AppSpacing.lg),
+                    PrimaryButton(
+                      label: 'Nouveau scan',
+                      icon: Icons.qr_code_scanner,
+                      onPressed: () => context.go(Routes.scanner),
+                    ),
+                  ],
                 ),
               ),
             );
@@ -58,58 +99,67 @@ class _BlockedView extends StatelessWidget {
             child: Column(
               children: [
                 const SizedBox(height: AppSpacing.xl),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(
-                    color: AppColors.dangerLight,
-                    borderRadius: BorderRadius.circular(AppRadius.card),
-                    border: Border.all(
-                      color: AppColors.danger.withValues(alpha: 0.3),
+                ScaleTransition(
+                  scale: _scale,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(
+                      color: AppColors.dangerLight,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(
+                        color: AppColors.danger.withValues(alpha: 0.3),
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(
-                        isExpired
-                            ? Icons.timer_off_outlined
-                            : isRecalled
-                                ? Icons.report_gmailerrorred_outlined
-                                : Icons.block,
-                        size: 64,
-                        color: AppColors.danger,
-                      ),
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        isExpired
-                            ? 'Étiquette expirée'
-                            : isRecalled
-                                ? 'Étiquette rappelée'
-                                : 'Étiquette bloquée',
-                        style: AppTypography.sectionTitle
-                            .copyWith(color: AppColors.danger),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      Text(
-                        r.reason ??
-                            'Cette étiquette ne peut pas être utilisée. '
-                                'Contactez le responsable de la stérilisation.',
-                        style: AppTypography.body,
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 88,
+                          height: 88,
+                          decoration: BoxDecoration(
+                            color: AppColors.danger.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isExpired
+                                ? Icons.timer_off_outlined
+                                : isRecalled
+                                    ? Icons.report_gmailerrorred_outlined
+                                    : Icons.block,
+                            size: 44,
+                            color: AppColors.danger,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Text(
+                          isExpired
+                              ? 'Étiquette expirée'
+                              : isRecalled
+                                  ? 'Étiquette rappelée'
+                                  : 'Étiquette bloquée',
+                          style: AppTypography.sectionTitle
+                              .copyWith(color: AppColors.danger),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        Text(
+                          r.reason ??
+                              'Cette étiquette ne peut pas être utilisée. '
+                                  'Contactez le responsable de la stérilisation.',
+                          style: AppTypography.body,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const Spacer(),
-                const Padding(
-                  padding: EdgeInsets.only(bottom: AppSpacing.lg),
-                  child: Text(
-                    'Retournez à l\'écran précédent pour scanner une autre étiquette.',
-                    style: AppTypography.caption,
-                    textAlign: TextAlign.center,
-                  ),
+                PrimaryButton(
+                  label: 'Nouveau scan',
+                  icon: Icons.qr_code_scanner,
+                  onPressed: () => context.go(Routes.scanner),
                 ),
+                const SizedBox(height: AppSpacing.md),
               ],
             ),
           );

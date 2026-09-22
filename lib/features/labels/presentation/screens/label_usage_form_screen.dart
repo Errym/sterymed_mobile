@@ -10,11 +10,13 @@ import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../patients/data/models/patient_data.dart';
 import '../../../patients/presentation/widgets/patient_picker_sheet.dart';
+import '../../data/models/label_data.dart';
 import '../../data/repositories/label_usage_repository.dart';
 
 class LabelUsageFormScreen extends StatefulWidget {
   final String labelId;
-  const LabelUsageFormScreen({super.key, required this.labelId});
+  final LabelData? label;
+  const LabelUsageFormScreen({super.key, required this.labelId, this.label});
 
   @override
   State<LabelUsageFormScreen> createState() => _LabelUsageFormScreenState();
@@ -60,9 +62,8 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
             patientId: _patient!.id,
             practitionerId: practitionerId,
             procedure: _procedureCtrl.text.trim(),
-            notes: _notesCtrl.text.trim().isEmpty
-                ? null
-                : _notesCtrl.text.trim(),
+            notes:
+                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
           );
       if (!mounted) return;
       AppSnackbar.show(context, 'Utilisation enregistrée.',
@@ -94,17 +95,36 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.qr_code_2, color: AppColors.brandPrimary),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.brandPrimary.withValues(alpha: 0.14),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.qr_code_2,
+                        color: AppColors.brandPrimary),
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Étiquette', style: AppTypography.label),
+                        Text(
+                          widget.label?.productName ?? 'Étiquette',
+                          style: AppTypography.bodyStrong,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         Text(
-                          widget.labelId,
-                          style: AppTypography.bodyStrong,
+                          widget.label != null
+                              ? [
+                                  widget.label!.code,
+                                  if (widget.label!.batchNumber != null)
+                                    'Lot ${widget.label!.batchNumber}',
+                                ].join(' · ')
+                              : widget.labelId,
+                          style: AppTypography.caption,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],

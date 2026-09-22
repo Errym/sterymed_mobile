@@ -33,6 +33,7 @@ import '../../features/history/presentation/screens/audit_list_screen.dart';
 import '../../features/identity/presentation/screens/team_detail_screen.dart';
 import '../../features/identity/presentation/screens/team_list_screen.dart';
 // Labels
+import '../../features/labels/data/models/label_data.dart';
 import '../../features/labels/presentation/screens/label_blocked_screen.dart';
 import '../../features/labels/presentation/screens/label_detail_screen.dart';
 import '../../features/labels/presentation/screens/label_usage_form_screen.dart';
@@ -232,7 +233,10 @@ class AppRouter {
             name: RouteNames.labelsUsage,
             pageBuilder: (_, s) => _fade(
               s,
-              LabelUsageFormScreen(labelId: s.pathParameters['labelId']!),
+              LabelUsageFormScreen(
+                labelId: s.pathParameters['labelId']!,
+                label: s.extra is LabelData ? s.extra as LabelData : null,
+              ),
             ),
           ),
           GoRoute(
