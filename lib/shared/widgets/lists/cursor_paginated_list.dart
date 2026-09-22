@@ -24,6 +24,7 @@ class CursorPaginatedList<T> extends StatefulWidget {
   final VoidCallback? onRetry;
   final String emptyTitle;
   final String? emptyMessage;
+  final IconData emptyIcon;
   final EdgeInsets padding;
 
   const CursorPaginatedList({
@@ -39,6 +40,7 @@ class CursorPaginatedList<T> extends StatefulWidget {
     this.onRetry,
     this.emptyTitle = 'Aucun élément',
     this.emptyMessage,
+    this.emptyIcon = Icons.inbox_outlined,
     this.padding = const EdgeInsets.all(AppSpacing.md),
   });
 
@@ -82,7 +84,11 @@ class _CursorPaginatedListState<T> extends State<CursorPaginatedList<T>> {
     }
 
     if (widget.items.isEmpty) {
-      return EmptyView(title: widget.emptyTitle, message: widget.emptyMessage);
+      return EmptyView(
+        title: widget.emptyTitle,
+        message: widget.emptyMessage,
+        icon: widget.emptyIcon,
+      );
     }
 
     final list = ListView.separated(

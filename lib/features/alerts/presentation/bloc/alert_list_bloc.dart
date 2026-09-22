@@ -14,14 +14,20 @@ class AlertListBloc extends Bloc<AlertListEvent, AlertListState> {
   AlertListBloc(this._repository) : super(const AlertListState()) {
     on<LoadAlerts>(_onLoad);
     on<RefreshAlerts>(_onRefresh);
+    on<LoadMoreAlerts>(_onLoadMore);
     on<ResolveAlert>(_onResolve);
   }
 
   Future<void> _onLoad(LoadAlerts event, Emitter<AlertListState> emit) async {
     emit(state.copyWith(status: AlertListStatus.loading, error: null));
     try {
-      final alerts = await _repository.getActiveAlerts();
-      emit(state.copyWith(status: AlertListStatus.success, alerts: alerts));
+      final page = await _repository.getActiveAlerts();
+      emit(state.copyWith(
+        status: AlertListStatus.success,
+        alerts: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+      ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: AlertListStatus.failure, error: e.message));
     }
@@ -32,10 +38,35 @@ class AlertListBloc extends Bloc<AlertListEvent, AlertListState> {
     Emitter<AlertListState> emit,
   ) async {
     try {
-      final alerts = await _repository.getActiveAlerts(forceRefresh: true);
-      emit(state.copyWith(status: AlertListStatus.success, alerts: alerts));
+      final page = await _repository.getActiveAlerts(forceRefresh: true);
+      emit(state.copyWith(
+        status: AlertListStatus.success,
+        alerts: page.items,
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+      ));
     } on ApiException catch (e) {
       emit(state.copyWith(status: AlertListStatus.failure, error: e.message));
+    }
+  }
+
+  Future<void> _onLoadMore(
+    LoadMoreAlerts event,
+    Emitter<AlertListState> emit,
+  ) async {
+    final cursor = state.nextCursor;
+    if (cursor == null || state.isLoadingMore) return;
+    emit(state.copyWith(isLoadingMore: true));
+    try {
+      final page = await _repository.loadMore(cursor);
+      emit(state.copyWith(
+        alerts: [...state.alerts, ...page.items],
+        nextCursor: page.nextCursor,
+        clearNextCursor: page.nextCursor == null,
+        isLoadingMore: false,
+      ));
+    } on ApiException catch (e) {
+      emit(state.copyWith(isLoadingMore: false, error: e.message));
     }
   }
 

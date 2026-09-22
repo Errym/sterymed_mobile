@@ -14,6 +14,10 @@ class RefreshAuditEvents extends AuditListEvent {
   const RefreshAuditEvents();
 }
 
+class LoadMoreAuditEvents extends AuditListEvent {
+  const LoadMoreAuditEvents();
+}
+
 class FilterAuditEvents extends AuditListEvent {
   final String? action;
   const FilterAuditEvents(this.action);

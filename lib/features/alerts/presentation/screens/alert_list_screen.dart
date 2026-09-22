@@ -24,8 +24,35 @@ class AlertListScreen extends StatelessWidget {
   }
 }
 
-class _AlertListView extends StatelessWidget {
+class _AlertListView extends StatefulWidget {
   const _AlertListView();
+
+  @override
+  State<_AlertListView> createState() => _AlertListViewState();
+}
+
+class _AlertListViewState extends State<_AlertListView> {
+  final _controller = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_controller.hasClients) return;
+    final threshold = _controller.position.maxScrollExtent - 200;
+    if (_controller.position.pixels >= threshold) {
+      context.read<AlertListBloc>().add(const LoadMoreAlerts());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -58,6 +85,7 @@ class _AlertListView extends StatelessWidget {
             onRefresh: () async =>
                 context.read<AlertListBloc>().add(const RefreshAlerts()),
             child: ListView(
+              controller: _controller,
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
                 if (state.criticalAlerts.isNotEmpty)
@@ -89,6 +117,11 @@ class _AlertListView extends StatelessWidget {
                       color: AppColors.info,
                       icon: Icons.info_outline,
                     ),
+                  ),
+                if (state.isLoadingMore)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Center(child: CircularProgressIndicator()),
                   ),
               ],
             ),

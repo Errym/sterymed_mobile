@@ -14,6 +14,10 @@ class RefreshAlerts extends AlertListEvent {
   const RefreshAlerts();
 }
 
+class LoadMoreAlerts extends AlertListEvent {
+  const LoadMoreAlerts();
+}
+
 class ResolveAlert extends AlertListEvent {
   final String alertId;
   const ResolveAlert(this.alertId);

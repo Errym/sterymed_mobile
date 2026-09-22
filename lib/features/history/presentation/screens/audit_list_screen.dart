@@ -4,12 +4,10 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
-import '../../../../shared/widgets/feedback/empty_view.dart';
-import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
 import '../../data/models/audit_event_data.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../bloc/audit_list_bloc.dart';
@@ -68,39 +66,28 @@ class _AuditListView extends StatelessWidget {
           Expanded(
             child: BlocBuilder<AuditListBloc, AuditListState>(
               builder: (context, state) {
-                if (state.status == AuditStatus.loading &&
-                    state.events.isEmpty) {
-                  return const LoadingView();
-                }
-                if (state.status == AuditStatus.failure &&
-                    state.events.isEmpty) {
-                  return ErrorView(
-                    message: state.error ?? 'Erreur',
-                    onRetry: () => context
-                        .read<AuditListBloc>()
-                        .add(const LoadAuditEvents()),
-                  );
-                }
-                if (state.events.isEmpty) {
-                  return const EmptyView(
-                    title: 'Aucun événement',
-                    message: 'Aucune action enregistrée pour ce filtre.',
-                    icon: Icons.history_toggle_off,
-                  );
-                }
-                return RefreshIndicator(
+                return CursorPaginatedList<AuditEventData>(
+                  items: state.events,
+                  isLoading: state.status == AuditStatus.loading,
+                  isLoadingMore: state.isLoadingMore,
+                  hasMore: state.hasMore,
+                  error: state.status == AuditStatus.failure
+                      ? (state.error ?? 'Erreur')
+                      : null,
+                  onRetry: () =>
+                      context.read<AuditListBloc>().add(const LoadAuditEvents()),
+                  onLoadMore: () async => context
+                      .read<AuditListBloc>()
+                      .add(const LoadMoreAuditEvents()),
                   onRefresh: () async => context
                       .read<AuditListBloc>()
                       .add(const RefreshAuditEvents()),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    itemCount: state.events.length,
-                    separatorBuilder: (_, __) =>
-                        const SizedBox(height: AppSpacing.sm),
-                    itemBuilder: (_, i) => AnimatedListItem(
-                      index: i,
-                      child: _AuditTile(event: state.events[i]),
-                    ),
+                  emptyTitle: 'Aucun événement',
+                  emptyMessage: 'Aucune action enregistrée pour ce filtre.',
+                  emptyIcon: Icons.history_toggle_off,
+                  itemBuilder: (_, event, i) => AnimatedListItem(
+                    index: i,
+                    child: _AuditTile(event: event),
                   ),
                 );
               },

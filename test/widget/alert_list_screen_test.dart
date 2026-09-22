@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/core/network/cursor_page.dart';
 import 'package:steriymed_mobile/core/theme/typography.dart';
 import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:steriymed_mobile/features/alerts/data/repositories/alert_repository.dart';
@@ -29,11 +30,11 @@ void main() {
 
   testWidgets('renders severity groups', (tester) async {
     when(() => repo.getActiveAlerts(forceRefresh: any(named: 'forceRefresh')))
-        .thenAnswer((_) async => [
+        .thenAnswer((_) async => CursorPage(items: [
               buildAlert(id: 'a1', severity: AlertSeverity.critical),
               buildAlert(id: 'a2', severity: AlertSeverity.warning),
               buildAlert(id: 'a3', severity: AlertSeverity.info),
-            ]);
+            ]));
 
     await pumpApp(
       tester,
@@ -55,7 +56,7 @@ void main() {
 
   testWidgets('shows empty view when no alerts', (tester) async {
     when(() => repo.getActiveAlerts(forceRefresh: any(named: 'forceRefresh')))
-        .thenAnswer((_) async => []);
+        .thenAnswer((_) async => const CursorPage(items: []));
 
     await pumpApp(
       tester,

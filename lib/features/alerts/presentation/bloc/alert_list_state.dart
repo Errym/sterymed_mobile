@@ -6,12 +6,18 @@ class AlertListState extends Equatable {
   final AlertListStatus status;
   final List<AlertData> alerts;
   final String? error;
+  final String? nextCursor;
+  final bool isLoadingMore;
 
   const AlertListState({
     this.status = AlertListStatus.initial,
     this.alerts = const [],
     this.error,
+    this.nextCursor,
+    this.isLoadingMore = false,
   });
+
+  bool get hasMore => nextCursor != null;
 
   /// Alerts grouped by severity — used by the screen to render sections.
   List<AlertData> get criticalAlerts =>
@@ -27,14 +33,20 @@ class AlertListState extends Equatable {
     AlertListStatus? status,
     List<AlertData>? alerts,
     String? error,
+    String? nextCursor,
+    bool clearNextCursor = false,
+    bool? isLoadingMore,
   }) {
     return AlertListState(
       status: status ?? this.status,
       alerts: alerts ?? this.alerts,
       error: error ?? this.error,
+      nextCursor: clearNextCursor ? null : (nextCursor ?? this.nextCursor),
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
     );
   }
 
   @override
-  List<Object?> get props => [status, alerts, error];
+  List<Object?> get props =>
+      [status, alerts, error, nextCursor, isLoadingMore];
 }
