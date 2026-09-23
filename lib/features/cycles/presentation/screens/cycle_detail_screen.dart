@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
@@ -121,8 +122,11 @@ class _CycleDetailView extends StatelessWidget {
             final c = state.cycle;
             if (c == null) return const SizedBox.shrink();
 
-            final canAddItems = _canAddInstruments(c.status);
-            final canAddTests = _canAddControlTests(c.status);
+            final session = getIt<SessionStore>();
+            final canManage = session.hasPermission('cycles.manage');
+            final canRelease = session.hasPermission('cycles.release');
+            final canAddItems = _canAddInstruments(c.status) && canManage;
+            final canAddTests = _canAddControlTests(c.status) && canManage;
 
             return RefreshIndicator(
               onRefresh: () async => context
@@ -191,7 +195,9 @@ class _CycleDetailView extends StatelessWidget {
                             icon: const Icon(Icons.add_circle_outline),
                             tooltip: canAddItems
                                 ? 'Ajouter un instrument'
-                                : 'Cycle clôturé',
+                                : (canManage
+                                    ? 'Cycle clôturé'
+                                    : 'Réservé à la stérilisation'),
                             onPressed: canAddItems
                                 ? () => _addItem(context, cycleId)
                                 : null,
@@ -226,7 +232,9 @@ class _CycleDetailView extends StatelessWidget {
                             icon: const Icon(Icons.add_circle_outline),
                             tooltip: canAddTests
                                 ? 'Enregistrer un contrôle'
-                                : 'Disponible après la fin du cycle',
+                                : (canManage
+                                    ? 'Disponible après la fin du cycle'
+                                    : 'Réservé à la stérilisation'),
                             onPressed: canAddTests
                                 ? () => _addControlTest(context, cycleId)
                                 : null,
@@ -269,9 +277,13 @@ class _CycleDetailView extends StatelessWidget {
                           title: 'Pièces jointes (${state.attachments.length})',
                           trailing: IconButton(
                             icon: const Icon(Icons.add_circle_outline),
-                            tooltip: 'Ajouter une pièce jointe',
-                            onPressed: () =>
-                                context.go(Routes.cyclesAttachments(cycleId)),
+                            tooltip: canManage
+                                ? 'Ajouter une pièce jointe'
+                                : 'Réservé à la stérilisation',
+                            onPressed: canManage
+                                ? () => context
+                                    .go(Routes.cyclesAttachments(cycleId))
+                                : null,
                           ),
                         ),
                         if (state.attachments.isEmpty)
@@ -283,8 +295,10 @@ class _CycleDetailView extends StatelessWidget {
                             children: state.attachments
                                 .map((a) => _AttachmentTile(
                                       a: a,
-                                      onDelete: () => _deleteAttachment(
-                                          context, cycleId, a),
+                                      onDelete: canManage
+                                          ? () => _deleteAttachment(
+                                              context, cycleId, a)
+                                          : null,
                                     ))
                                 .toList(),
                           ),
@@ -316,7 +330,13 @@ class _CycleDetailView extends StatelessWidget {
                           builder: (context, transitionState) {
                             final isLoading = transitionState.status ==
                                 CycleTransitionStatus.loading;
-                            return _actionButton(context, c, isLoading);
+                            return _actionButton(
+                              context,
+                              c,
+                              isLoading,
+                              canManage: canManage,
+                              canRelease: canRelease,
+                            );
                           },
                         ),
                         const SizedBox(height: AppSpacing.xl),
@@ -381,9 +401,16 @@ class _CycleDetailView extends StatelessWidget {
   // ─────────────────────────────────────────────────────────────────────────
   // Action button
   // ─────────────────────────────────────────────────────────────────────────
-  Widget _actionButton(BuildContext context, CycleData c, bool isLoading) {
+  Widget _actionButton(
+    BuildContext context,
+    CycleData c,
+    bool isLoading, {
+    required bool canManage,
+    required bool canRelease,
+  }) {
     switch (c.status) {
       case 'created':
+        if (!canManage) return const _ReadOnlyBanner();
         return PrimaryButton(
           label: 'Démarrer le cycle',
           icon: Icons.play_arrow,
@@ -391,6 +418,7 @@ class _CycleDetailView extends StatelessWidget {
           onPressed: isLoading ? null : () => _confirmAndStart(context, c.id),
         );
       case 'in_progress':
+        if (!canManage) return const _ReadOnlyBanner();
         return PrimaryButton(
           label: 'Marquer comme terminé',
           icon: Icons.check,
@@ -399,6 +427,7 @@ class _CycleDetailView extends StatelessWidget {
               isLoading ? null : () => _confirmAndComplete(context, c.id),
         );
       case 'completed':
+        if (!canManage) return const _ReadOnlyBanner();
         return PrimaryButton(
           label: 'Soumettre pour libération',
           icon: Icons.assignment_turned_in_outlined,
@@ -406,6 +435,7 @@ class _CycleDetailView extends StatelessWidget {
           onPressed: isLoading ? null : () => _confirmAndSubmit(context, c.id),
         );
       case 'awaiting_release':
+        if (!canRelease) return const _ReadOnlyBanner();
         return PrimaryButton(
           label: 'Prendre la décision de libération',
           icon: Icons.verified_outlined,
@@ -873,6 +903,18 @@ class _EmptyHint extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
       child: Text(text, style: AppTypography.caption),
+    );
+  }
+}
+
+class _ReadOnlyBanner extends StatelessWidget {
+  const _ReadOnlyBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _InfoBanner(
+      message: 'Vous consultez ce cycle en lecture seule. Contactez '
+          'l\'équipe de stérilisation pour toute modification.',
     );
   }
 }

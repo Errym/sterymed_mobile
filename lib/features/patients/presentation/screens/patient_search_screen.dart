@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
@@ -54,16 +55,19 @@ class _PatientView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('patients.manage');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
         title: const Text('Patients'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_outlined),
-            tooltip: 'Nouveau patient',
-            onPressed: () => _create(context),
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_outlined),
+              tooltip: 'Nouveau patient',
+              onPressed: () => _create(context),
+            ),
         ],
       ),
       body: BlocListener<PatientListBloc, PatientListState>(
@@ -105,11 +109,13 @@ class _PatientView extends StatelessWidget {
                       title: 'Aucun patient',
                       message: 'Ajoutez votre premier patient.',
                       icon: Icons.person_outline,
-                      action: FilledButton.icon(
-                        onPressed: () => _create(context),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Nouveau patient'),
-                      ),
+                      action: canManage
+                          ? FilledButton.icon(
+                              onPressed: () => _create(context),
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text('Nouveau patient'),
+                            )
+                          : null,
                     );
                   }
                   return RefreshIndicator(
@@ -127,7 +133,9 @@ class _PatientView extends StatelessWidget {
                           index: i,
                           child: Dismissible(
                             key: ValueKey(p.id),
-                            direction: DismissDirection.endToStart,
+                            direction: canManage
+                                ? DismissDirection.endToStart
+                                : DismissDirection.none,
                             background: Container(
                               alignment: Alignment.centerRight,
                               padding:
@@ -145,38 +153,47 @@ class _PatientView extends StatelessWidget {
                               return false; // bloc will refresh; keep row
                             },
                             child: GestureDetector(
-                              onLongPress: () => _edit(context, p),
+                              onLongPress:
+                                  canManage ? () => _edit(context, p) : null,
                               child: PatientTile(
                                 patient: p,
-                                trailing: PopupMenuButton<String>(
-                                  icon: const Icon(Icons.more_vert,
-                                      size: 18, color: AppColors.textSecondary),
-                                  onSelected: (v) {
-                                    if (v == 'edit') _edit(context, p);
-                                    if (v == 'delete') _delete(context, p);
-                                  },
-                                  itemBuilder: (_) => const [
-                                    PopupMenuItem(
-                                      value: 'edit',
-                                      child: Row(children: [
-                                        Icon(Icons.edit_outlined, size: 18),
-                                        SizedBox(width: 8),
-                                        Text('Modifier'),
-                                      ]),
-                                    ),
-                                    PopupMenuItem(
-                                      value: 'delete',
-                                      child: Row(children: [
-                                        Icon(Icons.delete_outline,
-                                            size: 18, color: AppColors.danger),
-                                        SizedBox(width: 8),
-                                        Text('Supprimer',
-                                            style: TextStyle(
-                                                color: AppColors.danger)),
-                                      ]),
-                                    ),
-                                  ],
-                                ),
+                                trailing: canManage
+                                    ? PopupMenuButton<String>(
+                                        icon: const Icon(Icons.more_vert,
+                                            size: 18,
+                                            color: AppColors.textSecondary),
+                                        onSelected: (v) {
+                                          if (v == 'edit') _edit(context, p);
+                                          if (v == 'delete') {
+                                            _delete(context, p);
+                                          }
+                                        },
+                                        itemBuilder: (_) => const [
+                                          PopupMenuItem(
+                                            value: 'edit',
+                                            child: Row(children: [
+                                              Icon(Icons.edit_outlined,
+                                                  size: 18),
+                                              SizedBox(width: 8),
+                                              Text('Modifier'),
+                                            ]),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'delete',
+                                            child: Row(children: [
+                                              Icon(Icons.delete_outline,
+                                                  size: 18,
+                                                  color: AppColors.danger),
+                                              SizedBox(width: 8),
+                                              Text('Supprimer',
+                                                  style: TextStyle(
+                                                      color:
+                                                          AppColors.danger)),
+                                            ]),
+                                          ),
+                                        ],
+                                      )
+                                    : null,
                               ),
                             ),
                           ),

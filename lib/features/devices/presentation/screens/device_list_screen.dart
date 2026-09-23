@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -49,16 +50,19 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('devices.manage');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Appareils & Programmes',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Nouvel appareil',
-            onPressed: _create,
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Nouvel appareil',
+              onPressed: _create,
+            ),
         ],
       ),
       body: RefreshIndicator(
@@ -81,11 +85,13 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                 title: 'Aucun appareil',
                 message: 'Ajoutez votre premier autoclave.',
                 icon: Icons.precision_manufacturing_outlined,
-                action: FilledButton.icon(
-                  onPressed: _create,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Nouvel appareil'),
-                ),
+                action: canManage
+                    ? FilledButton.icon(
+                        onPressed: _create,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Nouvel appareil'),
+                      )
+                    : null,
               );
             }
             return ListView.separated(

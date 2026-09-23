@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -33,22 +34,27 @@ class _NcView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission(
+      'non_conformities.manage',
+    );
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Non-Conformités & Rappels',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () async {
-              final ok = await NcCreateSheet.show(context);
-              if (ok == true && context.mounted) {
-                context
-                    .read<NonConformityListBloc>()
-                    .add(const LoadNonConformities());
-              }
-            },
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () async {
+                final ok = await NcCreateSheet.show(context);
+                if (ok == true && context.mounted) {
+                  context
+                      .read<NonConformityListBloc>()
+                      .add(const LoadNonConformities());
+                }
+              },
+            ),
         ],
       ),
       body: BlocBuilder<NonConformityListBloc, NonConformityListState>(
@@ -65,18 +71,20 @@ class _NcView extends StatelessWidget {
               title: 'Aucune non-conformité',
               message: 'Aucun incident enregistré.',
               icon: Icons.verified_outlined,
-              action: FilledButton.icon(
-                onPressed: () async {
-                  final ok = await NcCreateSheet.show(context);
-                  if (ok == true && context.mounted) {
-                    context
-                        .read<NonConformityListBloc>()
-                        .add(const LoadNonConformities());
-                  }
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nouvelle non-conformité'),
-              ),
+              action: canManage
+                  ? FilledButton.icon(
+                      onPressed: () async {
+                        final ok = await NcCreateSheet.show(context);
+                        if (ok == true && context.mounted) {
+                          context
+                              .read<NonConformityListBloc>()
+                              .add(const LoadNonConformities());
+                        }
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Nouvelle non-conformité'),
+                    )
+                  : null,
             );
           }
           return ListView.separated(
@@ -85,7 +93,7 @@ class _NcView extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
             itemBuilder: (_, i) => AnimatedListItem(
               index: i,
-              child: _NcCard(item: state.items[i]),
+              child: _NcCard(item: state.items[i], canManage: canManage),
             ),
           );
         },
@@ -96,7 +104,8 @@ class _NcView extends StatelessWidget {
 
 class _NcCard extends StatelessWidget {
   final NonConformityData item;
-  const _NcCard({required this.item});
+  final bool canManage;
+  const _NcCard({required this.item, required this.canManage});
 
   @override
   Widget build(BuildContext context) {
@@ -137,7 +146,7 @@ class _NcCard extends StatelessWidget {
           Text(item.title, style: AppTypography.bodyStrong),
           const SizedBox(height: AppSpacing.xs),
           Text(item.description, style: AppTypography.body),
-          if (item.isOpen) ...[
+          if (item.isOpen && canManage) ...[
             const SizedBox(height: AppSpacing.sm),
             Align(
               alignment: Alignment.centerRight,

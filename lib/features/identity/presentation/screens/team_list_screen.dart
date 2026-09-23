@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -35,21 +36,25 @@ class _TeamListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canInvite =
+        getIt<SessionStore>().hasPermission('invitations.create');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Équipe & Droits',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.person_add_alt_outlined),
-            tooltip: 'Inviter un membre',
-            onPressed: () async {
-              final ok = await TeamInviteSheet.show(context);
-              if (ok == true && context.mounted) {
-                context.read<TeamListBloc>().add(const LoadTeam());
-              }
-            },
-          ),
+          if (canInvite)
+            IconButton(
+              icon: const Icon(Icons.person_add_alt_outlined),
+              tooltip: 'Inviter un membre',
+              onPressed: () async {
+                final ok = await TeamInviteSheet.show(context);
+                if (ok == true && context.mounted) {
+                  context.read<TeamListBloc>().add(const LoadTeam());
+                }
+              },
+            ),
         ],
       ),
       body: BlocBuilder<TeamListBloc, TeamListState>(

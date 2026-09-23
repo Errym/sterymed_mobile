@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -30,15 +31,18 @@ class _SupplierListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('suppliers.manage');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Fournisseurs',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => SupplierFormSheet.show(context),
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => SupplierFormSheet.show(context),
+            ),
         ],
       ),
       body: BlocBuilder<SupplierListBloc, SupplierListState>(

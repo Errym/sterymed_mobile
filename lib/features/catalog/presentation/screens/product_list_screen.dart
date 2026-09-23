@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
@@ -33,15 +34,18 @@ class _ProductListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('products.manage');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Catalogue produits',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            onPressed: () => ProductFormSheet.show(context),
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () => ProductFormSheet.show(context),
+            ),
         ],
       ),
       body: Column(
@@ -83,22 +87,26 @@ class _ProductListView extends StatelessWidget {
                       index: i,
                       child: _ProductTile(
                         product: p,
-                        onEdit: () =>
-                            ProductFormSheet.show(context, existing: p),
-                        onDelete: () async {
-                          final ok = await ConfirmationDialog.show(
-                            context,
-                            title: 'Supprimer le produit ?',
-                            message: p.name,
-                            confirmLabel: 'Supprimer',
-                            isDestructive: true,
-                          );
-                          if (ok && context.mounted) {
-                            context
-                                .read<ProductListBloc>()
-                                .add(DeleteProduct(p.id));
-                          }
-                        },
+                        onEdit: canManage
+                            ? () =>
+                                ProductFormSheet.show(context, existing: p)
+                            : null,
+                        onDelete: canManage
+                            ? () async {
+                                final ok = await ConfirmationDialog.show(
+                                  context,
+                                  title: 'Supprimer le produit ?',
+                                  message: p.name,
+                                  confirmLabel: 'Supprimer',
+                                  isDestructive: true,
+                                );
+                                if (ok && context.mounted) {
+                                  context
+                                      .read<ProductListBloc>()
+                                      .add(DeleteProduct(p.id));
+                                }
+                              }
+                            : null,
                       ),
                     );
                   },
@@ -114,13 +122,13 @@ class _ProductListView extends StatelessWidget {
 
 class _ProductTile extends StatelessWidget {
   final ProductData product;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _ProductTile({
     required this.product,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -153,15 +161,17 @@ class _ProductTile extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 20),
-            onPressed: onEdit,
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline,
-                size: 20, color: AppColors.danger),
-            onPressed: onDelete,
-          ),
+          if (onEdit != null)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined, size: 20),
+              onPressed: onEdit,
+            ),
+          if (onDelete != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline,
+                  size: 20, color: AppColors.danger),
+              onPressed: onDelete,
+            ),
         ],
       ),
     );

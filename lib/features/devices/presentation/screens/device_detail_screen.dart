@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -77,16 +78,19 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('devices.manage');
+
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Détail de l\'appareil',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Modifier',
-            onPressed: _edit,
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Modifier',
+              onPressed: _edit,
+            ),
         ],
       ),
       body: FutureBuilder<DeviceDetail>(
@@ -160,7 +164,10 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 const SizedBox(height: AppSpacing.lg),
 
                 // ── Programmes ──
-                _ProgrammesSection(deviceId: widget.deviceId),
+                _ProgrammesSection(
+                  deviceId: widget.deviceId,
+                  canManage: canManage,
+                ),
 
                 // ── Localisation ──
                 const SizedBox(height: AppSpacing.lg),
@@ -183,18 +190,20 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                   const SizedBox(height: AppSpacing.lg),
                 ],
 
-                const SizedBox(height: AppSpacing.xl),
-                PrimaryButton(
-                  label: 'Modifier cet appareil',
-                  icon: Icons.edit_outlined,
-                  onPressed: _edit,
-                ),
-                const SizedBox(height: AppSpacing.sm),
-                DangerButton(
-                  label: 'Supprimer',
-                  icon: Icons.delete_outline,
-                  onPressed: _delete,
-                ),
+                if (canManage) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  PrimaryButton(
+                    label: 'Modifier cet appareil',
+                    icon: Icons.edit_outlined,
+                    onPressed: _edit,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  DangerButton(
+                    label: 'Supprimer',
+                    icon: Icons.delete_outline,
+                    onPressed: _delete,
+                  ),
+                ],
                 const SizedBox(height: AppSpacing.xxl),
               ],
             ),
@@ -211,7 +220,8 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
 class _ProgrammesSection extends StatefulWidget {
   final String deviceId;
-  const _ProgrammesSection({required this.deviceId});
+  final bool canManage;
+  const _ProgrammesSection({required this.deviceId, required this.canManage});
 
   @override
   State<_ProgrammesSection> createState() => _ProgrammesSectionState();
@@ -298,11 +308,13 @@ class _ProgrammesSectionState extends State<_ProgrammesSection> {
       children: [
         SectionHeader(
           title: 'Programmes de stérilisation (${_programs.length})',
-          trailing: IconButton(
-            icon: const Icon(Icons.add_circle_outline),
-            tooltip: 'Ajouter un programme',
-            onPressed: _loading ? null : _add,
-          ),
+          trailing: widget.canManage
+              ? IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: 'Ajouter un programme',
+                  onPressed: _loading ? null : _add,
+                )
+              : null,
         ),
         if (_loading)
           const Padding(
@@ -344,23 +356,25 @@ class _ProgrammesSectionState extends State<_ProgrammesSection> {
                   'cycles avec cet appareil.',
                   style: AppTypography.caption,
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton.icon(
-                    onPressed: _add,
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Ajouter un programme'),
+                if (widget.canManage) ...[
+                  const SizedBox(height: AppSpacing.sm),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: _add,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Ajouter un programme'),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           )
         else
           ..._programs.map((p) => _ProgrammeRow(
                 program: p,
-                onEdit: () => _edit(p),
-                onDelete: () => _delete(p),
+                onEdit: widget.canManage ? () => _edit(p) : null,
+                onDelete: widget.canManage ? () => _delete(p) : null,
               )),
       ],
     );
@@ -369,13 +383,13 @@ class _ProgrammesSectionState extends State<_ProgrammesSection> {
 
 class _ProgrammeRow extends StatelessWidget {
   final DeviceProgramData program;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   const _ProgrammeRow({
     required this.program,
-    required this.onEdit,
-    required this.onDelete,
+    this.onEdit,
+    this.onDelete,
   });
 
   @override
@@ -423,34 +437,37 @@ class _ProgrammeRow extends StatelessWidget {
               ],
             ),
           ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert,
-                size: 20, color: AppColors.textSecondary),
-            onSelected: (v) {
-              if (v == 'edit') onEdit();
-              if (v == 'delete') onDelete();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'edit',
-                child: Row(children: [
-                  Icon(Icons.edit_outlined, size: 18),
-                  SizedBox(width: 8),
-                  Text('Modifier'),
-                ]),
-              ),
-              PopupMenuItem(
-                value: 'delete',
-                child: Row(children: [
-                  Icon(Icons.delete_outline,
-                      size: 18, color: AppColors.danger),
-                  SizedBox(width: 8),
-                  Text('Supprimer',
-                      style: TextStyle(color: AppColors.danger)),
-                ]),
-              ),
-            ],
-          ),
+          if (onEdit != null || onDelete != null)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert,
+                  size: 20, color: AppColors.textSecondary),
+              onSelected: (v) {
+                if (v == 'edit') onEdit?.call();
+                if (v == 'delete') onDelete?.call();
+              },
+              itemBuilder: (_) => [
+                if (onEdit != null)
+                  const PopupMenuItem(
+                    value: 'edit',
+                    child: Row(children: [
+                      Icon(Icons.edit_outlined, size: 18),
+                      SizedBox(width: 8),
+                      Text('Modifier'),
+                    ]),
+                  ),
+                if (onDelete != null)
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Row(children: [
+                      Icon(Icons.delete_outline,
+                          size: 18, color: AppColors.danger),
+                      SizedBox(width: 8),
+                      Text('Supprimer',
+                          style: TextStyle(color: AppColors.danger)),
+                    ]),
+                  ),
+              ],
+            ),
         ],
       ),
     );
