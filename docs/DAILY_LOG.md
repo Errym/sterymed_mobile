@@ -77,3 +77,155 @@ Auditing Phase 5 ("Usage + patients + offline outbox — the phase that makes or
 **Fixed:** 409 now routes through the same manual-review path as 422/403 (kept in the outbox, surfaced for review, not silently discarded). Removed the now-dead `SyncResult.conflict` enum value (was only ever produced by the buggy branch). Updated `test/unit/storage/sync_engine_test.dart`'s 409 test, which had explicitly asserted the old (wrong) behavior.
 
 In practice this should be very rare — outbox items each get their own UUID v4 key, so a genuine collision-with-different-payload shouldn't happen under normal operation — but "shouldn't happen" is exactly the case a sync engine needs to fail safe on, not silently swallow.
+
+---
+
+### 2026-09-23 — Gate 5 Audit (Phase 5 — Usage + offline)
+
+Every item checked against an actual artifact (test file, this log's own
+prior entries, or a direct code read done *during* this audit — marked
+as such, since that's weaker evidence than a pre-existing test and is
+called out explicitly rather than folded into "verified"). No item is
+marked ✅ without something to point to.
+
+**1. Offline usage queues and survives app kill — 🟡 PARTIAL**
+- Queuing: ✅ `test/unit/repositories/label_usage_repository_test.dart`
+  — "being offline enqueues directly without calling the remote
+  datasource" (passing).
+- Persistence mechanism: ✅ `test/unit/storage/outbox_store_test.dart`
+  uses a real (non-mocked) Hive box — enqueue/read round-trips through
+  actual on-disk storage, not an in-memory fake.
+- Actual app-kill-and-relaunch on a device: ⏳ **NEEDS USER** — no entry
+  in `docs/DEVICE_TEST_LOG.md` (empty).
+
+**2. Sync on reconnect verified server-side — 🟡 PARTIAL**
+- Reconnect-triggers-flush: ✅ `test/unit/sync/sync_status_cubit_test.dart`
+  (3 passing tests: offline start doesn't flush, online start flushes
+  before `start()` returns, offline→online transition flushes).
+- "Verified server-side" — the synced data actually landing correctly in
+  the backend: ❌ no evidence. `integration_test/` has 16 files, all 0
+  bytes (see `docs/TESTING.md`); no manual verification logged anywhere
+  in this file.
+
+**3. 409 conflict proven with evidence — ✅ VERIFIED**
+- This log's own 2026-09-22 entries: read the live backend's
+  `EnsureIdempotency` middleware source directly, then confirmed live
+  against `POST /v1/auth/login` — same key + same body → 200 replay;
+  same key + different body → real 409 `IDEMPOTENCY_KEY_REUSED`. Backed
+  by `test/unit/storage/sync_engine_test.dart`'s passing 409 test
+  (manual-review path, not auto-discard). Strongest-evidenced item in
+  either gate — verified against real backend behavior, not assumed.
+
+**4. Double-tap impossible — 🟡 PARTIAL**
+- Code read (this audit, not a pre-existing check):
+  `label_usage_form_screen.dart` sets `_submitting = true` via
+  synchronous `setState()` before the first `await` in `_submit()`;
+  `PrimaryButton` (`lib/shared/widgets/buttons/primary_button.dart`)
+  computes `enabled = onPressed != null && !isLoading` and passes `null`
+  to the underlying `ElevatedButton` when loading. This is the standard,
+  architecturally-sound Flutter double-tap guard.
+- No automated test simulates a rapid double-tap on this screen (no
+  `label_usage_form_screen_test.dart` exists). No device verification.
+  "Impossible" as an absolute claim isn't formally proven, just
+  architecturally supported.
+
+**5. Form state never lost — 🟡 PARTIAL**
+- ✅ `LabelUsageDraftStore` exists and is unit-tested
+  (`test/unit/storage/label_usage_draft_store_test.dart`, 10 passing
+  tests: round-trip, corrupt-JSON handling, per-label isolation,
+  clear-on-submit-success).
+- This is the only form in Gate 5's scope (label usage), and it's the
+  only form in the whole app with this protection — correct scope, not
+  a partial implementation of a wider claim.
+- Actual "kill app mid-fill, relaunch, see it restored" on a device: ⏳
+  **NEEDS USER** — not run.
+
+**6. Web shows same usage record after mobile sync (coherence check #2)
+— ⏳ NEEDS USER**
+- No evidence at all. Requires a live dual-client check (submit on
+  mobile, confirm on web) or an integration test — neither exists.
+
+**7. Usage tests green — 🟡 PARTIAL**
+- Repository + draft-store level: ✅ green
+  (`label_usage_repository_test.dart` — 4 tests,
+  `label_usage_draft_store_test.dart` — 10 tests, all passing).
+- Bloc level: `test/bloc/label_usage_bloc_test.dart` is an empty stub —
+  zero automated coverage of usage-bloc event/state handling.
+
+---
+
+### 2026-09-23 — Gate 6 Audit (Phase 6 — Sterilization cycles)
+
+Same standard as Gate 5 above — no ✅ without a citable artifact.
+
+**1. Full lifecycle e2e on device — ⏳ NEEDS USER**
+- No device test log entry.
+  `integration_test/journeys/cycle_lifecycle_journey_test.dart` exists
+  by name only — 0 bytes.
+
+**2. Rejected release requires reason — 🟡 PARTIAL**
+- Code read (this audit): `release_decision_sheet.dart` —
+  `requiresReason = _decision == 'rejected'`,
+  `canSubmit = !requiresReason || _reasonCtrl.text.trim().isNotEmpty`.
+  Client-side enforcement is real and correct as of this read.
+- No automated test exists for this file (checked: no
+  `release_decision_sheet_test.dart` anywhere in `test/`).
+- Server-side enforcement (the plan specifies "UI + server") not
+  independently verified from this repo — would require checking
+  `steriqore`'s release controller/request validation, out of scope for
+  a mobile-repo audit.
+
+**3. Attachments visible on web (coherence check #3) — ❌ NOT DONE**
+- Cannot be attempted: the entire attachments feature is disabled
+  client-side pending `docs/BACKEND_BUGS.md#BUG-001`
+  (`POST /cycles/{cycle}/attachments` returns 500). Nothing can be
+  uploaded to check web visibility. Blocked upstream in `steriqore`, not
+  a mobile-repo task.
+
+**4. Offline transitions sync correctly — 🟡 PARTIAL**
+- Client-side queue + flush: ✅
+  `test/unit/repositories/cycle_repository_test.dart` (7 passing tests:
+  `start()` online success / network-fallback / offline-from-start /
+  non-network-rethrow; `release()` online success / offline-fallback),
+  plus `sync_engine_test.dart` for the flush mechanism itself.
+- End-to-end confirmation the transition actually applies correctly
+  server-side after sync: ❌ no evidence — same gap as Gate 5 item 2.
+
+**5. Cycle tests green — 🟡 PARTIAL**
+- Repository level: ✅ green (`cycle_repository_test.dart`, 7/7 passing).
+- Bloc level: `test/bloc/cycle_list_bloc_test.dart` and
+  `test/bloc/cycle_transition_bloc_test.dart` are both empty stubs —
+  zero bloc coverage.
+- Widget level: `test/widget/cycle_detail_screen_test.dart` is an empty
+  stub too.
+
+---
+
+### What you personally must do before either gate can close
+
+1. **Device test — app kill survival.** Kill the app mid-form-fill on
+   the label usage screen, and separately mid-outbox-queue (submit
+   offline, force-kill before it would sync), relaunch both times,
+   confirm the draft/queued item is still there. (Gate 5 #1, #5)
+2. **Dual-client check.** Submit a label usage on mobile, confirm the
+   same record appears correctly on the web app. This is the literal
+   "coherence check #2" — nothing else can substitute for it. (Gate 5 #6)
+3. **Server-side sync confirmation.** After an offline-queued item
+   syncs, confirm the resulting record in the backend is correct and
+   complete — not just that the client's POST returned success. (Gate 5
+   #2, Gate 6 #4)
+4. **Full device run-through of the cycle lifecycle** — create → start
+   → complete → submit-for-release → release — on a real phone. (Gate 6
+   #1)
+5. **Attachments — blocked, not actionable yet.** Nothing to test until
+   `steriqore`'s BUG-001 fix lands (another session has uncommitted work
+   on this). Re-test once that ships. (Gate 6 #3)
+6. **Optional, closes an "impossible" claim properly**: rapid-tap the
+   usage submit button on a real touchscreen device and confirm no
+   duplicate records land server-side. The code is architecturally
+   sound for this; a device confirmation would make it a clean ✅ instead
+   of an inferred one. (Gate 5 #4)
+
+Neither gate has a single item that's cleanly ❌-blocked-on-more-code —
+everything marked 🟡 or ⏳ is blocked on the six items above, not on
+more mobile engineering work.
