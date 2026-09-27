@@ -6,11 +6,21 @@ import '../core/storage/outbox/outbox_store.dart';
 import '../core/storage/outbox/sync_engine.dart';
 import '../core/storage/token_storage.dart';
 import '../core/sync/connectivity_service.dart';
+import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../features/auth/presentation/bloc/auth_event.dart';
 
 Future<void> registerNetwork(GetIt getIt) async {
   getIt.registerLazySingleton<NetworkInfo>(() => NetworkInfo());
   getIt.registerLazySingleton<DioClient>(
-    () => DioClient(getIt<TokenStorage>()),
+    // Resolved lazily inside the closure, not at DioClient-construction
+    // time — safe regardless of DI registration order, since AuthBloc is
+    // only actually looked up the moment a real 401 happens, by which
+    // point every registerXxx() has already run.
+    () => DioClient(
+      getIt<TokenStorage>(),
+      onUnauthenticated: () =>
+          getIt<AuthBloc>().add(const AuthSessionExpired()),
+    ),
   );
 
   getIt.registerLazySingleton<ConnectivityService>(

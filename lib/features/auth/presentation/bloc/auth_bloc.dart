@@ -12,6 +12,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthSessionChecked>(_onSessionChecked);
     on<AuthLoginSubmitted>(_onLoginSubmitted);
     on<AuthLogoutRequested>(_onLogout);
+    on<AuthSessionExpired>(_onSessionExpired);
     on<AuthLogoutEverywhereRequested>(_onLogoutEverywhere);
     on<AuthRegisterSubmitted>(_onRegisterSubmitted);
   }
@@ -55,6 +56,17 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     } catch (_) {
       // Backend unreachable — still wipe local state.
     }
+    emit(const AuthUnauthenticated());
+  }
+
+  Future<void> _onSessionExpired(
+    AuthSessionExpired event,
+    Emitter<AuthState> emit,
+  ) async {
+    // Already emitting AuthUnauthenticated is a no-op if some other path
+    // (e.g. an explicit logout in flight at the same moment) already
+    // cleared it — still safe to clear again.
+    await _repository.clearLocalSession();
     emit(const AuthUnauthenticated());
   }
 

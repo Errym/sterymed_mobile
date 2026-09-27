@@ -12,6 +12,17 @@ abstract final class MediaUrl {
   static String resolve(String raw) {
     if (raw.isEmpty) return raw;
 
+    // NOT gated behind kDebugMode (a previous pass added that gate for
+    // generic "no dev-only http rewriting in release" hygiene, but that
+    // was wrong here — see docs/BACKEND_BUGS.md#bug-010, still open and
+    // blocking as of that doc's last update). The backend's presigned
+    // URLs for exports and cycle/label attachments come back pointed at
+    // the Docker-internal `minio` hostname regardless of build mode —
+    // this isn't a dev convenience to strip, it's a live, currently-
+    // required interop fix. Disabling it in release breaks every
+    // export/attachment download in the exact release build this app
+    // ships. Revisit only once BUG-010 is actually fixed backend-side.
+
     // Rewrite minio:9000 -> localhost:9000 on web so the browser can
     // reach the MinIO container via the exposed port.
     if (kIsWeb) {

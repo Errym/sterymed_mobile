@@ -78,6 +78,15 @@ class AuthRepository {
     }
   }
 
+  /// Wipes local session state without calling the logout endpoint — for
+  /// when the server has already told us the token is invalid (a real
+  /// 401 `UNAUTHENTICATED`), where calling logout would just be a second,
+  /// pointless request that would also 401.
+  Future<void> clearLocalSession() async {
+    await _tokenStorage.clear();
+    await _sessionStore.clear();
+  }
+
   Future<bool> restoreSession() async {
     final token = await _tokenStorage.read();
     if (token == null || token.isEmpty) return false;

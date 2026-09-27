@@ -12,7 +12,7 @@ import 'interceptors/retry_interceptor.dart';
 class DioClient {
   final Dio dio;
 
-  DioClient(TokenStorage tokenStorage)
+  DioClient(TokenStorage tokenStorage, {void Function()? onUnauthenticated})
     : dio = Dio(
         BaseOptions(
           baseUrl: Env.apiBaseUrl,
@@ -27,7 +27,7 @@ class DioClient {
       AuthInterceptor(tokenStorage),
       IdempotencyInterceptor(),
       RetryInterceptor(dio),
-      ErrorInterceptor(),
+      ErrorInterceptor(onUnauthenticated: onUnauthenticated),
       LoggingInterceptor(),
     ]);
   }

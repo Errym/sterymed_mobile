@@ -30,6 +30,14 @@ class AuthLogoutRequested extends AuthEvent {
   const AuthLogoutRequested();
 }
 
+/// Fired by the network layer (`ErrorInterceptor`) the moment any endpoint
+/// returns a real `UNAUTHENTICATED` 401 — the token is already invalid
+/// server-side, so unlike [AuthLogoutRequested] this does not call the
+/// logout endpoint (that would just be a second, pointless 401).
+class AuthSessionExpired extends AuthEvent {
+  const AuthSessionExpired();
+}
+
 class AuthLogoutEverywhereRequested extends AuthEvent {
   const AuthLogoutEverywhereRequested();
 }

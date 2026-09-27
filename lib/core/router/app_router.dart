@@ -18,25 +18,26 @@ import '../../features/catalog/presentation/screens/product_list_screen.dart';
 import '../../features/compliance/presentation/screens/non_conformities_screen.dart';
 // Cycles
 import '../../features/cycles/presentation/screens/cycle_attachments_screen.dart';
-import '../../features/cycles/presentation/screens/cycle_control_tests_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_create_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_detail_screen.dart';
-import '../../features/cycles/presentation/screens/cycle_items_screen.dart';
 import '../../features/cycles/presentation/screens/cycle_list_screen.dart';
-import '../../features/cycles/presentation/screens/cycle_release_screen.dart';
 // Dashboard
 import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
 // Devices
 import '../../features/devices/presentation/screens/device_list_screen.dart';
 // DLU
 import '../../features/dlu/presentation/screens/dlu_rules_screen.dart';
+import '../../features/prosthetic/presentation/screens/prosthetic_case_create_screen.dart';
+import '../../features/prosthetic/presentation/screens/prosthetic_case_detail_screen.dart';
+import '../../features/prosthetic/presentation/screens/prosthetic_home_screen.dart';
+import '../../features/prosthetic/presentation/screens/prosthetic_laboratories_screen.dart';
+import '../../features/prosthetic/presentation/screens/prosthetic_waiting_placement_screen.dart';
 // History
 import '../../features/history/presentation/screens/audit_list_screen.dart';
 // Identity
-import '../../features/identity/presentation/screens/team_detail_screen.dart';
 import '../../features/identity/presentation/screens/team_list_screen.dart';
 // Labels
-import '../../features/labels/data/models/label_data.dart';
+import '../../features/labels/data/models/label_scan_result.dart';
 import '../../features/labels/presentation/screens/label_blocked_screen.dart';
 import '../../features/labels/presentation/screens/label_detail_screen.dart';
 import '../../features/labels/presentation/screens/label_usage_form_screen.dart';
@@ -49,6 +50,7 @@ import '../../features/purchases/presentation/screens/purchase_order_detail_scre
 import '../../features/purchases/presentation/screens/purchase_order_list_screen.dart';
 // Reporting
 import '../../features/reporting/presentation/screens/data_export_request_screen.dart';
+import '../../features/reporting/presentation/screens/evidence_search_screen.dart';
 // Scanner
 import '../../features/scanner/presentation/screens/scanner_screen.dart';
 // Settings
@@ -59,11 +61,13 @@ import '../../features/shell/presentation/screens/shell_screen.dart';
 // Sites
 import '../../features/sites/presentation/screens/site_list_screen.dart';
 // Stock
+import '../../features/stock/presentation/screens/batch_list_screen.dart';
 import '../../features/stock/presentation/screens/stock_adjust_screen.dart';
 import '../../features/stock/presentation/screens/stock_issue_screen.dart';
 import '../../features/stock/presentation/screens/stock_level_list_screen.dart';
 import '../../features/stock/presentation/screens/stock_transfer_screen.dart';
 // Suppliers
+import '../../features/suppliers/presentation/screens/supplier_detail_screen.dart';
 import '../../features/suppliers/presentation/screens/supplier_list_screen.dart';
 // Sync
 import '../../features/sync/presentation/screens/sync_queue_screen.dart';
@@ -81,14 +85,17 @@ Page<void> _fade(GoRouterState state, Widget child) => CustomTransitionPage<void
 class AppRouter {
   final bool Function() isAuthenticated;
   final Future<bool> Function() hasStoredToken;
+  final Listenable? refreshListenable;
 
   AppRouter({
     required this.isAuthenticated,
     required this.hasStoredToken,
+    this.refreshListenable,
   });
 
   late final GoRouter router = GoRouter(
     initialLocation: Routes.splash,
+    refreshListenable: refreshListenable,
     redirect: (context, state) async {
       final loc = state.matchedLocation;
       final isPublic = loc == Routes.splash ||
@@ -194,31 +201,10 @@ class AppRouter {
             ),
           ),
           GoRoute(
-            path: '/app/cycles/:id/items',
-            pageBuilder: (_, s) => _fade(
-              s,
-              CycleItemsScreen(cycleId: s.pathParameters['id']!),
-            ),
-          ),
-          GoRoute(
-            path: '/app/cycles/:id/control-tests',
-            pageBuilder: (_, s) => _fade(
-              s,
-              CycleControlTestsScreen(cycleId: s.pathParameters['id']!),
-            ),
-          ),
-          GoRoute(
             path: '/app/cycles/:id/attachments',
             pageBuilder: (_, s) => _fade(
               s,
               CycleAttachmentsScreen(cycleId: s.pathParameters['id']!),
-            ),
-          ),
-          GoRoute(
-            path: '/app/cycles/:id/release',
-            pageBuilder: (_, s) => _fade(
-              s,
-              CycleReleaseScreen(cycleId: s.pathParameters['id']!),
             ),
           ),
           GoRoute(
@@ -244,20 +230,15 @@ class AppRouter {
               s,
               LabelUsageFormScreen(
                 labelId: s.pathParameters['labelId']!,
-                label: s.extra is LabelData ? s.extra as LabelData : null,
+                label: s.extra is LabelScanResult
+                    ? s.extra as LabelScanResult
+                    : null,
               ),
             ),
           ),
           GoRoute(
             path: Routes.team,
             pageBuilder: (_, s) => _fade(s, const TeamListScreen()),
-          ),
-          GoRoute(
-            path: '/app/team/:id',
-            pageBuilder: (_, s) => _fade(
-              s,
-              TeamDetailScreen(memberId: s.pathParameters['id']!),
-            ),
           ),
           GoRoute(
             path: Routes.sites,
@@ -270,6 +251,10 @@ class AppRouter {
           GoRoute(
             path: Routes.dataExports,
             pageBuilder: (_, s) => _fade(s, const DataExportRequestScreen()),
+          ),
+          GoRoute(
+            path: Routes.evidenceSearch,
+            pageBuilder: (_, s) => _fade(s, const EvidenceSearchScreen()),
           ),
           GoRoute(
             path: Routes.audit,
@@ -308,6 +293,13 @@ class AppRouter {
             pageBuilder: (_, s) => _fade(s, const SupplierListScreen()),
           ),
           GoRoute(
+            path: '/app/purchases/suppliers/:id',
+            pageBuilder: (_, s) => _fade(
+              s,
+              SupplierDetailScreen(supplierId: s.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
             path: Routes.purchases,
             pageBuilder: (_, s) => _fade(s, const PurchaseOrderListScreen()),
           ),
@@ -328,6 +320,34 @@ class AppRouter {
           GoRoute(
             path: Routes.dluRules,
             pageBuilder: (_, s) => _fade(s, const DluRulesScreen()),
+          ),
+          GoRoute(
+            path: Routes.batches,
+            pageBuilder: (_, s) => _fade(s, const BatchListScreen()),
+          ),
+          GoRoute(
+            path: Routes.prostheticCreate,
+            pageBuilder: (_, s) => _fade(s, const ProstheticCaseCreateScreen()),
+          ),
+          GoRoute(
+            path: Routes.prostheticWaitingPlacement,
+            pageBuilder: (_, s) =>
+                _fade(s, const ProstheticWaitingPlacementScreen()),
+          ),
+          GoRoute(
+            path: Routes.prostheticLaboratories,
+            pageBuilder: (_, s) => _fade(s, const ProstheticLaboratoriesScreen()),
+          ),
+          GoRoute(
+            path: Routes.prosthetic,
+            pageBuilder: (_, s) => _fade(s, const ProstheticHomeScreen()),
+          ),
+          GoRoute(
+            path: '/app/prosthetic/:id',
+            pageBuilder: (_, s) => _fade(
+              s,
+              ProstheticCaseDetailScreen(caseId: s.pathParameters['id']!),
+            ),
           ),
         ],
       ),

@@ -36,7 +36,9 @@ import '../features/alerts/data/repositories/alert_repository.dart';
 import '../features/alerts/presentation/bloc/alert_list_bloc.dart';
 
 // ── Catalog (products) ──────────────────────────────────────────────────────
+import '../features/catalog/data/datasources/product_category_datasource.dart';
 import '../features/catalog/data/datasources/product_remote_datasource.dart';
+import '../features/catalog/data/repositories/product_category_repository.dart';
 import '../features/catalog/data/repositories/product_repository.dart';
 import '../features/catalog/presentation/bloc/product_list_bloc.dart';
 
@@ -64,7 +66,9 @@ import '../features/cycles/presentation/bloc/cycle_release_bloc.dart';
 
 // ── Devices (list screen) ───────────────────────────────────────────────────
 import '../features/devices/data/datasources/device_detail_datasource.dart';
+import '../features/devices/data/datasources/maintenance_record_datasource.dart';
 import '../features/devices/data/repositories/device_detail_repository.dart';
+import '../features/devices/data/repositories/maintenance_record_repository.dart';
 
 // ── DLU rules ───────────────────────────────────────────────────────────────
 import '../features/dlu/data/datasources/dlu_remote_datasource.dart';
@@ -90,7 +94,6 @@ import '../features/labels/data/repositories/label_usage_repository.dart';
 
 // ── Patients ────────────────────────────────────────────────────────────────
 import '../features/patients/data/datasources/patient_remote_datasource.dart';
-import '../features/patients/data/local/patient_local_cache.dart';
 import '../features/patients/data/repositories/patient_repository.dart';
 import '../features/patients/presentation/bloc/patient_list_bloc.dart';
 import '../features/patients/presentation/bloc/patient_search_bloc.dart';
@@ -101,7 +104,12 @@ import '../features/purchases/data/repositories/purchase_repository.dart';
 import '../features/purchases/presentation/bloc/purchase_order_list_bloc.dart';
 
 // ── Reporting ───────────────────────────────────────────────────────────────
+import '../features/prosthetic/data/datasources/prosthetic_remote_datasource.dart';
+import '../features/prosthetic/data/local/prosthetic_case_draft_store.dart';
+import '../features/prosthetic/data/repositories/prosthetic_repository.dart';
+import '../features/reporting/data/datasources/evidence_search_remote_datasource.dart';
 import '../features/reporting/data/datasources/export_remote_datasource.dart';
+import '../features/reporting/data/repositories/evidence_search_repository.dart';
 import '../features/reporting/data/repositories/export_repository.dart';
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
@@ -126,7 +134,6 @@ import '../features/suppliers/data/datasources/supplier_remote_datasource.dart';
 import '../features/suppliers/data/repositories/supplier_repository.dart';
 import '../features/suppliers/presentation/bloc/supplier_list_bloc.dart';
 
-
 Future<void> registerFeatures(GetIt getIt) async {
   // ─────────────────────────────────────────────────────────────────────────
   // Auth
@@ -139,7 +146,13 @@ Future<void> registerFeatures(GetIt getIt) async {
         tokenStorage: getIt<TokenStorage>(),
         sessionStore: getIt<SessionStore>(),
       ));
-  getIt.registerFactory<AuthBloc>(() => AuthBloc(getIt<AuthRepository>()));
+  // Singleton, not a factory: AuthAuthenticated/AuthUnauthenticated is
+  // inherently one app-wide state, not one per screen that reads it — a
+  // factory here would mean the network layer's AuthSessionExpired event
+  // (fired from DioClient's onUnauthenticated callback) lands on a
+  // throwaway instance nothing is listening to. See network_di.dart and
+  // core/router/app_router.dart's refreshListenable.
+  getIt.registerLazySingleton<AuthBloc>(() => AuthBloc(getIt<AuthRepository>()));
 
   // ─────────────────────────────────────────────────────────────────────────
   // Dashboard
@@ -185,11 +198,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<PatientRemoteDatasource>(
     () => PatientRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<PatientLocalCache>(() => PatientLocalCache());
   getIt.registerLazySingleton<PatientRepository>(() => PatientRepository(
         getIt<PatientRemoteDatasource>(),
         getIt<AppCache>(),
-        getIt<PatientLocalCache>(),
       ));
   getIt.registerFactory<PatientListBloc>(
     () => PatientListBloc(getIt<PatientRepository>()),
@@ -210,6 +221,15 @@ Future<void> registerFeatures(GetIt getIt) async {
       ));
   getIt.registerFactory<ProductListBloc>(
     () => ProductListBloc(getIt<ProductRepository>()),
+  );
+  getIt.registerLazySingleton<ProductCategoryDatasource>(
+    () => ProductCategoryDatasource(getIt<DioClient>().dio),
+  );
+  getIt.registerLazySingleton<ProductCategoryRepository>(
+    () => ProductCategoryRepository(
+      getIt<ProductCategoryDatasource>(),
+      getIt<AppCache>(),
+    ),
   );
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -294,6 +314,16 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<DeviceDetailRepository>(
     () => DeviceDetailRepository(
       getIt<DeviceDetailDatasource>(),
+      getIt<AppCache>(),
+    ),
+  );
+
+  getIt.registerLazySingleton<MaintenanceRecordDatasource>(
+    () => MaintenanceRecordDatasource(getIt<DioClient>().dio),
+  );
+  getIt.registerLazySingleton<MaintenanceRecordRepository>(
+    () => MaintenanceRecordRepository(
+      getIt<MaintenanceRecordDatasource>(),
       getIt<AppCache>(),
     ),
   );
@@ -415,6 +445,26 @@ Future<void> registerFeatures(GetIt getIt) async {
         getIt<ExportRemoteDatasource>(),
         getIt<AppCache>(),
       ));
+  getIt.registerLazySingleton<EvidenceSearchRemoteDatasource>(
+    () => EvidenceSearchRemoteDatasource(getIt<DioClient>().dio),
+  );
+  getIt.registerLazySingleton<EvidenceSearchRepository>(
+    () => EvidenceSearchRepository(getIt<EvidenceSearchRemoteDatasource>()),
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Prosthetic
+  // ─────────────────────────────────────────────────────────────────────────
+  getIt.registerLazySingleton<ProstheticRemoteDatasource>(
+    () => ProstheticRemoteDatasource(getIt<DioClient>().dio),
+  );
+  getIt.registerLazySingleton<ProstheticRepository>(() => ProstheticRepository(
+        getIt<ProstheticRemoteDatasource>(),
+        getIt<AppCache>(),
+      ));
+  getIt.registerLazySingleton<ProstheticCaseDraftStore>(
+    () => ProstheticCaseDraftStore(getIt<KeyValueStore>()),
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   // Stock

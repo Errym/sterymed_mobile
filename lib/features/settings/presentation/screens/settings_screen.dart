@@ -4,10 +4,12 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/config/build_info.dart';
 import '../../../../core/config/env.dart';
+import '../../../../core/permissions/notification_permission.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
+import '../../../identity/data/models/tenant_role.dart';
 import '../../../../shared/widgets/badges/status_badge.dart';
 import '../../../../shared/widgets/buttons/secondary_button.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
@@ -16,8 +18,67 @@ import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  bool _alertsGranted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    NotificationPermission.isGranted().then((granted) {
+      if (mounted) setState(() => _alertsGranted = granted);
+    });
+  }
+
+  Future<void> _onAlertsChanged(bool value) async {
+    if (!value) {
+      // Apps can't programmatically revoke a granted OS permission — only
+      // the system settings screen can. Reflect that instead of faking a
+      // local "soft-disable" the OS doesn't actually honor.
+      final granted = await NotificationPermission.isGranted();
+      if (!mounted) return;
+      setState(() => _alertsGranted = granted);
+      if (granted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Pour désactiver les alertes, utilisez les réglages système '
+              'de votre appareil.',
+            ),
+          ),
+        );
+      }
+      return;
+    }
+
+    final granted = await NotificationPermission.request();
+    if (!mounted) return;
+    if (granted) {
+      setState(() => _alertsGranted = true);
+      return;
+    }
+
+    final permanentlyDenied = await NotificationPermission.isPermanentlyDenied();
+    if (!mounted) return;
+    setState(() => _alertsGranted = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Autorisation refusée.'),
+        action: permanentlyDenied
+            ? SnackBarAction(
+                label: 'Réglages',
+                onPressed: () => NotificationPermission.openSettings(),
+              )
+            : null,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,6 +192,30 @@ class SettingsScreen extends StatelessWidget {
           AnimatedListItem(
             index: 3,
             child: _Section(
+              title: 'Notifications',
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.notifications_outlined,
+                        size: 18, color: AppColors.textSecondary),
+                    const SizedBox(width: AppSpacing.sm),
+                    const Expanded(
+                      child:
+                          Text('Recevoir les alertes', style: AppTypography.label),
+                    ),
+                    Switch(
+                      value: _alertsGranted,
+                      onChanged: _onAlertsChanged,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          AnimatedListItem(
+            index: 4,
+            child: _Section(
               title: 'Support',
               children: [
                 _LinkTile(
@@ -208,7 +293,7 @@ class _ProfileHeader extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               StatusBadge(
-                label: isOwner ? 'Administrateur' : 'Personnel',
+                label: tenantRoleLabel(role),
                 tone: isOwner ? StatusTone.info : StatusTone.neutral,
                 icon: isOwner ? Icons.shield_outlined : Icons.person_outline,
               ),
