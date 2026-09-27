@@ -8,7 +8,11 @@ outside what this session can do.**
 - [ ] Shell screens < 2s on 4G mid-range Android — **not measured**,
   needs a real device.
 - [ ] Scan → detail < 2s on mid-range Android — **not measured**.
-- ~~Prosthetic waiting list < 2s~~ — N/A, module void (ADR-0010).
+- [ ] Prosthetic waiting list < 2s — **not measured**. The module is real
+  and live now (was briefly void per ADR-0010, rebuilt for real per
+  ADR-0011 — see `docs/PROSTHETIC_MODULE.md`), so this target applies;
+  it uses the same `CursorPaginatedList<T>` builder-based pattern as
+  Cycles/Purchase Orders below.
 
 ## What's done code-side (verified in the repo, not measured on-device)
 

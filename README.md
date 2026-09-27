@@ -5,10 +5,13 @@ device labels, recording sterilization cycles and their control tests,
 tracking stock and purchase orders, and working offline with a sync queue
 for when the clinic's connection drops.
 
-> The prosthetic module described in some early planning docs is **not
-> in this app** — deferred per [`docs/adr/0010-prosthetic-deferred.md`](docs/adr/0010-prosthetic-deferred.md)
-> after confirming the backend has no prosthetic domain. Don't be misled
-> by references to it elsewhere in the repo's history.
+> The prosthetic module is real and live in this app (case tracking,
+> laboratory workflow, payment, waiting-for-placement). It was briefly
+> deferred per [`docs/adr/0010-prosthetic-deferred.md`](docs/adr/0010-prosthetic-deferred.md)
+> after finding no backend domain for it, then rebuilt for real once a
+> concrete backend contract existed — see
+> [`docs/adr/0011-prosthetic-module-adopted.md`](docs/adr/0011-prosthetic-module-adopted.md)
+> (supersedes 0010) and [`docs/PROSTHETIC_MODULE.md`](docs/PROSTHETIC_MODULE.md).
 
 ## Prerequisites
 
@@ -55,17 +58,14 @@ to `dev`. Test credentials for the demo tenant are in `.env.local`.
 ## Testing
 
 ```bash
-flutter analyze
+flutter analyze --fatal-infos
 
-# Scoped to files that actually have a main() — the repo has ~20 empty
-# test-file stubs (0 bytes) left over from early scaffolding; they don't
-# compile and aren't a real regression signal. This is exactly what the
-# pre-commit hook (.git/hooks/pre-commit) and CI run.
-test_files=$(find test -name "*_test.dart" -exec grep -l "void main(" {} \;)
-flutter test $test_files
+# All test files compile and have real coverage now — no filtering needed.
+# This is exactly what the pre-commit hook (.git/hooks/pre-commit) and CI run.
+flutter test
 
 # With coverage (writes coverage/lcov.info)
-flutter test --coverage $test_files
+flutter test --coverage
 ```
 
 ## CI
@@ -75,13 +75,17 @@ and on PRs touching relevant paths:
 
 | Workflow | What it does |
 |---|---|
-| `mobile-analyze.yml` | `flutter analyze` |
-| `mobile-test.yml` | The scoped test run above |
+| `mobile-analyze.yml` | `flutter analyze --fatal-infos` |
+| `mobile-test.yml` | `flutter test --coverage` — the full suite |
 | `mobile-build-android.yml` | Debug APK build (Gradle debug signing — no keystore needed) |
 | `mobile-build-ios.yml` | iOS simulator build (currently fails — missing `ios/Podfile`, needs Xcode access to fix; tracked, not yet resolved) |
 | `mobile-release-android.yml` | Empty stub — Phase 10 (release signing) |
 | `mobile-release-ios.yml` | Empty stub — Phase 10 (TestFlight) |
 | `secrets-scan.yml` | Scans for committed secrets |
+
+Dependency updates: `.github/dependabot.yml` (weekly, `pub`/`github-actions`/`gradle`).
+
+Run the same checks locally before pushing: `./scripts/ci-local.sh`.
 
 ## Architecture
 

@@ -30,9 +30,15 @@ who-to-call sections are not.
   the app's Sync Queue screen (`Routes.sync`). See
   `docs/OFFLINE_MATRIX.md` for exactly which write operations can even
   reach this state.
-- **Backup/restore**: drilled and documented in `steriqore`'s
-  `docs/BACKUP_RESTORE.md` — DB dump via `spatie/laravel-backup`, media
-  via a custom S3 mirror command, both independently restore-tested.
+- **Backup/restore**: two separate documents, don't conflate them.
+  Server data (DB dump via `spatie/laravel-backup`, media via a custom S3
+  mirror command, both independently restore-tested) is drilled and
+  documented in the **`steriqore`** repo's own `docs/BACKUP_RESTORE.md` —
+  a different file in a different repo. This repo's own
+  [`docs/BACKUP_RESTORE.md`](BACKUP_RESTORE.md) covers only what the
+  *mobile client* holds locally (the offline outbox, secure storage, a KV
+  store) and the exact, real consequence of losing it on reinstall — it
+  has nothing to do with server-side backups.
 
 ## Incident triage starting points
 

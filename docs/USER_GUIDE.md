@@ -18,7 +18,8 @@ sont prêts à être complétés.
 7. Commandes fournisseurs
 8. Patients
 9. Non-conformités
-10. Paramètres et gestion d'équipe
+10. Prothèses
+11. Paramètres et gestion d'équipe
 
 ---
 
@@ -93,7 +94,24 @@ modifier).
 
 `[Capture d'écran : liste des non-conformités]`
 
-## 10. Paramètres et gestion d'équipe
+## 10. Prothèses
+
+`Routes.prosthetic` (`prosthetic_cases.view`) → création
+(`Routes.prostheticCreate`, `prosthetic_cases.manage`), détail
+(`Routes.prostheticDetail`) avec modification rapide, changement de
+statut et suivi du paiement (`prosthetic_cases.manage` /
+`prosthetic_payments.manage` séparément — un praticien sans ce dernier
+droit voit l'état du paiement en lecture seule), liste "en attente de
+pose" (`Routes.prostheticWaitingPlacement`) et gestion des laboratoires
+(`Routes.prostheticLaboratories`). Voir `docs/PROSTHETIC_MODULE.md` pour
+le détail technique complet.
+
+`[Capture d'écran : liste des dossiers prothétiques]`
+`[Capture d'écran : création d'un dossier]`
+`[Capture d'écran : détail d'un dossier — statut et paiement]`
+`[Capture d'écran : en attente de pose]`
+
+## 11. Paramètres et gestion d'équipe
 
 `Routes.settings`, `Routes.team` (invitation : `invitations.create`).
 
@@ -104,8 +122,10 @@ modifier).
 
 ## Ce qui manque pour compléter ce guide
 
-- [ ] Captures d'écran réelles (14 attendues selon le plan initial,
-  P12) — nécessite un appareil ou un simulateur.
+- [ ] Captures d'écran réelles (19 emplacements dans ce document, dont 4
+  ajoutés pour le module prothétique le 2026-09-26 — le plan initial,
+  P12, en prévoyait 14 avant que ce module existe) — nécessite un
+  appareil ou un simulateur.
 - [ ] Relecture par le porteur de produit pour le ton et la
   terminologie métier.
 - [ ] Un parcours par rôle (administrateur, praticien, gestionnaire de

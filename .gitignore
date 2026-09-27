@@ -55,3 +55,7 @@ Thumbs.db
 !docs/ui-reference/
 !docs/adr/
 .env.local
+
+# Claude Code local tool state (hooks config, scheduled-task lock) —
+# machine-local, not project source; would break for any other clone.
+.claude/

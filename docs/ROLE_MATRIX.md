@@ -1,13 +1,10 @@
 # Role Matrix
 
-**Rewritten 2026-09-23.** The previous version of this file ("Admin +
-Staff only", captured 2026-09-19 against two test accounts) described an
-early planning assumption, not the actual model. It's wrong: the backend
-seeds **six** roles per tenant (`steriqore`'s `SeedTenantRolesAction`),
-and this app was deliberately built **permission-based, not role-based**
-— it never checks "is this user admin or staff," it checks "does this
-user have `cycles.release`." That design decision stays; this doc now
-describes it accurately instead of the two-role assumption.
+The backend has six roles; the app must respect all of them. The pilot
+will seed two accounts (one admin, one staff), but role-aware navigation
+and permission gating must work for all six, because the client never
+hardcodes role names — it reads whatever permissions the backend granted
+this session.
 
 ## The model: permission-based, not role-based
 
@@ -61,6 +58,9 @@ Per `steriqore`'s `SeedTenantRolesAction` (`app/Domain/Identity/Actions/SeedTena
 | `non_conformities.view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `non_conformities.manage` | ✓ | ✓ | | ✓ | | |
 | `data_exports.manage` | ✓ | ✓ | | | | |
+| `prosthetic_cases.view` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `prosthetic_cases.manage` | ✓ | ✓ | | | ✓ | |
+| `prosthetic_payments.manage` | ✓ | ✓ | | | | |
 | `invitations.create` | ✓ | ✓ | | | | |
 | `invitations.revoke` | ✓ | ✓ | | | | |
 | `memberships.disable` | ✓ | ✓ | | | | |
@@ -75,9 +75,11 @@ specifically (`Routes.dluRules` in the mobile app).
 
 ## Permissions actually referenced in this app
 
-25 of the 33 backend permissions are checked somewhere in this codebase
-(route guard or in-screen action gate). The other 8
-(`invitations.revoke`, `memberships.disable`, `sites.manage`,
+28 of the 36 backend permissions are checked somewhere in this codebase
+(route guard or in-screen action gate) — 3 more than before ADR 0011's
+prosthetic module (`prosthetic_cases.view`/`.manage`,
+`prosthetic_payments.manage`), all three gated (see the table below).
+The other 8 (`invitations.revoke`, `memberships.disable`, `sites.manage`,
 `alerts.manage`, `labels.manage`, `usages.view`, `exports.manage`,
 `practice_settings.manage`) aren't referenced anywhere — either there's
 no mobile screen for that action yet, or the screen exists but doesn't
@@ -110,6 +112,9 @@ gate it (worth a follow-up audit, not assumed safe).
 | `patients.manage` | In-screen: patient create/edit/delete |
 | `invitations.create` | In-screen: team invite button |
 | `evidence_settings.manage` | DLU rules route (owner-only) |
+| `prosthetic_cases.view` | Prosthetic tab, create/waiting-placement routes |
+| `prosthetic_cases.manage` | Create + laboratories routes; in-screen: quick edit, status transitions |
+| `prosthetic_payments.manage` | In-screen: payment section edit vs. read-only |
 
 ## Pilot Defaults
 
