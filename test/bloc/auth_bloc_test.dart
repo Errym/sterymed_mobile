@@ -110,5 +110,27 @@ void main() {
       act: (bloc) => bloc.add(const AuthLogoutEverywhereRequested()),
       expect: () => [isA<AuthUnauthenticated>()],
     );
+
+    // The 401 → login redirect chain: ErrorInterceptor fires this event
+    // for any endpoint's real UNAUTHENTICATED 401 (see
+    // error_interceptor_test.dart for that half of the chain) — this half
+    // proves the event clears local session state and lands on
+    // AuthUnauthenticated, which GoRouterRefreshStream (wired in
+    // router_di.dart) then uses to force an immediate redirect to login,
+    // not just on the user's next manual navigation.
+    blocTest<AuthBloc, AuthState>(
+      'AuthSessionExpired clears local session (no logout API call — the '
+      'token is already invalid server-side) and emits unauthenticated',
+      build: () => AuthBloc(repo),
+      setUp: () {
+        when(() => repo.clearLocalSession()).thenAnswer((_) async {});
+      },
+      act: (bloc) => bloc.add(const AuthSessionExpired()),
+      expect: () => [isA<AuthUnauthenticated>()],
+      verify: (_) {
+        verify(() => repo.clearLocalSession()).called(1);
+        verifyNever(() => repo.logout());
+      },
+    );
   });
 }

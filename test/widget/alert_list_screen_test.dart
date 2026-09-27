@@ -1,8 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/network/cursor_page.dart';
+import 'package:steriymed_mobile/core/storage/session_store.dart';
 import 'package:steriymed_mobile/core/theme/typography.dart';
 import 'package:steriymed_mobile/features/alerts/data/models/alert_data.dart';
 import 'package:steriymed_mobile/features/alerts/data/repositories/alert_repository.dart';
@@ -11,6 +13,8 @@ import 'package:steriymed_mobile/features/alerts/presentation/screens/alert_list
 import '../fixtures/alert_fixture.dart';
 import '../helpers/pump_app.dart';
 import '../mocks/mock_repositories.dart';
+
+class MockSessionStore extends Mock implements SessionStore {}
 
 /// Matches the group header specifically, not the per-alert severity
 /// badge -- both render the same French label as literal text.
@@ -23,9 +27,22 @@ Finder findGroupHeader(String label) => find.byWidgetPredicate(
 
 void main() {
   late MockAlertRepository repo;
+  late MockSessionStore session;
 
   setUp(() {
     repo = MockAlertRepository();
+    session = MockSessionStore();
+    when(() => session.hasPermission(any())).thenReturn(true);
+    if (GetIt.instance.isRegistered<SessionStore>()) {
+      GetIt.instance.unregister<SessionStore>();
+    }
+    GetIt.instance.registerSingleton<SessionStore>(session);
+  });
+
+  tearDown(() {
+    if (GetIt.instance.isRegistered<SessionStore>()) {
+      GetIt.instance.unregister<SessionStore>();
+    }
   });
 
   testWidgets('renders severity groups', (tester) async {

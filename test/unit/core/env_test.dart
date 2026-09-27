@@ -21,4 +21,36 @@ void main() {
       expect(Env.isProduction, isFalse);
     });
   });
+
+  group('Env.checkSecureTransport', () {
+    test('throws when production points at a plaintext http:// backend', () {
+      expect(
+        () => Env.checkSecureTransport(
+          isProduction: true,
+          apiBaseUrl: 'http://api.example.com/api',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+
+    test('passes when production uses https://', () {
+      expect(
+        () => Env.checkSecureTransport(
+          isProduction: true,
+          apiBaseUrl: 'https://api.example.com/api',
+        ),
+        returnsNormally,
+      );
+    });
+
+    test('passes for a non-production http:// default (dev/staging)', () {
+      expect(
+        () => Env.checkSecureTransport(
+          isProduction: false,
+          apiBaseUrl: 'http://10.0.2.2:8000/api',
+        ),
+        returnsNormally,
+      );
+    });
+  });
 }

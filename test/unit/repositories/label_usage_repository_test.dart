@@ -72,7 +72,7 @@ void main() {
           id: 'usage-1',
           labelId: 'label-1',
           patientId: 'p1',
-          patientName: 'Marie Curie',
+          patientReference: 'PAT-000042',
           practitionerId: 'pr1',
           practitionerName: 'Dr Dupont',
           procedure: 'Détartrage',
@@ -82,7 +82,7 @@ void main() {
     final result = await repo.recordUsage(
       labelId: 'label-1',
       patientId: 'p1',
-      patientName: 'Marie Curie',
+      patientReference: 'PAT-000042',
       practitionerId: 'pr1',
       practitionerName: 'Dr Dupont',
       procedure: 'Détartrage',
@@ -104,14 +104,14 @@ void main() {
     final result = await repo.recordUsage(
       labelId: 'label-1',
       patientId: 'p1',
-      patientName: 'Marie Curie',
+      patientReference: 'PAT-000042',
       practitionerId: 'pr1',
       practitionerName: 'Dr Dupont',
       procedure: 'Détartrage',
       notes: 'RAS',
     );
 
-    expect(result.patientName, 'Marie Curie');
+    expect(result.patientReference, 'PAT-000042');
     expect(result.procedure, 'Détartrage');
     final captured =
         verify(() => outbox.enqueue(captureAny())).captured.single
@@ -130,7 +130,7 @@ void main() {
     final result = await repo.recordUsage(
       labelId: 'label-1',
       patientId: 'p1',
-      patientName: 'Marie Curie',
+      patientReference: 'PAT-000042',
       practitionerId: 'pr1',
       practitionerName: 'Dr Dupont',
       procedure: 'Détartrage',
@@ -157,7 +157,7 @@ void main() {
       () => repo.recordUsage(
         labelId: 'label-1',
         patientId: 'p1',
-        patientName: 'Marie Curie',
+        patientReference: 'PAT-000042',
         practitionerId: 'pr1',
         practitionerName: 'Dr Dupont',
         procedure: 'Détartrage',

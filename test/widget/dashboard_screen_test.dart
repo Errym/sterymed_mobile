@@ -48,6 +48,7 @@ void main() {
     when(() => session.userEmail).thenReturn('test@test.com');
     when(() => session.role).thenReturn('owner');
     when(() => session.isOwner).thenReturn(true);
+    when(() => session.hasPermission(any())).thenReturn(true);
     if (GetIt.instance.isRegistered<SessionStore>()) {
       GetIt.instance.unregister<SessionStore>();
     }

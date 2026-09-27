@@ -30,11 +30,10 @@ void main() {
         () {
       const draft = LabelUsageDraft(
         patientId: 'p1',
-        patientFirstName: 'Marie',
-        patientLastName: 'Curie',
+        patientReference: 'PAT-000042',
       );
       expect(draft.patient?.id, 'p1');
-      expect(draft.patient?.fullName, 'Marie Curie');
+      expect(draft.patient?.reference, 'PAT-000042');
     });
 
     test('patient is null when patientId is null', () {
@@ -57,8 +56,7 @@ void main() {
     test('save then load round-trips the draft', () {
       const draft = LabelUsageDraft(
         patientId: 'p1',
-        patientFirstName: 'Marie',
-        patientLastName: 'Curie',
+        patientReference: 'PAT-000042',
         procedure: 'Détartrage',
         notes: 'RAS',
       );

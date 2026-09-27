@@ -9,8 +9,9 @@ AlertData buildAlert({
     id: id,
     type: type,
     severity: severity,
+    state: 'open',
+    subjectType: 'Product',
     message: 'Stock faible pour Gants nitrile',
     createdAt: DateTime(2026, 9, 18, 10, 0),
-    resolved: false,
   );
 }

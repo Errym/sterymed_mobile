@@ -60,7 +60,7 @@ void main() {
         Routes.suppliers: 'suppliers.view',
         Routes.purchases: 'purchasing.view',
         Routes.patients: 'patients.view',
-        Routes.dluRules: 'evidence_settings.manage',
+        Routes.dluRules: 'labels.view',
       };
       expected.forEach((route, permission) {
         expect(
@@ -71,18 +71,24 @@ void main() {
       });
     });
 
-    test('routes with no backend gate stay open (Accueil, Plus, Team, ...)',
-        () {
+    test('routes with no backend gate stay open (Accueil, Plus, ...)', () {
       const ungated = [
         Routes.dashboard,
         Routes.settings,
         Routes.about,
         Routes.sync,
-        Routes.team,
       ];
       for (final route in ungated) {
         expect(RoleGuard.requiredPermissionFor(route), isNull);
       }
+    });
+
+    test('team requires invitations.create (added with GET /v1/members)',
+        () {
+      expect(
+        RoleGuard.requiredPermissionFor(Routes.team),
+        'invitations.create',
+      );
     });
 
     test('a parameterized cycle route requires cycles.view, not the list\'s',
