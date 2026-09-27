@@ -71,12 +71,52 @@ mobile) · 🐛 Bug found and fixed along the way
 | Test coverage | ✅ | 51/51 test files real (was 25/45 as of 2026-09-23) — every previously-empty stub now has genuine coverage or a documented reason it's intentionally a no-op (`docs/TESTING.md`). |
 | Documentation | ✅ | All 9 formal handoff docs (`docs/README.md`'s own "6 user-facing + 3 internal" list) reviewed; several were actively wrong (prosthetic marked deleted, patient PII overstated) and fixed — see this session's memory log for the full list. |
 
+## 2026-09-27 — Freeze + final QA pass
+
+Version bumped to `0.2.0+1`, tagged `v0.2.0-pilot` (local only, not
+pushed — the old `v0.1.0-pilot` tag already exists and is already
+pushed to origin pointing at a 2026-09-17 commit; re-tagging it would
+have force-moved a shared reference, so a new tag was used instead).
+This session's full accumulated diff (prosthetic module, RBAC/security
+hardening, test infra, docs) is now committed across 9 commits on
+`phase-2-offline-outbox` — none of it was committed before this pass.
+
+`flutter analyze` clean, full `flutter test` green (409+ tests), and
+`flutter build apk --release` succeeded (74MB, SHA-256
+`2a41b27e...3714e6`) — **debug-signed**, not production-signed; see item
+4 below, unchanged from before this pass.
+
+Two real bugs found and fixed during this pass, not just re-verified:
+- 🐛 A previous security-hardening pass had gated `MediaUrl.resolve()`'s
+  MinIO-hostname rewrite behind `kDebugMode`, silently breaking every
+  export/attachment download in a release build against the still-open
+  BUG-010 — reverted; that rewrite is a live interop fix, not a dev
+  convenience to strip.
+- 🐛 **Hardware back button exits the app** (was already flagged as a
+  known, unfixed device-testing issue above) — root cause found
+  (`context.go()` replaces the whole nav stack, leaving nothing to pop)
+  and fixed with a `PopScope` on `ShellScreen`. Covered by a new widget
+  test; **still needs a real-device re-run** to confirm against actual
+  hardware (see item 1 below — no device was connected this session).
+
+Live-verified against the real running `steriqore` backend (not
+mocked): login for the 2 currently-active seeded accounts (owner,
+practitioner), and the full `api_endpoints_test.dart` contract suite
+(78 assertions) against the live route table. The other 4 roles
+(admin, stock_manager, releaser, viewer) have real backend-sourced seed
+accounts but they're currently `disabled` in the demo2 tenant — not
+re-enabled here (a one-way action with no in-app undo); their
+permission-gating is instead covered by `rbac_role_matrix_test.dart`,
+built directly from the backend's real seed source, not live login.
+
 ## What still blocks a clean GO
 
 1. **Nothing has been verified on a real, physical device this session** —
    every ⏳ item above (Gate 5 #1/#2/#5/#6, Gate 6 #4) needs an actual
    phone run, not more code or tests. `docs/DEVICE_TEST_LOG.md` has the
-   setup steps and known gotchas but zero logged runs.
+   setup steps and known gotchas but zero logged runs. This also applies
+   to the back-button fix above and to any iPhone/iOS verification at
+   all — no macOS/Xcode is available in this environment.
 2. **Server-side landing after sync is never independently confirmed**
    anywhere in this repo (Gate 5 #2, Gate 6 #4) — every offline-queue test
    proves the client *queues and flushes* correctly, none proves the
