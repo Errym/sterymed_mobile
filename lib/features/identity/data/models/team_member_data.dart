@@ -5,23 +5,23 @@ class TeamMemberData extends Equatable {
   final String userId;
   final String name;
   final String email;
-  final String role;
-  final bool active;
-  final String? locationLabel;
-  final DateTime? createdAt;
-  final DateTime? lastSessionAt;
+  final String? role;
+  final String status;
+  final DateTime? joinedAt;
+  final DateTime? disabledAt;
 
   const TeamMemberData({
     required this.id,
     required this.userId,
     required this.name,
     required this.email,
-    required this.role,
-    required this.active,
-    this.locationLabel,
-    this.createdAt,
-    this.lastSessionAt,
+    this.role,
+    required this.status,
+    this.joinedAt,
+    this.disabledAt,
   });
+
+  bool get active => status == 'active';
 
   String get initials {
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -35,15 +35,12 @@ class TeamMemberData extends Equatable {
         userId: json['user_id']?.toString() ?? '',
         name: json['name']?.toString() ?? '',
         email: json['email']?.toString() ?? '',
-        role: json['role']?.toString() ?? 'viewer',
-        active: json['active'] as bool? ?? true,
-        locationLabel: json['location_label']?.toString(),
-        createdAt:
-            DateTime.tryParse(json['created_at']?.toString() ?? ''),
-        lastSessionAt:
-            DateTime.tryParse(json['last_session_at']?.toString() ?? ''),
+        role: json['role']?.toString(),
+        status: json['status']?.toString() ?? 'active',
+        joinedAt: DateTime.tryParse(json['joined_at']?.toString() ?? ''),
+        disabledAt: DateTime.tryParse(json['disabled_at']?.toString() ?? ''),
       );
 
   @override
-  List<Object?> get props => [id, userId, role, active];
+  List<Object?> get props => [id, userId, role, status];
 }

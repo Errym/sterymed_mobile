@@ -10,18 +10,22 @@ import '../routes.dart';
 /// (owner-only)), exposed on UserData/SessionStore since the
 /// /v1/auth/login and /v1/me responses started returning `permissions`.
 ///
-/// A route with no entry here (Accueil, Plus/Settings, About, Sync, Team)
-/// is always allowed — Accueil degrades gracefully with no permissions
+/// A route with no entry here (Accueil, Plus/Settings, About, Sync) is
+/// always allowed — Accueil degrades gracefully with no permissions
 /// (each of its aggregate calls fails independently and is swallowed),
-/// Settings only ever calls /v1/me, and the backend has no per-role
-/// permission gating who can *view* the team list (only invite/disable,
-/// gated at the action level inside the screen).
+/// Settings only ever calls /v1/me. Team (added 2026-09-24 along with the
+/// `GET /v1/members` endpoint itself — see BUG-011) is gated on
+/// `invitations.create`, the same permission the web app's TeamController
+/// uses for its own index action — there's no separate "view team" grant
+/// in the permission model.
 abstract final class RoleGuard {
   static const _exactPermission = <String, String>{
     Routes.scanner: 'labels.view',
+    Routes.team: 'invitations.create',
     Routes.cycles: 'cycles.view',
     Routes.cyclesCreate: 'cycles.manage',
     Routes.stock: 'inventory.view',
+    Routes.batches: 'inventory.view',
     Routes.stockIssue: 'inventory.manage',
     Routes.stockAdjust: 'inventory.manage',
     Routes.stockTransfer: 'inventory.manage',
@@ -35,10 +39,30 @@ abstract final class RoleGuard {
     Routes.suppliers: 'suppliers.view',
     Routes.purchases: 'purchasing.view',
     Routes.patients: 'patients.view',
-    // Owner-only per steriqore's SeedTenantRolesAction: DLU rules are one
-    // of the two "evidence-affecting" sections (with label format) the
-    // backend never grants to a non-owner admin.
-    Routes.dluRules: 'evidence_settings.manage',
+    // Verified against EvidenceSearchController.php → LabelUsagePolicy's
+    // viewAny (`usages.view`, universal) — a separate, more sensitive
+    // `export` ability (`exports.manage`) exists for a bulk-export action
+    // this screen doesn't build yet.
+    Routes.evidenceSearch: 'usages.view',
+    // Corrected 2026-09-26: verified directly against DluRuleController.php
+    // (`$this->authorize('viewAny', DluRule::class)`) and DluRulePolicy.php
+    // — viewAny is `labels.view` (universal), create/update/delete are
+    // `labels.manage` (owner/admin/stock_manager). `evidence_settings.manage`
+    // is never referenced by any API controller, only by the web-only
+    // Tenancy\PracticeSettingsController — it has no relevance to this
+    // route and was gating it far more restrictively than the backend
+    // actually does. In-screen create/edit/delete actions on
+    // dlu_rules_screen.dart correctly check `labels.manage` themselves.
+    Routes.dluRules: 'labels.view',
+    // ADR 0011 — Prosthetic Work Tracking. `prosthetic_cases.view` is
+    // universal (everyone can see the module); create and laboratory
+    // management need `prosthetic_cases.manage` (owner/admin/practitioner
+    // only) — in-screen actions on the case list/detail handle the
+    // finer clinical-vs-payment split themselves.
+    Routes.prosthetic: 'prosthetic_cases.view',
+    Routes.prostheticCreate: 'prosthetic_cases.manage',
+    Routes.prostheticWaitingPlacement: 'prosthetic_cases.view',
+    Routes.prostheticLaboratories: 'prosthetic_cases.manage',
   };
 
   /// Parameterized routes (`/app/cycles/:id`, ...) can't be exact-matched.
@@ -48,10 +72,12 @@ abstract final class RoleGuard {
     ('/app/cycles/', '/release', 'cycles.release'),
     ('/app/cycles/', null, 'cycles.view'),
     ('/app/purchases/', '/receive', 'purchasing.manage'),
+    ('/app/purchases/suppliers/', null, 'suppliers.view'),
     ('/app/purchases/', null, 'purchasing.view'),
     ('/app/labels/', '/usage', 'usages.manage'),
     ('/app/labels/', null, 'labels.view'),
     ('/app/devices/', null, 'devices.view'),
+    ('/app/prosthetic/', null, 'prosthetic_cases.view'),
   ];
 
   static String? requiredPermissionFor(String route) {

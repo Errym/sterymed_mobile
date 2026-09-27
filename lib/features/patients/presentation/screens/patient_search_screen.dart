@@ -13,7 +13,6 @@ import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/patient_data.dart';
 import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_list_bloc.dart';
-import '../widgets/patient_form_sheet.dart';
 import '../widgets/patient_tile.dart';
 
 class PatientSearchScreen extends StatelessWidget {
@@ -33,18 +32,25 @@ class _PatientView extends StatelessWidget {
   const _PatientView();
 
   Future<void> _create(BuildContext context) async {
-    await PatientFormSheet.show(context);
-  }
-
-  Future<void> _edit(BuildContext context, PatientData p) async {
-    await PatientFormSheet.show(context, existing: p);
+    // Patients carry no PII — creating one is a single confirmed action,
+    // not a form. The backend generates the anonymous reference.
+    final ok = await ConfirmationDialog.show(
+      context,
+      title: 'Nouveau dossier patient',
+      message: 'Un dossier anonyme sera créé avec une référence générée '
+          'automatiquement. Aucune information personnelle n\'est '
+          'enregistrée dans cette application.',
+      confirmLabel: 'Créer',
+    );
+    if (!ok || !context.mounted) return;
+    context.read<PatientListBloc>().add(const CreatePatient());
   }
 
   Future<void> _delete(BuildContext context, PatientData p) async {
     final ok = await ConfirmationDialog.show(
       context,
-      title: 'Supprimer ce patient ?',
-      message: '${p.fullName}\n\nCette action est irréversible. Les événements '
+      title: 'Supprimer ce dossier ?',
+      message: '${p.reference}\n\nCette action est irréversible. Les événements '
           'de traçabilité liés resteront dans le journal d\'audit.',
       confirmLabel: 'Supprimer',
       isDestructive: true,
@@ -65,7 +71,7 @@ class _PatientView extends StatelessWidget {
           if (canManage)
             IconButton(
               icon: const Icon(Icons.person_add_alt_outlined),
-              tooltip: 'Nouveau patient',
+              tooltip: 'Nouveau dossier',
               onPressed: () => _create(context),
             ),
         ],
@@ -84,7 +90,7 @@ class _PatientView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.all(AppSpacing.md),
               child: AppSearchField(
-                hint: 'Rechercher un patient...',
+                hint: 'Rechercher par référence...',
                 onChanged: (q) =>
                     context.read<PatientListBloc>().add(SearchPatients(q)),
               ),
@@ -106,14 +112,14 @@ class _PatientView extends StatelessWidget {
                   }
                   if (state.patients.isEmpty) {
                     return EmptyView(
-                      title: 'Aucun patient',
-                      message: 'Ajoutez votre premier patient.',
+                      title: 'Aucun dossier',
+                      message: 'Créez votre premier dossier patient.',
                       icon: Icons.person_outline,
                       action: canManage
                           ? FilledButton.icon(
                               onPressed: () => _create(context),
                               icon: const Icon(Icons.add, size: 18),
-                              label: const Text('Nouveau patient'),
+                              label: const Text('Nouveau dossier'),
                             )
                           : null,
                     );
@@ -152,49 +158,15 @@ class _PatientView extends StatelessWidget {
                               await _delete(context, p);
                               return false; // bloc will refresh; keep row
                             },
-                            child: GestureDetector(
-                              onLongPress:
-                                  canManage ? () => _edit(context, p) : null,
-                              child: PatientTile(
-                                patient: p,
-                                trailing: canManage
-                                    ? PopupMenuButton<String>(
-                                        icon: const Icon(Icons.more_vert,
-                                            size: 18,
-                                            color: AppColors.textSecondary),
-                                        onSelected: (v) {
-                                          if (v == 'edit') _edit(context, p);
-                                          if (v == 'delete') {
-                                            _delete(context, p);
-                                          }
-                                        },
-                                        itemBuilder: (_) => const [
-                                          PopupMenuItem(
-                                            value: 'edit',
-                                            child: Row(children: [
-                                              Icon(Icons.edit_outlined,
-                                                  size: 18),
-                                              SizedBox(width: 8),
-                                              Text('Modifier'),
-                                            ]),
-                                          ),
-                                          PopupMenuItem(
-                                            value: 'delete',
-                                            child: Row(children: [
-                                              Icon(Icons.delete_outline,
-                                                  size: 18,
-                                                  color: AppColors.danger),
-                                              SizedBox(width: 8),
-                                              Text('Supprimer',
-                                                  style: TextStyle(
-                                                      color:
-                                                          AppColors.danger)),
-                                            ]),
-                                          ),
-                                        ],
-                                      )
-                                    : null,
-                              ),
+                            child: PatientTile(
+                              patient: p,
+                              trailing: canManage
+                                  ? IconButton(
+                                      icon: const Icon(Icons.delete_outline,
+                                          size: 18, color: AppColors.danger),
+                                      onPressed: () => _delete(context, p),
+                                    )
+                                  : null,
                             ),
                           ),
                         );

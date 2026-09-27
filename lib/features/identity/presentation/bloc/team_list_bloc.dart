@@ -15,7 +15,6 @@ class TeamListBloc extends Bloc<TeamListEvent, TeamListState> {
     on<LoadTeam>(_onLoad);
     on<FilterTeam>(_onFilter);
     on<SearchTeam>(_onSearch);
-    on<InviteTeamMember>(_onInvite);
   }
 
   Future<void> _onLoad(LoadTeam event, Emitter<TeamListState> emit) async {
@@ -38,18 +37,5 @@ class TeamListBloc extends Bloc<TeamListEvent, TeamListState> {
 
   void _onSearch(SearchTeam event, Emitter<TeamListState> emit) {
     emit(state.copyWith(searchQuery: event.query));
-  }
-
-  Future<void> _onInvite(
-    InviteTeamMember event,
-    Emitter<TeamListState> emit,
-  ) async {
-    try {
-      await _repository.invite(email: event.email, role: event.role);
-      add(const LoadTeam());
-      emit(state.copyWith(inviteSuccess: true));
-    } on ApiException catch (e) {
-      emit(state.copyWith(error: e.message, inviteSuccess: false));
-    }
   }
 }

@@ -18,18 +18,7 @@ class SearchPatients extends PatientListEvent {
 }
 
 class CreatePatient extends PatientListEvent {
-  final PatientCreateRequest request;
-  const CreatePatient(this.request);
-  @override
-  List<Object?> get props => [request];
-}
-
-class UpdatePatient extends PatientListEvent {
-  final String id;
-  final PatientCreateRequest request;
-  const UpdatePatient({required this.id, required this.request});
-  @override
-  List<Object?> get props => [id, request];
+  const CreatePatient();
 }
 
 class DeletePatient extends PatientListEvent {

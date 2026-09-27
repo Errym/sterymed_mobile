@@ -8,7 +8,6 @@ class TeamListState extends Equatable {
   final String? roleFilter;
   final String searchQuery;
   final String? error;
-  final bool inviteSuccess;
 
   const TeamListState({
     this.status = TeamStatus.initial,
@@ -16,7 +15,6 @@ class TeamListState extends Equatable {
     this.roleFilter,
     this.searchQuery = '',
     this.error,
-    this.inviteSuccess = false,
   });
 
   List<TeamMemberData> get filtered {
@@ -40,7 +38,6 @@ class TeamListState extends Equatable {
     String? roleFilter,
     String? searchQuery,
     String? error,
-    bool? inviteSuccess,
     bool clearFilter = false,
   }) {
     return TeamListState(
@@ -49,11 +46,9 @@ class TeamListState extends Equatable {
       roleFilter: clearFilter ? null : (roleFilter ?? this.roleFilter),
       searchQuery: searchQuery ?? this.searchQuery,
       error: error ?? this.error,
-      inviteSuccess: inviteSuccess ?? this.inviteSuccess,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [status, members, roleFilter, searchQuery, error, inviteSuccess];
+  List<Object?> get props => [status, members, roleFilter, searchQuery, error];
 }

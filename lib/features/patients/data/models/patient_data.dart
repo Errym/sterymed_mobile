@@ -1,109 +1,28 @@
 import 'package:equatable/equatable.dart';
 
+/// Patients carry no PII by design — the backend's `Patient` model is
+/// `{id, reference}` only, an auto-generated pseudonym (e.g. "PAT-000042").
+/// `CreatePatientAction`'s own docblock: "there is nothing else to
+/// capture... reference is generated here, never client-supplied, so it
+/// can never accidentally carry real patient data typed into a free-text
+/// field." See docs/BACKEND_BUGS.md#bug-008.
 class PatientData extends Equatable {
   final String id;
-  final String firstName;
-  final String lastName;
-  final String? reference;
-  final DateTime? birthDate;
-  final String? phone;
-  final String? email;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String reference;
 
-  const PatientData({
-    required this.id,
-    this.firstName = '',
-    this.lastName = '',
-    this.reference,
-    this.birthDate,
-    this.phone,
-    this.email,
-    this.createdAt,
-    this.updatedAt,
-  });
+  const PatientData({required this.id, required this.reference});
 
-  factory PatientData.fromJson(Map<String, dynamic> json) {
-    // Field name candidates — the backend hasn't always returned the same
-    // shape, so we try several keys before giving up.
-    String? pick(List<String> keys) {
-      for (final k in keys) {
-        final v = json[k];
-        if (v != null && v.toString().trim().isNotEmpty) {
-          return v.toString().trim();
-        }
-      }
-      return null;
-    }
-
-    var first = pick(['first_name', 'firstName', 'given_name']) ?? '';
-    var last = pick(['last_name', 'lastName', 'family_name', 'surname']) ?? '';
-
-    // Fallback: split full_name / name
-    if (first.isEmpty && last.isEmpty) {
-      final full = pick(['full_name', 'name', 'display_name']) ?? '';
-      if (full.isNotEmpty) {
-        final parts = full.split(RegExp(r'\s+'));
-        if (parts.length == 1) {
-          first = parts.first;
-        } else {
-          first = parts.first;
-          last = parts.sublist(1).join(' ');
-        }
-      }
-    }
-
-    return PatientData(
-      id: pick(['id', 'uuid']) ?? '',
-      firstName: first,
-      lastName: last,
-      reference: pick(['reference', 'file_number', 'dossier_ref']),
-      birthDate: _parseDate(pick(['birth_date', 'birthdate', 'date_of_birth'])),
-      phone: pick(['phone', 'phone_number', 'mobile', 'telephone']),
-      email: pick(['email', 'email_address']),
-      createdAt: _parseDate(pick(['created_at'])),
-      updatedAt: _parseDate(pick(['updated_at'])),
-    );
-  }
-
-  static DateTime? _parseDate(String? s) {
-    if (s == null || s.isEmpty) return null;
-    return DateTime.tryParse(s);
-  }
-
-  String get fullName {
-    final combined = '$firstName $lastName'.trim();
-    return combined.isEmpty ? 'Patient sans nom' : combined;
-  }
+  factory PatientData.fromJson(Map<String, dynamic> json) => PatientData(
+        id: json['id']?.toString() ?? '',
+        reference: json['reference']?.toString() ?? '',
+      );
 
   String get initials {
-    final f = firstName.isNotEmpty ? firstName[0] : '';
-    final l = lastName.isNotEmpty ? lastName[0] : '';
-    final result = '$f$l'.toUpperCase();
-    return result.isEmpty ? '?' : result;
-  }
-
-  PatientData copyWith({
-    String? firstName,
-    String? lastName,
-    String? reference,
-    String? phone,
-    String? email,
-  }) {
-    return PatientData(
-      id: id,
-      firstName: firstName ?? this.firstName,
-      lastName: lastName ?? this.lastName,
-      reference: reference ?? this.reference,
-      birthDate: birthDate,
-      phone: phone ?? this.phone,
-      email: email ?? this.email,
-      createdAt: createdAt,
-      updatedAt: updatedAt,
-    );
+    final digits = reference.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digits.isNotEmpty) return digits.substring(0, 1);
+    return reference.isNotEmpty ? reference[0].toUpperCase() : '?';
   }
 
   @override
-  List<Object?> get props =>
-      [id, firstName, lastName, reference, phone, email];
+  List<Object?> get props => [id, reference];
 }

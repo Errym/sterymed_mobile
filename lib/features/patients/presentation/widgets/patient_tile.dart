@@ -35,40 +35,11 @@ class PatientTile extends StatelessWidget {
               AppAvatar(initials: patient.initials, size: 40),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(patient.fullName, style: AppTypography.bodyStrong),
-                    const SizedBox(height: 2),
-                    if (patient.reference != null)
-                      Text(patient.reference!, style: AppTypography.caption),
-                    if (patient.phone != null) ...[
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.phone_outlined,
-                              size: 12, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Text(patient.phone!, style: AppTypography.caption),
-                        ],
-                      ),
-                    ],
-                    if (patient.email != null) ...[
-                      const SizedBox(height: 2),
-                      Row(
-                        children: [
-                          const Icon(Icons.mail_outline,
-                              size: 12, color: AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(patient.email!,
-                                style: AppTypography.caption,
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ],
+                child: Text(
+                  patient.reference.isNotEmpty
+                      ? patient.reference
+                      : 'Dossier sans référence',
+                  style: AppTypography.bodyStrong,
                 ),
               ),
               if (trailing != null)

@@ -11,13 +11,13 @@ class TeamRemoteDatasource {
 
   Future<List<TeamMemberData>> list() async {
     try {
-      final res = await _dio.get(
-        '/v1/members',
-        queryParameters: {'per_page': 100},
-      );
+      // GET /v1/members returns a bare JSON array (Spatie Data's
+      // DataCollection, not a cursor-paginated envelope) — no `data`/
+      // `meta` wrapper, unlike most other list endpoints in this app.
+      final res = await _dio.get('/v1/members');
       final raw = res.data;
-      if (raw is! Map || raw['data'] is! List) return const [];
-      return (raw['data'] as List)
+      if (raw is! List) return const [];
+      return raw
           .whereType<Map>()
           .map((e) => TeamMemberData.fromJson(e.cast<String, dynamic>()))
           .toList();

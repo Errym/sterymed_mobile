@@ -38,7 +38,6 @@ abstract final class Routes {
 
   // Team
   static const team = '/app/team';
-  static String teamDetail(String id) => '/app/team/$id';
 
   // Sites
   static const sites = '/app/sites';
@@ -52,6 +51,7 @@ abstract final class Routes {
 
   // Reporting
   static const dataExports = '/app/data-exports';
+  static const evidenceSearch = '/app/evidence-search';
 
   // Sync
   static const sync = '/app/sync';
@@ -64,6 +64,8 @@ abstract final class Routes {
 
   // Suppliers
   static const suppliers = '/app/purchases/suppliers';
+  static String supplierDetail(String id) =>
+      '/app/purchases/suppliers/$id';
 
   // Purchases
   static const purchases = '/app/purchases';
@@ -76,4 +78,11 @@ abstract final class Routes {
 
   // DLU rules
   static const dluRules = '/app/dlu-rules';
+
+  // Prosthetic
+  static const prosthetic = '/app/prosthetic';
+  static const prostheticCreate = '/app/prosthetic/create';
+  static const prostheticWaitingPlacement = '/app/prosthetic/waiting-placement';
+  static const prostheticLaboratories = '/app/prosthetic/laboratories';
+  static String prostheticDetail(String id) => '/app/prosthetic/$id';
 }

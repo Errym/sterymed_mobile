@@ -23,11 +23,3 @@ class SearchTeam extends TeamListEvent {
   @override
   List<Object?> get props => [query];
 }
-
-class InviteTeamMember extends TeamListEvent {
-  final String email;
-  final String role;
-  const InviteTeamMember({required this.email, required this.role});
-  @override
-  List<Object?> get props => [email, role];
-}

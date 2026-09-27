@@ -5,6 +5,8 @@ import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
+import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
@@ -14,6 +16,7 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/media/app_avatar.dart';
 import '../../data/models/team_member_data.dart';
+import '../../data/models/tenant_role.dart';
 import '../../data/repositories/team_repository.dart';
 import '../bloc/team_list_bloc.dart';
 import '../widgets/team_invite_sheet.dart';
@@ -36,8 +39,10 @@ class _TeamListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final canInvite =
-        getIt<SessionStore>().hasPermission('invitations.create');
+    final session = getIt<SessionStore>();
+    final canInvite = session.hasPermission('invitations.create');
+    final canDisable = session.hasPermission('memberships.disable');
+    final currentUserId = session.userId;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
@@ -97,12 +102,10 @@ class _TeamListView extends StatelessWidget {
                 selected: state.roleFilter,
                 onSelected: (v) =>
                     context.read<TeamListBloc>().add(FilterTeam(v)),
-                options: const [
-                  FilterChipOption(value: null, label: 'Tous'),
-                  FilterChipOption(value: 'owner', label: 'Direction'),
-                  FilterChipOption(value: 'practitioner', label: 'Praticiens'),
-                  FilterChipOption(value: 'stock_manager', label: 'Stock'),
-                  FilterChipOption(value: 'reception', label: 'Accueil'),
+                options: [
+                  const FilterChipOption(value: null, label: 'Tous'),
+                  for (final (value, label) in kTenantRoles)
+                    FilterChipOption(value: value, label: label),
                 ],
               ),
               const SizedBox(height: AppSpacing.sm),
@@ -112,10 +115,40 @@ class _TeamListView extends StatelessWidget {
                   itemCount: state.filtered.length,
                   separatorBuilder: (_, __) =>
                       const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) => AnimatedListItem(
-                    index: i,
-                    child: _StaffCard(member: state.filtered[i]),
-                  ),
+                  itemBuilder: (_, i) {
+                    final m = state.filtered[i];
+                    final isSelf = m.userId == currentUserId;
+                    return AnimatedListItem(
+                      index: i,
+                      child: _StaffCard(
+                        member: m,
+                        onDisable: !canDisable || !m.active || isSelf
+                            ? null
+                            : () async {
+                                final ok = await ConfirmationDialog.show(
+                                  context,
+                                  title: 'Désactiver ce membre ?',
+                                  message: '${m.name} perdra immédiatement '
+                                      'l\'accès au cabinet.',
+                                  confirmLabel: 'Désactiver',
+                                  isDestructive: true,
+                                );
+                                if (!ok || !context.mounted) return;
+                                try {
+                                  await getIt<TeamRepository>().disable(m.id);
+                                  if (!context.mounted) return;
+                                  context
+                                      .read<TeamListBloc>()
+                                      .add(const LoadTeam());
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  AppSnackbar.show(context, e.toString(),
+                                      kind: SnackKind.error);
+                                }
+                              },
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
@@ -128,7 +161,8 @@ class _TeamListView extends StatelessWidget {
 
 class _StaffCard extends StatelessWidget {
   final TeamMemberData member;
-  const _StaffCard({required this.member});
+  final VoidCallback? onDisable;
+  const _StaffCard({required this.member, this.onDisable});
 
   @override
   Widget build(BuildContext context) {
@@ -137,11 +171,18 @@ class _StaffCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(
+          color: member.active
+              ? AppColors.borderLight
+              : AppColors.danger.withValues(alpha: 0.4),
+        ),
       ),
       child: Row(
         children: [
-          AppAvatar(initials: member.initials, size: 44),
+          Opacity(
+            opacity: member.active ? 1 : 0.5,
+            child: AppAvatar(initials: member.initials, size: 44),
+          ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
             child: Column(
@@ -151,36 +192,33 @@ class _StaffCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(member.email, style: AppTypography.caption),
                 const SizedBox(height: 6),
-                TypeBadge(
-                  label: member.role.toUpperCase(),
-                  tone: _toneFor(member.role),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  runSpacing: AppSpacing.xs,
+                  children: [
+                    TypeBadge(
+                      label: tenantRoleLabel(member.role),
+                      tone: tenantRoleTone(member.role),
+                    ),
+                    if (!member.active)
+                      const TypeBadge(
+                        label: 'Désactivé',
+                        tone: BadgeTone.red,
+                      ),
+                  ],
                 ),
               ],
             ),
           ),
-          const Icon(
-            Icons.chevron_right,
-            size: 20,
-            color: AppColors.textTertiary,
-          ),
+          if (onDisable != null)
+            IconButton(
+              icon: const Icon(Icons.person_off_outlined,
+                  size: 20, color: AppColors.danger),
+              tooltip: 'Désactiver',
+              onPressed: onDisable,
+            ),
         ],
       ),
     );
-  }
-
-  BadgeTone _toneFor(String role) {
-    switch (role) {
-      case 'owner':
-      case 'admin':
-        return BadgeTone.purple;
-      case 'practitioner':
-        return BadgeTone.green;
-      case 'stock_manager':
-        return BadgeTone.blue;
-      case 'reception':
-        return BadgeTone.orange;
-      default:
-        return BadgeTone.gray;
-    }
   }
 }

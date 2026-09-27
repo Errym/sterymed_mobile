@@ -83,7 +83,7 @@ class _PatientPickerSheetState extends State<PatientPickerSheet> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
               child: AppSearchField(
-                hint: 'Rechercher par nom, prénom...',
+                hint: 'Rechercher par référence...',
                 controller: _controller,
                 autofocus: true,
                 onChanged: (q) => context

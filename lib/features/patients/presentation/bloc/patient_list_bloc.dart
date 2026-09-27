@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/api_exception.dart';
-import '../../data/models/patient_create_request.dart';
 import '../../data/models/patient_data.dart';
 import '../../data/repositories/patient_repository.dart';
 
@@ -16,7 +15,6 @@ class PatientListBloc extends Bloc<PatientListEvent, PatientListState> {
     on<LoadPatients>(_onLoad);
     on<SearchPatients>(_onSearch);
     on<CreatePatient>(_onCreate);
-    on<UpdatePatient>(_onUpdate);
     on<DeletePatient>(_onDelete);
   }
 
@@ -42,16 +40,7 @@ class PatientListBloc extends Bloc<PatientListEvent, PatientListState> {
 
   Future<void> _onCreate(CreatePatient e, Emitter<PatientListState> emit) async {
     try {
-      await _repository.create(e.request);
-      add(const LoadPatients());
-    } on ApiException catch (ex) {
-      emit(state.copyWith(error: ex.message));
-    }
-  }
-
-  Future<void> _onUpdate(UpdatePatient e, Emitter<PatientListState> emit) async {
-    try {
-      await _repository.update(id: e.id, req: e.request);
+      await _repository.create();
       add(const LoadPatients());
     } on ApiException catch (ex) {
       emit(state.copyWith(error: ex.message));
