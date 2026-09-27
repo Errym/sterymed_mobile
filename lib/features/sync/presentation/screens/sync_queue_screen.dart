@@ -69,25 +69,32 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const EmptyView(
-                  title: 'Aucune donnée en attente',
-                  message: 'Tout est synchronisé.',
-                  icon: Icons.cloud_done_outlined,
-                )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: _items.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) => AnimatedListItem(
-                    index: i,
-                    child: _QueueTile(
-                      item: _items[i],
-                      onRetry: () => _retryOne(_items[i].id),
+          : RefreshIndicator(
+              onRefresh: _load,
+              child: _items.isEmpty
+                  ? ListView(
+                      children: const [
+                        EmptyView(
+                          title: 'Aucune donnée en attente',
+                          message: 'Tout est synchronisé.',
+                          icon: Icons.cloud_done_outlined,
+                        ),
+                      ],
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      itemCount: _items.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (_, i) => AnimatedListItem(
+                        index: i,
+                        child: _QueueTile(
+                          item: _items[i],
+                          onRetry: () => _retryOne(_items[i].id),
+                        ),
+                      ),
                     ),
-                  ),
-                ),
+            ),
     );
   }
 }

@@ -24,3 +24,22 @@ class FilterAuditEvents extends AuditListEvent {
   @override
   List<Object?> get props => [action];
 }
+
+class ApplyAdvancedAuditFilters extends AuditListEvent {
+  final String? actorId;
+  final String? actorLabel;
+  final String? subjectType;
+  final DateTime? from;
+  final DateTime? to;
+
+  const ApplyAdvancedAuditFilters({
+    this.actorId,
+    this.actorLabel,
+    this.subjectType,
+    this.from,
+    this.to,
+  });
+
+  @override
+  List<Object?> get props => [actorId, actorLabel, subjectType, from, to];
+}

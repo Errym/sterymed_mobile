@@ -4,9 +4,9 @@ class LabelUsageData extends Equatable {
   final String id;
   final String labelId;
   final String patientId;
-  final String patientName;
+  final String patientReference;
   final String practitionerId;
-  final String practitionerName;
+  final String? practitionerName;
   final String procedure;
   final String? notes;
   final DateTime usedAt;
@@ -15,9 +15,9 @@ class LabelUsageData extends Equatable {
     required this.id,
     required this.labelId,
     required this.patientId,
-    required this.patientName,
+    required this.patientReference,
     required this.practitionerId,
-    required this.practitionerName,
+    this.practitionerName,
     required this.procedure,
     this.notes,
     required this.usedAt,
@@ -28,9 +28,9 @@ class LabelUsageData extends Equatable {
       id: json['id']?.toString() ?? '',
       labelId: json['label_id']?.toString() ?? '',
       patientId: json['patient_id']?.toString() ?? '',
-      patientName: json['patient_name']?.toString() ?? '',
+      patientReference: json['patient_reference']?.toString() ?? '',
       practitionerId: json['practitioner_id']?.toString() ?? '',
-      practitionerName: json['practitioner_name']?.toString() ?? '',
+      practitionerName: json['practitioner_name']?.toString(),
       procedure: json['procedure']?.toString() ?? '',
       notes: json['notes']?.toString(),
       usedAt: DateTime.tryParse(json['used_at']?.toString() ?? '') ??
@@ -43,7 +43,7 @@ class LabelUsageData extends Equatable {
         id,
         labelId,
         patientId,
-        patientName,
+        patientReference,
         practitionerId,
         practitionerName,
         procedure,

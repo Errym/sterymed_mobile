@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/cards/kpi_card.dart';
@@ -35,6 +36,7 @@ class _StockLevelView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('inventory.manage');
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
@@ -120,46 +122,48 @@ class _StockLevelView extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.lg),
-                        AnimatedListItem(
-                          index: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const SectionHeader(title: 'Actions rapides'),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: _QuickAction(
-                                      icon: Icons.remove_circle_outline,
-                                      label: 'Sortie',
-                                      onTap: () =>
-                                          context.go(Routes.stockIssue),
+                        if (canManage) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          AnimatedListItem(
+                            index: 1,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SectionHeader(title: 'Actions rapides'),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _QuickAction(
+                                        icon: Icons.remove_circle_outline,
+                                        label: 'Sortie',
+                                        onTap: () =>
+                                            context.go(Routes.stockIssue),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: _QuickAction(
-                                      icon: Icons.edit_outlined,
-                                      label: 'Ajustement',
-                                      onTap: () =>
-                                          context.go(Routes.stockAdjust),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: _QuickAction(
+                                        icon: Icons.edit_outlined,
+                                        label: 'Ajustement',
+                                        onTap: () =>
+                                            context.go(Routes.stockAdjust),
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.sm),
-                                  Expanded(
-                                    child: _QuickAction(
-                                      icon: Icons.swap_horiz,
-                                      label: 'Transfert',
-                                      onTap: () =>
-                                          context.go(Routes.stockTransfer),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    Expanded(
+                                      child: _QuickAction(
+                                        icon: Icons.swap_horiz,
+                                        label: 'Transfert',
+                                        onTap: () =>
+                                            context.go(Routes.stockTransfer),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                  ],
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
+                        ],
                         const SizedBox(height: AppSpacing.lg),
                         const SectionHeader(title: 'Catalogue'),
                         AppSearchField(

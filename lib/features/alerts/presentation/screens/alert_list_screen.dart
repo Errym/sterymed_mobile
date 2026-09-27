@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/severity_badge.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -56,6 +58,7 @@ class _AlertListViewState extends State<_AlertListView> {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('alerts.manage');
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(title: const Text('Alertes')),
@@ -96,6 +99,7 @@ class _AlertListViewState extends State<_AlertListView> {
                       alerts: state.criticalAlerts,
                       color: AppColors.danger,
                       icon: Icons.error_outline,
+                      canManage: canManage,
                     ),
                   ),
                 if (state.warningAlerts.isNotEmpty)
@@ -106,6 +110,7 @@ class _AlertListViewState extends State<_AlertListView> {
                       alerts: state.warningAlerts,
                       color: AppColors.warning,
                       icon: Icons.warning_amber_outlined,
+                      canManage: canManage,
                     ),
                   ),
                 if (state.infoAlerts.isNotEmpty)
@@ -116,6 +121,7 @@ class _AlertListViewState extends State<_AlertListView> {
                       alerts: state.infoAlerts,
                       color: AppColors.info,
                       icon: Icons.info_outline,
+                      canManage: canManage,
                     ),
                   ),
                 if (state.isLoadingMore)
@@ -137,12 +143,14 @@ class _Group extends StatelessWidget {
   final List<AlertData> alerts;
   final Color color;
   final IconData icon;
+  final bool canManage;
 
   const _Group({
     required this.title,
     required this.alerts,
     required this.color,
     required this.icon,
+    required this.canManage,
   });
 
   @override
@@ -182,18 +190,20 @@ class _Group extends StatelessWidget {
           _AlertTile(
             alert: alert,
             color: color,
-            onResolve: () async {
-              final confirmed = await ConfirmationDialog.show(
-                context,
-                title: 'Résoudre l\'alerte ?',
-                message:
-                    'Êtes-vous sûr de vouloir marquer cette alerte comme résolue ?',
-                confirmLabel: 'Résoudre',
-              );
-              if (confirmed && context.mounted) {
-                context.read<AlertListBloc>().add(ResolveAlert(alert.id));
-              }
-            },
+            onResolve: !canManage
+                ? null
+                : () async {
+                    final confirmed = await ConfirmationDialog.show(
+                      context,
+                      title: 'Résoudre l\'alerte ?',
+                      message: 'Êtes-vous sûr de vouloir marquer cette '
+                          'alerte comme résolue ?',
+                      confirmLabel: 'Résoudre',
+                    );
+                    if (confirmed && context.mounted) {
+                      context.read<AlertListBloc>().add(ResolveAlert(alert.id));
+                    }
+                  },
           ),
       ],
     );
@@ -203,7 +213,7 @@ class _Group extends StatelessWidget {
 class _AlertTile extends StatelessWidget {
   final AlertData alert;
   final Color color;
-  final VoidCallback onResolve;
+  final VoidCallback? onResolve;
 
   const _AlertTile({
     required this.alert,
@@ -252,18 +262,16 @@ class _AlertTile extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.sm),
                     Text(alert.message, style: AppTypography.bodyStrong),
-                    if (alert.subjectLabel != null) ...[
-                      const SizedBox(height: 2),
-                      Text(alert.subjectLabel!, style: AppTypography.caption),
-                    ],
-                    const SizedBox(height: AppSpacing.sm),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: onResolve,
-                        child: const Text('Marquer comme résolu'),
+                    if (onResolve != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: onResolve,
+                          child: const Text('Marquer comme résolu'),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),

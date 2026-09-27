@@ -10,34 +10,29 @@ import '../../../patients/data/models/patient_data.dart';
 /// input" requirement.
 class LabelUsageDraft {
   final String? patientId;
-  final String? patientFirstName;
-  final String? patientLastName;
+  final String? patientReference;
   final String procedure;
   final String notes;
 
   const LabelUsageDraft({
     this.patientId,
-    this.patientFirstName,
-    this.patientLastName,
+    this.patientReference,
     this.procedure = '',
     this.notes = '',
   });
 
+  /// Patients carry no PII (see docs/BACKEND_BUGS.md#bug-008) — the
+  /// reference is an anonymous pseudonym, safe to keep in a local draft.
   PatientData? get patient => patientId == null
       ? null
-      : PatientData(
-          id: patientId!,
-          firstName: patientFirstName ?? '',
-          lastName: patientLastName ?? '',
-        );
+      : PatientData(id: patientId!, reference: patientReference ?? '');
 
   bool get isEmpty =>
       patientId == null && procedure.isEmpty && notes.isEmpty;
 
   Map<String, dynamic> toJson() => {
         'patientId': patientId,
-        'patientFirstName': patientFirstName,
-        'patientLastName': patientLastName,
+        'patientReference': patientReference,
         'procedure': procedure,
         'notes': notes,
       };
@@ -45,8 +40,7 @@ class LabelUsageDraft {
   factory LabelUsageDraft.fromJson(Map<String, dynamic> json) =>
       LabelUsageDraft(
         patientId: json['patientId'] as String?,
-        patientFirstName: json['patientFirstName'] as String?,
-        patientLastName: json['patientLastName'] as String?,
+        patientReference: json['patientReference'] as String?,
         procedure: json['procedure'] as String? ?? '',
         notes: json['notes'] as String? ?? '',
       );

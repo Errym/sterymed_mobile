@@ -12,7 +12,7 @@ class ExportRemoteDatasource {
     try {
       final res = await _dio.get(
         '/v1/data-export-requests',
-        queryParameters: {'per_page': 50},
+        queryParameters: {'limit': 50},
       );
       final raw = res.data;
       if (raw is! Map || raw['data'] is! List) return const [];

@@ -5,8 +5,13 @@ import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../../stock/data/models/stock_option.dart';
+import '../../../stock/data/repositories/stock_repository.dart';
+import '../../data/models/product_category_data.dart';
 import '../../data/models/product_data.dart';
+import '../../data/repositories/product_category_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../bloc/product_list_bloc.dart';
 
@@ -44,6 +49,12 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   bool _isSterilizable = false;
   bool _submitting = false;
 
+  String? _categoryId;
+  String? _locationId;
+  List<ProductCategoryData> _categories = [];
+  List<StockOption> _locations = [];
+  bool _loadingOptions = true;
+
   @override
   void initState() {
     super.initState();
@@ -55,6 +66,34 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     );
     _barcodeCtrl = TextEditingController(text: widget.existing?.barcode ?? '');
     _isSterilizable = widget.existing?.isSterilizable ?? false;
+    _categoryId = widget.existing?.categoryId;
+    _locationId = widget.existing?.defaultLocationId;
+    _loadOptions();
+  }
+
+  Future<void> _loadOptions() async {
+    try {
+      final results = await Future.wait([
+        getIt<ProductCategoryRepository>().list(),
+        getIt<StockRepository>().listOptions(),
+      ]);
+      final categories = results[0] as List<ProductCategoryData>;
+      final options = results[1] as ({
+        List<StockOption> batches,
+        List<StockOption> locations
+      });
+      if (!mounted) return;
+      setState(() {
+        _categories = categories;
+        _locations = options.locations;
+        _loadingOptions = false;
+      });
+    } catch (_) {
+      // Both fields are optional server-side — a failed lookup just means
+      // an empty dropdown, not a blocked form.
+      if (!mounted) return;
+      setState(() => _loadingOptions = false);
+    }
   }
 
   @override
@@ -77,6 +116,8 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
       isSterilizable: _isSterilizable,
       barcode:
           _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
+      categoryId: _categoryId,
+      defaultLocationId: _locationId,
     );
     final bloc = context.read<ProductListBloc>();
     setState(() => _submitting = true);
@@ -141,6 +182,30 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(label: 'Code-barres', controller: _barcodeCtrl),
+            const SizedBox(height: AppSpacing.md),
+            AppDropdown<String?>(
+              label: 'Famille',
+              value: _categoryId,
+              enabled: !_loadingOptions,
+              options: [
+                const AppDropdownOption(value: null, label: 'Aucune'),
+                ..._categories
+                    .map((c) => AppDropdownOption(value: c.id, label: c.name)),
+              ],
+              onChanged: (v) => setState(() => _categoryId = v),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            AppDropdown<String?>(
+              label: 'Emplacement par défaut',
+              value: _locationId,
+              enabled: !_loadingOptions,
+              options: [
+                const AppDropdownOption(value: null, label: 'Aucun'),
+                ..._locations
+                    .map((l) => AppDropdownOption(value: l.id, label: l.label)),
+              ],
+              onChanged: (v) => setState(() => _locationId = v),
+            ),
             const SizedBox(height: AppSpacing.md),
             SwitchListTile(
               value: _isSterilizable,

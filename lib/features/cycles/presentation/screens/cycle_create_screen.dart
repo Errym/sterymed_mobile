@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
@@ -84,7 +85,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       if (!mounted) return;
       setState(() {
         _loadingDevices = false;
-        _deviceError = e.toString();
+        _deviceError = ErrorMessage.from(e);
       });
     }
   }
@@ -109,7 +110,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       if (!mounted || _deviceId != deviceId) return;
       setState(() {
         _loadingPrograms = false;
-        _programError = e.toString();
+        _programError = ErrorMessage.from(e);
       });
     }
   }
@@ -153,7 +154,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

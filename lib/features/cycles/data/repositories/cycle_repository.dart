@@ -231,6 +231,21 @@ class CycleRepository {
   Future<void> deleteAttachment(String id, String attachmentId) =>
       _remote.deleteAttachment(id, attachmentId);
 
+  // ── Labels ────────────────────────────────────────────────────────────
+
+  Future<int> countLabels(String id) => _remote.countLabels(id);
+
+  Future<int> generateLabels(
+    String id, {
+    required String packagingType,
+    required String storageCondition,
+  }) =>
+      _remote.generateLabels(
+        id,
+        packagingType: packagingType,
+        storageCondition: storageCondition,
+      );
+
   // ── Enrichment ────────────────────────────────────────────────────────
 
   Future<List<CycleData>> _enrichAll(List<CycleData> list) async {
@@ -270,6 +285,8 @@ class CycleRepository {
   Future<CycleData> _enrich(CycleData c) async {
     var deviceName = c.deviceName;
     var programName = c.programName;
+    var programTemperatureCelsius = c.programTemperatureCelsius;
+    var programPlateauMinutes = c.programPlateauMinutes;
 
     if (deviceName.isEmpty && c.deviceId.isNotEmpty) {
       try {
@@ -286,7 +303,7 @@ class CycleRepository {
       }
     }
 
-    if (programName == null &&
+    if ((programName == null || programTemperatureCelsius == null) &&
         c.deviceProgramId != null &&
         c.deviceProgramId!.isNotEmpty &&
         c.deviceId.isNotEmpty) {
@@ -296,7 +313,11 @@ class CycleRepository {
             .timeout(_enrichTimeout, onTimeout: () => []);
         final match =
             programs.where((p) => p.id == c.deviceProgramId).toList();
-        if (match.isNotEmpty) programName = match.first.name;
+        if (match.isNotEmpty) {
+          programName ??= match.first.name;
+          programTemperatureCelsius = match.first.temperatureCelsius;
+          programPlateauMinutes = match.first.plateauMinutes;
+        }
       } catch (e) {
         AppLogger.d('CycleRepository._enrich: program lookup failed: $e');
       }
@@ -305,6 +326,8 @@ class CycleRepository {
     return c.copyWithNames(
       deviceName: deviceName.isEmpty ? 'Appareil inconnu' : deviceName,
       programName: programName,
+      programTemperatureCelsius: programTemperatureCelsius,
+      programPlateauMinutes: programPlateauMinutes,
     );
   }
 

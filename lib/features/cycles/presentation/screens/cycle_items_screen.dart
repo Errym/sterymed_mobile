@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
+import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
@@ -23,6 +28,9 @@ class CycleItemsScreen extends StatefulWidget {
 class _CycleItemsScreenState extends State<CycleItemsScreen> {
   List<CycleItemData> _items = [];
   bool _loading = true;
+  String? _error;
+
+  bool get _canManage => getIt<SessionStore>().hasPermission('cycles.manage');
 
   @override
   void initState() {
@@ -31,7 +39,10 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
   }
 
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final items =
           await context.read<CycleRepository>().listItems(widget.cycleId);
@@ -40,9 +51,12 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
         _items = items;
         _loading = false;
       });
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _error = ErrorMessage.from(e);
+      });
     }
   }
 
@@ -88,7 +102,7 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       descCtrl.dispose();
       batchCtrl.dispose();
@@ -112,8 +126,40 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
+  }
+
+  Widget _buildBody() {
+    if (_loading && _items.isEmpty) {
+      return const LoadingView();
+    }
+    if (_error != null && _items.isEmpty) {
+      return ErrorView(message: _error!, onRetry: _load);
+    }
+    if (_items.isEmpty) {
+      return const EmptyView(
+        title: 'Aucun instrument',
+        message: 'Ajoutez les instruments du cycle.',
+        icon: Icons.inventory_2_outlined,
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        children: [
+          for (var i = 0; i < _items.length; i++)
+            AnimatedListItem(
+              index: i,
+              child: CycleItemRow(
+                item: _items[i],
+                onDelete: _canManage ? () => _delete(_items[i]) : null,
+              ),
+            ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -121,35 +167,14 @@ class _CycleItemsScreenState extends State<CycleItemsScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: const AppAppBar(title: 'Instruments'),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _items.isEmpty
-              ? const EmptyView(
-                  title: 'Aucun instrument',
-                  message: 'Ajoutez les instruments du cycle.',
-                  icon: Icons.inventory_2_outlined,
-                )
-              : RefreshIndicator(
-                  onRefresh: _load,
-                  child: ListView(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    children: [
-                      for (var i = 0; i < _items.length; i++)
-                        AnimatedListItem(
-                          index: i,
-                          child: CycleItemRow(
-                            item: _items[i],
-                            onDelete: () => _delete(_items[i]),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _add,
-        icon: const Icon(Icons.add),
-        label: const Text('Ajouter'),
-      ),
+      body: _buildBody(),
+      floatingActionButton: _canManage
+          ? FloatingActionButton.extended(
+              onPressed: _add,
+              icon: const Icon(Icons.add),
+              label: const Text('Ajouter'),
+            )
+          : null,
     );
   }
 }

@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -17,6 +18,7 @@ import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/purchase_order_data.dart';
 import '../../data/models/purchase_order_line_data.dart';
 import '../../data/repositories/purchase_repository.dart';
+import '../widgets/purchase_order_stepper.dart';
 
 class PurchaseOrderDetailScreen extends StatefulWidget {
   final String poId;
@@ -65,16 +67,20 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
     }
   }
 
+  // Backend enum (PurchaseOrderStatus): draft, ordered, partially_received,
+  // received, closed, cancelled.
   String _statusLabel(String s) {
     switch (s) {
       case 'draft':
         return 'Brouillon';
       case 'ordered':
         return 'Commandé';
-      case 'partial':
+      case 'partially_received':
         return 'Partiel';
       case 'received':
         return 'Reçu';
+      case 'closed':
+        return 'Clôturé';
       case 'cancelled':
         return 'Annulé';
       default:
@@ -86,10 +92,12 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
     switch (s) {
       case 'ordered':
         return BadgeTone.blue;
-      case 'partial':
+      case 'partially_received':
         return BadgeTone.orange;
       case 'received':
         return BadgeTone.green;
+      case 'closed':
+        return BadgeTone.gray;
       case 'cancelled':
         return BadgeTone.gray;
       default:
@@ -135,7 +143,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Text(po.reference,
+                            child: Text(po.supplierName,
                                 style: AppTypography.sectionTitle),
                           ),
                           TypeBadge(
@@ -150,7 +158,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                           const Icon(Icons.local_shipping_outlined,
                               size: 16, color: AppColors.textSecondary),
                           const SizedBox(width: 4),
-                          Text(po.supplierName, style: AppTypography.caption),
+                          Text(po.shortId, style: AppTypography.caption),
                         ],
                       ),
                       const SizedBox(height: 4),
@@ -187,6 +195,22 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                   ),
                 ),
               ),
+              if (po.status != 'cancelled') ...[
+                const SizedBox(height: AppSpacing.lg),
+                AnimatedListItem(
+                  index: i++,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.md, horizontal: AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: AppColors.backgroundCard,
+                      borderRadius: BorderRadius.circular(AppRadius.card),
+                      border: Border.all(color: AppColors.borderLight),
+                    ),
+                    child: PurchaseOrderStepper(status: po.status),
+                  ),
+                ),
+              ],
               const SizedBox(height: AppSpacing.lg),
               AnimatedListItem(
                 index: i++,
@@ -195,7 +219,8 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
               for (final l in po.lines)
                 AnimatedListItem(index: i++, child: _LineTile(line: l)),
               const SizedBox(height: AppSpacing.xl),
-              if (po.canOrder)
+              if (po.canOrder &&
+                  getIt<SessionStore>().hasPermission('purchasing.manage'))
                 AnimatedListItem(
                   index: i++,
                   child: PrimaryButton(
@@ -205,7 +230,8 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                     onPressed: _marking ? null : _markOrdered,
                   ),
                 ),
-              if (po.canReceive)
+              if (po.canReceive &&
+                  getIt<SessionStore>().hasPermission('purchasing.manage'))
                 AnimatedListItem(
                   index: i++,
                   child: Padding(

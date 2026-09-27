@@ -15,7 +15,7 @@ class NonConformityRemoteDatasource {
         ApiEndpoints.nonConformities,
         queryParameters: {
           if (status != null) 'status': status,
-          'per_page': 50,
+          'limit': 50,
         },
       );
       final raw = res.data;

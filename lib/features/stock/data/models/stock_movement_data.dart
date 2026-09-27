@@ -22,13 +22,14 @@ class StockMovementData extends Equatable {
   factory StockMovementData.fromJson(Map<String, dynamic> json) =>
       StockMovementData(
         id: json['id']?.toString() ?? '',
-        kind: json['kind']?.toString() ?? '',
+        kind: json['type']?.toString() ?? '',
         batchId: json['batch_id']?.toString() ?? '',
         locationId: json['location_id']?.toString() ?? '',
         qty: (json['qty'] as num?)?.toInt() ?? 0,
         reason: json['reason']?.toString(),
-        createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
-            DateTime.now(),
+        createdAt:
+            DateTime.tryParse(json['occurred_at']?.toString() ?? '') ??
+                DateTime.now(),
       );
 
   @override

@@ -7,6 +7,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/inputs/app_date_picker.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
@@ -28,6 +29,8 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
   PurchaseOrderData? _po;
   final Map<String, TextEditingController> _qtyCtrls = {};
   final Map<String, TextEditingController> _batchCtrls = {};
+  final Map<String, TextEditingController> _discrepancyCtrls = {};
+  final Map<String, DateTime?> _expiryDates = {};
   List<StockOption> _locations = [];
   String? _locationId;
   bool _loading = true;
@@ -47,6 +50,9 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
     for (final c in _batchCtrls.values) {
       c.dispose();
     }
+    for (final c in _discrepancyCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -64,6 +70,8 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
       for (final l in po.lines) {
         _qtyCtrls[l.id] = TextEditingController(text: '${l.qtyRemaining}');
         _batchCtrls[l.id] = TextEditingController();
+        _discrepancyCtrls[l.id] = TextEditingController();
+        _expiryDates[l.id] = null;
       }
       if (!mounted) return;
       setState(() {
@@ -92,12 +100,22 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
           .map((l) {
             final qty = int.tryParse(_qtyCtrls[l.id]?.text.trim() ?? '') ?? 0;
             final batch = _batchCtrls[l.id]?.text.trim() ?? '';
+            final expiry = _expiryDates[l.id];
+            final discrepancy = _discrepancyCtrls[l.id]?.text.trim() ?? '';
             return {
               'purchase_order_line_id': l.id,
               'batch_number': batch.isEmpty
                   ? 'BATCH-${DateTime.now().millisecondsSinceEpoch}'
                   : batch,
               'qty': qty,
+              // Both nullable server-side (ReceiveGoodsRequest.php) —
+              // only sent when the user actually filled them in.
+              if (expiry != null)
+                'expiry_date':
+                    '${expiry.year.toString().padLeft(4, '0')}-'
+                    '${expiry.month.toString().padLeft(2, '0')}-'
+                    '${expiry.day.toString().padLeft(2, '0')}',
+              if (discrepancy.isNotEmpty) 'discrepancy_reason': discrepancy,
             };
           })
           .where((m) => (m['qty'] as int) > 0)
@@ -204,6 +222,20 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
                                 AppTextField(
                                   label: 'Numéro de lot',
                                   controller: _batchCtrls[l.id],
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                AppDatePicker(
+                                  label: 'Date de péremption (optionnel)',
+                                  value: _expiryDates[l.id],
+                                  onChanged: (d) =>
+                                      setState(() => _expiryDates[l.id] = d),
+                                ),
+                                const SizedBox(height: AppSpacing.sm),
+                                AppTextField(
+                                  label: 'Motif de l\'écart (si applicable)',
+                                  hint: 'Ex : carton endommagé, quantité '
+                                      'incomplète du fournisseur',
+                                  controller: _discrepancyCtrls[l.id],
                                 ),
                               ],
                             ),

@@ -28,11 +28,10 @@ class LabelDetailBloc extends Bloc<LabelDetailEvent, LabelDetailState> {
         result: result,
       ));
 
-      final label = result.label;
-      if (_usageRepository != null && label != null) {
+      if (_usageRepository != null && result.labelId.isNotEmpty) {
         emit(state.copyWith(historyLoading: true));
         try {
-          final history = await _usageRepository.history(label.id);
+          final history = await _usageRepository.history(result.labelId);
           emit(state.copyWith(history: history, historyLoading: false));
         } catch (_) {
           // Usage history is a supplementary detail -- don't fail the
@@ -44,6 +43,7 @@ class LabelDetailBloc extends Bloc<LabelDetailEvent, LabelDetailState> {
       emit(state.copyWith(
         status: LabelDetailStatus.failure,
         error: e.message,
+        errorCode: e.code,
       ));
     }
   }

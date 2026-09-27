@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/errors/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
@@ -12,9 +13,12 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../dlu/data/models/dlu_rule_data.dart';
+import '../../../dlu/data/repositories/dlu_repository.dart';
 import '../../data/local/cycle_notes_cache.dart';
 import '../../data/models/control_test_data.dart';
 import '../../data/models/cycle_attachment_data.dart';
@@ -320,9 +324,24 @@ class _CycleDetailView extends StatelessWidget {
                       ),
                     ),
 
+                  // ── Labels ──
+                  if (c.status == 'released' &&
+                      session.hasPermission('labels.manage'))
+                    AnimatedListItem(
+                      index: 7,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const SizedBox(height: AppSpacing.lg),
+                          const SectionHeader(title: 'Étiquettes'),
+                          _LabelsSection(cycleId: cycleId),
+                        ],
+                      ),
+                    ),
+
                   // ── Action button ──
                   AnimatedListItem(
-                    index: 7,
+                    index: 8,
                     child: Column(
                       children: [
                         const SizedBox(height: AppSpacing.xxl),
@@ -369,6 +388,10 @@ class _CycleDetailView extends StatelessWidget {
               c.deviceName.isEmpty ? 'Appareil inconnu' : c.deviceName),
           if (c.programName != null)
             _row(Icons.thermostat_outlined, 'Programme', c.programName!),
+          if (c.programTemperatureCelsius != null &&
+              c.programPlateauMinutes != null)
+            _row(Icons.speed_outlined, 'Paramètres',
+                '${c.programTemperatureCelsius} °C · ${c.programPlateauMinutes} min'),
           if (c.operatorName != null)
             _row(Icons.person_outline, 'Opérateur', c.operatorName!),
         ],
@@ -886,6 +909,170 @@ class _NotesSectionState extends State<_NotesSection> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Labels section
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LabelsSection extends StatefulWidget {
+  final String cycleId;
+  const _LabelsSection({required this.cycleId});
+
+  @override
+  State<_LabelsSection> createState() => _LabelsSectionState();
+}
+
+class _LabelsSectionState extends State<_LabelsSection> {
+  late Future<int> _countFuture;
+  bool _generating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _countFuture = getIt<CycleRepository>().countLabels(widget.cycleId);
+  }
+
+  void _reload() {
+    setState(() {
+      _countFuture = getIt<CycleRepository>().countLabels(widget.cycleId);
+    });
+  }
+
+  Future<void> _generate() async {
+    final rules = await getIt<DluRepository>().list();
+    if (!mounted) return;
+    if (rules.isEmpty) {
+      AppSnackbar.show(
+        context,
+        'Aucune règle DLU configurée. Contactez le titulaire du cabinet.',
+        kind: SnackKind.error,
+      );
+      return;
+    }
+
+    DluRuleData selected = rules.first;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: const Text('Générer les étiquettes'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Une étiquette sera créée pour chaque instrument de ce '
+                  'cycle, avec la DLC calculée depuis la règle choisie.',
+                  style: AppTypography.caption,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                AppDropdown<DluRuleData>(
+                  label: 'Emballage / conditions de stockage',
+                  value: selected,
+                  options: rules
+                      .map((r) => AppDropdownOption(
+                            value: r,
+                            label: '${r.packagingType} — '
+                                '${r.storageCondition} '
+                                '(${r.shelfLifeDays} j)',
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => selected = v ?? selected),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, false),
+              child: const Text('Annuler'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx, true),
+              child: const Text('Générer'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _generating = true);
+    try {
+      final count = await getIt<CycleRepository>().generateLabels(
+        widget.cycleId,
+        packagingType: selected.packagingType,
+        storageCondition: selected.storageCondition,
+      );
+      if (!mounted) return;
+      AppSnackbar.show(
+        context,
+        '$count étiquette(s) générée(s).',
+        kind: SnackKind.success,
+      );
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, _labelError(e), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _generating = false);
+    }
+  }
+
+  String _labelError(Object e) {
+    if (e is ApiException) {
+      switch (e.code) {
+        case 'CYCLE_NOT_RELEASED':
+          return 'Les étiquettes ne peuvent être générées que pour un '
+              'cycle libéré.';
+        case 'CYCLE_LABELS_ALREADY_GENERATED':
+          return 'Les étiquettes de ce cycle ont déjà été générées.';
+        case 'DLU_RULE_NOT_FOUND':
+          return 'Aucune règle DLU ne correspond à cette combinaison '
+              'emballage/stockage.';
+      }
+    }
+    return ErrorMessage.from(e);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<int>(
+      future: _countFuture,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        }
+        if (snap.hasError) {
+          return _InfoBanner(message: _labelError(snap.error!));
+        }
+        final count = snap.data ?? 0;
+        if (count > 0) {
+          return _InfoBanner(
+            message: '$count étiquette(s) générée(s) pour ce cycle.',
+          );
+        }
+        return PrimaryButton(
+          label: 'Générer les étiquettes',
+          icon: Icons.qr_code_2_outlined,
+          isLoading: _generating,
+          onPressed: _generating ? null : _generate,
+        );
+      },
     );
   }
 }

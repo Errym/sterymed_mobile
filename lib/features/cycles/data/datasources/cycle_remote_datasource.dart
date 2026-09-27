@@ -26,7 +26,7 @@ class CycleRemoteDatasource {
     try {
       final res = await _dio.get(ApiEndpoints.cycles, queryParameters: {
         if (cursor != null) 'cursor': cursor,
-        'per_page': 20,
+        'limit': 20,
       });
       final json = (res.data as Map).cast<String, dynamic>();
       final items = (json['data'] as List)
@@ -172,6 +172,41 @@ class CycleRemoteDatasource {
           .map((e) =>
               CycleAttachmentData.fromJson((e as Map).cast<String, dynamic>()))
           .toList();
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Labels — a released cycle has no scannable label until this is called
+  // once (backend enforces exactly-once via CYCLE_LABELS_ALREADY_GENERATED).
+  // -------------------------------------------------------------------------
+
+  Future<int> countLabels(String cycleId) async {
+    try {
+      final res = await _dio.get(ApiEndpoints.cycleLabels(cycleId));
+      return (res.data as List).length;
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  Future<int> generateLabels(
+    String cycleId, {
+    required String packagingType,
+    required String storageCondition,
+  }) async {
+    try {
+      final res = await _dio.post(
+        ApiEndpoints.cycleLabels(cycleId),
+        data: {
+          'packaging_type': packagingType,
+          'storage_condition': storageCondition,
+        },
+        options:
+            Options(headers: {'Idempotency-Key': generateIdempotencyKey()}),
+      );
+      return (res.data as List).length;
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

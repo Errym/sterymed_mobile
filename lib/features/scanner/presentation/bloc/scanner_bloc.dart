@@ -36,14 +36,19 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
     emit(state.copyWith(
       status: ScannerStatus.resolving,
       lastCode: e.rawValue,
-      error: null,
+      clearError: true,
+      clearErrorCode: true,
     ));
     try {
       final result = await _labels.getByCode(e.rawValue);
       emit(state.copyWith(status: ScannerStatus.resolved, result: result));
       _startCooldown();
     } on ApiException catch (ex) {
-      emit(state.copyWith(status: ScannerStatus.error, error: ex.message));
+      emit(state.copyWith(
+        status: ScannerStatus.error,
+        error: ex.message,
+        errorCode: ex.code,
+      ));
       _startCooldown();
     } catch (ex) {
       emit(state.copyWith(

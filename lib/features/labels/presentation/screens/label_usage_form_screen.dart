@@ -12,12 +12,12 @@ import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../patients/data/models/patient_data.dart';
 import '../../../patients/presentation/widgets/patient_picker_sheet.dart';
 import '../../data/local/label_usage_draft_store.dart';
-import '../../data/models/label_data.dart';
+import '../../data/models/label_scan_result.dart';
 import '../../data/repositories/label_usage_repository.dart';
 
 class LabelUsageFormScreen extends StatefulWidget {
   final String labelId;
-  final LabelData? label;
+  final LabelScanResult? label;
   const LabelUsageFormScreen({super.key, required this.labelId, this.label});
 
   @override
@@ -54,8 +54,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
         widget.labelId,
         LabelUsageDraft(
           patientId: _patient?.id,
-          patientFirstName: _patient?.firstName,
-          patientLastName: _patient?.lastName,
+          patientReference: _patient?.reference,
           procedure: _procedureCtrl.text,
           notes: _notesCtrl.text,
         ),
@@ -96,9 +95,9 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
       await context.read<LabelUsageRepository>().recordUsage(
             labelId: widget.labelId,
             patientId: _patient!.id,
-            patientName: _patient!.fullName,
+            patientReference: _patient!.reference,
             practitionerId: practitionerId,
-            practitionerName: getIt<SessionStore>().userName ?? '',
+            practitionerName: getIt<SessionStore>().userName,
             procedure: _procedureCtrl.text.trim(),
             notes:
                 _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
@@ -150,19 +149,15 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          widget.label?.productName ?? 'Étiquette',
+                          widget.label != null
+                              ? '${widget.label!.deviceName} · Cycle ${widget.label!.cycleNumber}'
+                              : 'Étiquette',
                           style: AppTypography.bodyStrong,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          widget.label != null
-                              ? [
-                                  widget.label!.code,
-                                  if (widget.label!.batchNumber != null)
-                                    'Lot ${widget.label!.batchNumber}',
-                                ].join(' · ')
-                              : widget.labelId,
+                          widget.label?.siteName ?? widget.labelId,
                           style: AppTypography.caption,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -210,7 +205,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                   suffixIcon: Icon(Icons.person_search_outlined),
                 ),
                 child: Text(
-                  _patient?.fullName ?? 'Sélectionner un patient',
+                  _patient?.reference ?? 'Sélectionner un patient',
                   style: AppTypography.body.copyWith(
                     color: _patient == null
                         ? AppColors.textTertiary

@@ -88,8 +88,7 @@ class _ProductListView extends StatelessWidget {
                       child: _ProductTile(
                         product: p,
                         onEdit: canManage
-                            ? () =>
-                                ProductFormSheet.show(context, existing: p)
+                            ? () => ProductFormSheet.show(context, existing: p)
                             : null,
                         onDelete: canManage
                             ? () async {

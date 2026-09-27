@@ -7,6 +7,7 @@ class ScannerState extends Equatable {
   final String? lastCode;
   final LabelScanResult? result;
   final String? error;
+  final String? errorCode;
   final bool torchOn;
 
   const ScannerState({
@@ -14,6 +15,7 @@ class ScannerState extends Equatable {
     this.lastCode,
     this.result,
     this.error,
+    this.errorCode,
     this.torchOn = false,
   });
 
@@ -22,6 +24,9 @@ class ScannerState extends Equatable {
     String? lastCode,
     LabelScanResult? result,
     String? error,
+    bool clearError = false,
+    String? errorCode,
+    bool clearErrorCode = false,
     bool? torchOn,
     bool clearResult = false,
   }) {
@@ -29,11 +34,13 @@ class ScannerState extends Equatable {
       status: status ?? this.status,
       lastCode: lastCode ?? this.lastCode,
       result: clearResult ? null : (result ?? this.result),
-      error: error ?? this.error,
+      error: clearError ? null : (error ?? this.error),
+      errorCode: clearErrorCode ? null : (errorCode ?? this.errorCode),
       torchOn: torchOn ?? this.torchOn,
     );
   }
 
   @override
-  List<Object?> get props => [status, lastCode, result, error, torchOn];
+  List<Object?> get props =>
+      [status, lastCode, result, error, errorCode, torchOn];
 }

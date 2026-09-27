@@ -8,6 +8,8 @@ class CycleData extends Equatable {
   final String deviceName;
   final String? deviceProgramId;
   final String? programName;
+  final int? programTemperatureCelsius;
+  final int? programPlateauMinutes;
   final String? operatorName;
   final DateTime createdAt;
   final DateTime? startedAt;
@@ -23,6 +25,8 @@ class CycleData extends Equatable {
     required this.deviceName,
     this.deviceProgramId,
     this.programName,
+    this.programTemperatureCelsius,
+    this.programPlateauMinutes,
     this.operatorName,
     required this.createdAt,
     this.startedAt,
@@ -49,9 +53,16 @@ class CycleData extends Equatable {
     final number = rawNumber ??
         (id.isNotEmpty ? 'CT-${id.substring(0, 6).toUpperCase()}' : 'CT-?');
 
-    // Status: normalize draft→created
+    // Status: normalize backend's CycleStatus enum (draft, running,
+    // completed, awaiting_release, released, rejected — see steriqore's
+    // App\Domain\Sterilization\Enums\CycleStatus) to what the UI switches
+    // on. draft→created was already handled here; running→in_progress was
+    // missing entirely, so every cycle got stuck showing "Démarrer le
+    // cycle" forever after a real start() — caught by a real device run
+    // of the cycle lifecycle journey test.
     var status = pick(['status', 'state']) ?? 'created';
     if (status == 'draft') status = 'created';
+    if (status == 'running') status = 'in_progress';
 
     // Device: name may be nested under "device" or separate "device_name"
     String? deviceName = pick(['device_name', 'device_label']);
@@ -113,6 +124,8 @@ class CycleData extends Equatable {
   CycleData copyWithNames({
     String? deviceName,
     String? programName,
+    int? programTemperatureCelsius,
+    int? programPlateauMinutes,
     String? operatorName,
   }) {
     return CycleData(
@@ -123,6 +136,10 @@ class CycleData extends Equatable {
       deviceName: deviceName ?? this.deviceName,
       deviceProgramId: deviceProgramId,
       programName: programName ?? this.programName,
+      programTemperatureCelsius:
+          programTemperatureCelsius ?? this.programTemperatureCelsius,
+      programPlateauMinutes:
+          programPlateauMinutes ?? this.programPlateauMinutes,
       operatorName: operatorName ?? this.operatorName,
       createdAt: createdAt,
       startedAt: startedAt,
@@ -141,6 +158,8 @@ class CycleData extends Equatable {
         deviceName,
         deviceProgramId,
         programName,
+        programTemperatureCelsius,
+        programPlateauMinutes,
         operatorName,
         createdAt,
         startedAt,

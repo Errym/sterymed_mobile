@@ -92,20 +92,14 @@ class _NcCreateSheetState extends State<NcCreateSheet> {
       setState(() => _submitting = true);
       try {
         final result = await getIt<LabelRepository>().getByCode(code);
-        if (result.label == null) {
-          if (!mounted) return;
-          AppSnackbar.show(
-            context,
-            'Étiquette introuvable pour ce code.',
-            kind: SnackKind.error,
-          );
-          setState(() => _submitting = false);
-          return;
-        }
-        subjectId = result.label!.id;
+        subjectId = result.labelId;
       } catch (e) {
         if (!mounted) return;
-        AppSnackbar.show(context, 'Erreur : $e', kind: SnackKind.error);
+        AppSnackbar.show(
+          context,
+          'Étiquette introuvable pour ce code.',
+          kind: SnackKind.error,
+        );
         setState(() => _submitting = false);
         return;
       }

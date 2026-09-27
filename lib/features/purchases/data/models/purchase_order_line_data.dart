@@ -32,7 +32,7 @@ class PurchaseOrderLineData extends Equatable {
       PurchaseOrderLineData(
         id: json['id']?.toString() ?? '',
         productId: json['product_id']?.toString() ?? '',
-        productName: json['product_name']?.toString() ?? '',
+        productName: json['product_name']?.toString() ?? 'Produit',
         qtyOrdered: (json['qty_ordered'] as num?)?.toInt() ?? 0,
         qtyReceived: (json['qty_received'] as num?)?.toInt() ?? 0,
         unitPrice: _parsePrice(json['unit_price']),

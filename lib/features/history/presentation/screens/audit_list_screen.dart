@@ -11,6 +11,7 @@ import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
 import '../../data/models/audit_event_data.dart';
 import '../../data/repositories/audit_repository.dart';
 import '../bloc/audit_list_bloc.dart';
+import '../widgets/audit_filter_sheet.dart';
 
 class AuditListScreen extends StatelessWidget {
   const AuditListScreen({super.key});
@@ -35,6 +36,42 @@ class _AuditListView extends StatelessWidget {
       appBar: AppAppBar(
         title: 'Journal d\'Audit',
         actions: [
+          BlocBuilder<AuditListBloc, AuditListState>(
+            builder: (context, state) {
+              return IconButton(
+                icon: Icon(
+                  state.hasAdvancedFilters
+                      ? Icons.filter_alt
+                      : Icons.filter_alt_outlined,
+                  color: state.hasAdvancedFilters
+                      ? AppColors.brandPrimary
+                      : null,
+                ),
+                tooltip: 'Filtres avancés',
+                onPressed: () async {
+                  final bloc = context.read<AuditListBloc>();
+                  final result = await AuditFilterSheet.show(
+                    context,
+                    knownActors: state.knownActors,
+                    knownSubjectTypes: state.knownSubjectTypes,
+                    actorId: state.actorIdFilter,
+                    subjectType: state.subjectTypeFilter,
+                    from: state.fromFilter,
+                    to: state.toFilter,
+                  );
+                  if (result != null) {
+                    bloc.add(ApplyAdvancedAuditFilters(
+                      actorId: result.actorId,
+                      actorLabel: result.actorLabel,
+                      subjectType: result.subjectType,
+                      from: result.from,
+                      to: result.to,
+                    ));
+                  }
+                },
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () =>
@@ -59,6 +96,52 @@ class _AuditListView extends StatelessWidget {
                       value: 'label_usage.recorded', label: 'Utilisations'),
                   FilterChipOption(value: 'product.created', label: 'Produits'),
                 ],
+              );
+            },
+          ),
+          BlocBuilder<AuditListBloc, AuditListState>(
+            builder: (context, state) {
+              if (!state.hasAdvancedFilters) return const SizedBox.shrink();
+              final parts = <String>[
+                if (state.actorLabelFilter != null) state.actorLabelFilter!,
+                if (state.subjectTypeFilter != null)
+                  (state.knownSubjectTypes
+                          .where((e) => e.key == state.subjectTypeFilter)
+                          .firstOrNull
+                          ?.value ??
+                      state.subjectTypeFilter!),
+                if (state.fromFilter != null || state.toFilter != null)
+                  '${state.fromFilter != null ? _fmtDate(state.fromFilter!) : '…'}'
+                  ' → '
+                  '${state.toFilter != null ? _fmtDate(state.toFilter!) : '…'}',
+              ];
+              return Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        parts.join(' · '),
+                        style: AppTypography.caption,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () => context
+                          .read<AuditListBloc>()
+                          .add(const ApplyAdvancedAuditFilters()),
+                      child: Text(
+                        'Effacer',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.brandPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               );
             },
           ),
@@ -98,6 +181,8 @@ class _AuditListView extends StatelessWidget {
     );
   }
 }
+
+String _fmtDate(DateTime d) => DateFormat('dd/MM/yy').format(d);
 
 class _AuditTile extends StatelessWidget {
   final AuditEventData event;
@@ -139,10 +224,10 @@ class _AuditTile extends StatelessWidget {
               ],
             ),
           ],
-          if (event.subjectType != null) ...[
+          if (event.subjectTypeLabel != null) ...[
             const SizedBox(height: 2),
             Text(
-              event.subjectType!,
+              event.subjectTypeLabel!,
               style: AppTypography.caption.copyWith(
                 color: AppColors.textTertiary,
               ),

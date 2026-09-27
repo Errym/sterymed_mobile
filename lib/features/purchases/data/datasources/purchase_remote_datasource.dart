@@ -18,7 +18,7 @@ class PurchaseRemoteDatasource {
         ApiEndpoints.purchaseOrders,
         queryParameters: {
           if (cursor != null) 'cursor': cursor,
-          'per_page': 30,
+          'limit': 30,
         },
       );
       final raw = res.data;
@@ -125,7 +125,7 @@ class PurchaseRemoteDatasource {
     try {
       final res = await _dio.get(
         ApiEndpoints.suppliers,
-        queryParameters: {'per_page': 100},
+        queryParameters: {'limit': 100},
       );
       final raw = res.data;
       if (raw is! Map || raw['data'] is! List) return const [];

@@ -12,14 +12,27 @@ class AuditRepository {
   Future<CursorPage<AuditEventData>> list({
     String? cursor,
     String? action,
+    String? actorId,
+    String? subjectType,
+    DateTime? from,
+    DateTime? to,
     bool forceRefresh = false,
   }) async {
-    final key = 'audit:${action ?? 'all'}:${cursor ?? 'start'}';
+    final key = 'audit:${action ?? 'all'}:${actorId ?? '-'}:'
+        '${subjectType ?? '-'}:${from?.toIso8601String() ?? '-'}:'
+        '${to?.toIso8601String() ?? '-'}:${cursor ?? 'start'}';
     if (!forceRefresh) {
       final cached = _cache.get<CursorPage<AuditEventData>>(key);
       if (cached != null) return cached;
     }
-    final fresh = await _remote.list(cursor: cursor, action: action);
+    final fresh = await _remote.list(
+      cursor: cursor,
+      action: action,
+      actorId: actorId,
+      subjectType: subjectType,
+      from: from,
+      to: to,
+    );
     _cache.put(key, fresh);
     return fresh;
   }

@@ -32,15 +32,17 @@ class LabelUsageRemoteDatasource {
     }
   }
 
+  /// A label is used at most once — `GET .../usage` returns a single
+  /// object (404 if it was never used), not a list. Wrapped in a 0-or-1
+  /// list here so the caller's "history" shape doesn't have to change.
   Future<List<LabelUsageData>> fetchHistory(String labelId) async {
     try {
       final response = await _dio.get(ApiEndpoints.labelUsage(labelId));
-      final list = (response.data as List)
-          .map((e) =>
-              LabelUsageData.fromJson((e as Map).cast<String, dynamic>()))
-          .toList();
-      return list;
+      final data = response.data;
+      if (data is! Map) return const [];
+      return [LabelUsageData.fromJson(data.cast<String, dynamic>())];
     } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return const [];
       throw ErrorMapper.fromDio(e);
     }
   }

@@ -93,15 +93,23 @@ class _ScannerViewState extends State<_ScannerView>
       body: BlocListener<ScannerBloc, ScannerState>(
         listenWhen: (p, c) => p.status != c.status || p.lastCode != c.lastCode,
         listener: (context, state) {
-          if (state.status == ScannerStatus.resolved && state.result != null) {
-            final r = state.result!;
-            if (r.isBlocked) {
-              context.go(Routes.labelsBlocked(r.code));
-            } else if (r.label != null) {
-              context.go(Routes.labelsDetail(r.code));
-            }
-          }
-          if (state.status == ScannerStatus.error && state.error != null) {
+          // A blocked label (recalled/expired/voided) never comes back as
+          // a resolved success — the real backend always throws instead
+          // (see BACKEND_BUGS.md's Labeling coherence-sweep notes). Route
+          // there specifically for those three error codes; any other
+          // error (not found, network, ...) just shows the snackbar
+          // below and lets the user try again.
+          if (state.status == ScannerStatus.resolved &&
+              state.result != null &&
+              state.lastCode != null) {
+            context.go(Routes.labelsDetail(state.lastCode!));
+          } else if (state.status == ScannerStatus.error &&
+              state.lastCode != null &&
+              const {'LABEL_EXPIRED', 'LABEL_RECALLED', 'LABEL_VOIDED'}
+                  .contains(state.errorCode)) {
+            context.go(Routes.labelsBlocked(state.lastCode!));
+          } else if (state.status == ScannerStatus.error &&
+              state.error != null) {
             AppSnackbar.show(context, state.error!, kind: SnackKind.error);
           }
         },

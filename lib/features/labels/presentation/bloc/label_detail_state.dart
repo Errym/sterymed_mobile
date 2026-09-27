@@ -6,6 +6,7 @@ class LabelDetailState extends Equatable {
   final LabelDetailStatus status;
   final LabelScanResult? result;
   final String? error;
+  final String? errorCode;
   final List<LabelUsageData> history;
   final bool historyLoading;
 
@@ -13,6 +14,7 @@ class LabelDetailState extends Equatable {
     this.status = LabelDetailStatus.initial,
     this.result,
     this.error,
+    this.errorCode,
     this.history = const [],
     this.historyLoading = false,
   });
@@ -21,6 +23,7 @@ class LabelDetailState extends Equatable {
     LabelDetailStatus? status,
     LabelScanResult? result,
     String? error,
+    String? errorCode,
     List<LabelUsageData>? history,
     bool? historyLoading,
   }) {
@@ -28,11 +31,13 @@ class LabelDetailState extends Equatable {
       status: status ?? this.status,
       result: result ?? this.result,
       error: error ?? this.error,
+      errorCode: errorCode ?? this.errorCode,
       history: history ?? this.history,
       historyLoading: historyLoading ?? this.historyLoading,
     );
   }
 
   @override
-  List<Object?> get props => [status, result, error, history, historyLoading];
+  List<Object?> get props =>
+      [status, result, error, errorCode, history, historyLoading];
 }

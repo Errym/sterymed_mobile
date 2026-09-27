@@ -4,7 +4,6 @@ import 'purchase_order_line_data.dart';
 
 class PurchaseOrderData extends Equatable {
   final String id;
-  final String reference;
   final String supplierId;
   final String supplierName;
   final String status;
@@ -14,7 +13,6 @@ class PurchaseOrderData extends Equatable {
 
   const PurchaseOrderData({
     required this.id,
-    required this.reference,
     required this.supplierId,
     required this.supplierName,
     required this.status,
@@ -22,6 +20,12 @@ class PurchaseOrderData extends Equatable {
     required this.createdAt,
     this.orderedAt,
   });
+
+  /// The backend has no PO reference/number field at all — this is a
+  /// short, stable, scannable stand-in derived from the id, not a real
+  /// business reference.
+  String get shortId =>
+      'CMD-${id.length >= 8 ? id.substring(0, 8).toUpperCase() : id.toUpperCase()}';
 
   double? get totalAmount {
     double sum = 0;
@@ -35,7 +39,10 @@ class PurchaseOrderData extends Equatable {
     return hasPrice ? sum : null;
   }
 
-  bool get canReceive => status == 'ordered' || status == 'partial';
+  // Backend enum (App\Domain\Purchasing\Enums\PurchaseOrderStatus) uses
+  // 'partially_received', not 'partial' — the old check never matched a
+  // real PO, so a second/third partial receipt was silently impossible.
+  bool get canReceive => status == 'ordered' || status == 'partially_received';
   bool get canCancel => status == 'draft' || status == 'ordered';
   bool get canOrder => status == 'draft';
 
@@ -51,7 +58,6 @@ class PurchaseOrderData extends Equatable {
 
     return PurchaseOrderData(
       id: json['id']?.toString() ?? '',
-      reference: json['reference']?.toString() ?? '',
       supplierId: json['supplier_id']?.toString() ?? '',
       supplierName: json['supplier_name']?.toString() ?? '',
       status: json['status']?.toString() ?? 'draft',
@@ -63,5 +69,5 @@ class PurchaseOrderData extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, reference, status];
+  List<Object?> get props => [id, status];
 }

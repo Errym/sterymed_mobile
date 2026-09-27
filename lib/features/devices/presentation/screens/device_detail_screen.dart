@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/buttons/danger_button.dart';
@@ -15,8 +16,11 @@ import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../cycles/data/models/device_program_data.dart';
 import '../../../cycles/data/repositories/device_program_repository.dart';
 import '../../data/models/device_detail.dart';
+import '../../data/models/maintenance_record_data.dart';
 import '../../data/repositories/device_detail_repository.dart';
+import '../../data/repositories/maintenance_record_repository.dart';
 import '../widgets/device_form_sheet.dart';
+import '../widgets/maintenance_record_form_sheet.dart';
 import '../widgets/programme_form_sheet.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
@@ -72,7 +76,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -169,6 +173,13 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                   canManage: canManage,
                 ),
 
+                // ── Maintenance ──
+                const SizedBox(height: AppSpacing.lg),
+                _MaintenanceSection(
+                  deviceId: widget.deviceId,
+                  canManage: canManage,
+                ),
+
                 // ── Localisation ──
                 const SizedBox(height: AppSpacing.lg),
                 const SectionHeader(title: 'Localisation'),
@@ -255,7 +266,7 @@ class _ProgrammesSectionState extends State<_ProgrammesSection> {
       if (!mounted) return;
       setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = ErrorMessage.from(e);
       });
     }
   }
@@ -297,7 +308,7 @@ class _ProgrammesSectionState extends State<_ProgrammesSection> {
       await _load();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 
@@ -471,6 +482,202 @@ class _ProgrammeRow extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Maintenance section
+// ─────────────────────────────────────────────────────────────────────────────
+//
+// Append-only against the real backend (GET/POST /devices/{id}/
+// maintenance-records — no PATCH/DELETE route exists), so unlike
+// _ProgrammesSection there's no edit/delete here.
+
+class _MaintenanceSection extends StatefulWidget {
+  final String deviceId;
+  final bool canManage;
+  const _MaintenanceSection({required this.deviceId, required this.canManage});
+
+  @override
+  State<_MaintenanceSection> createState() => _MaintenanceSectionState();
+}
+
+class _MaintenanceSectionState extends State<_MaintenanceSection> {
+  List<MaintenanceRecordData> _records = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final records = await getIt<MaintenanceRecordRepository>()
+          .list(widget.deviceId, forceRefresh: true);
+      if (!mounted) return;
+      setState(() {
+        _records = records;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = ErrorMessage.from(e);
+      });
+    }
+  }
+
+  Future<void> _add() async {
+    final ok = await MaintenanceRecordFormSheet.show(
+      context,
+      deviceId: widget.deviceId,
+    );
+    if (ok == true) await _load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SectionHeader(
+          title: 'Maintenance (${_records.length})',
+          trailing: widget.canManage
+              ? IconButton(
+                  icon: const Icon(Icons.add_circle_outline),
+                  tooltip: 'Enregistrer une intervention',
+                  onPressed: _loading ? null : _add,
+                )
+              : null,
+        ),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else if (_error != null)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.dangerLight,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Text(_error!, style: AppTypography.caption),
+          )
+        else if (_records.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            decoration: BoxDecoration(
+              color: AppColors.backgroundSubtle,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.borderLight),
+            ),
+            child: const Text(
+              'Aucune intervention enregistrée.',
+              style: AppTypography.caption,
+            ),
+          )
+        else
+          ..._records.map((r) => _MaintenanceRow(record: r)),
+      ],
+    );
+  }
+}
+
+class _MaintenanceRow extends StatelessWidget {
+  final MaintenanceRecordData record;
+  const _MaintenanceRow({required this.record});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        color: AppColors.backgroundCard,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(
+          color: record.isOverdue
+              ? AppColors.danger.withValues(alpha: 0.4)
+              : AppColors.borderLight,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColors.brandPrimaryLight,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: const Icon(Icons.build_outlined,
+                size: 18, color: AppColors.brandPrimary),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(record.kindLabel,
+                          style: AppTypography.bodyStrong),
+                    ),
+                    Text(_formatDate(record.performedAt),
+                        style: AppTypography.caption),
+                  ],
+                ),
+                if (record.technician != null &&
+                    record.technician!.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(record.technician!, style: AppTypography.caption),
+                ],
+                if (record.description != null &&
+                    record.description!.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(record.description!, style: AppTypography.caption),
+                ],
+                if (record.nextDueAt != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Prochaine échéance : ${_formatDate(record.nextDueAt!)}',
+                    style: AppTypography.caption.copyWith(
+                      color: record.isOverdue
+                          ? AppColors.danger
+                          : AppColors.textSecondary,
+                      fontWeight:
+                          record.isOverdue ? FontWeight.w700 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime d) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${two(d.day)}/${two(d.month)}/${d.year}';
   }
 }
 

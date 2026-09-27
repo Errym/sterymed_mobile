@@ -14,8 +14,9 @@ class ProductRemoteDatasource {
       final res = await _dio.get(
         ApiEndpoints.products,
         queryParameters: {
-          if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
-          'per_page': 100,
+          if (search != null && search.trim().isNotEmpty)
+            'search': search.trim(),
+          'limit': 100,
         },
       );
       final raw = res.data;

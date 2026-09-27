@@ -21,7 +21,8 @@ class SupplierListBloc extends Bloc<SupplierListEvent, SupplierListState> {
       final list = await _repository.list();
       emit(state.copyWith(status: SupplierListStatus.success, suppliers: list));
     } on ApiException catch (ex) {
-      emit(state.copyWith(status: SupplierListStatus.failure, error: ex.message));
+      emit(state.copyWith(
+          status: SupplierListStatus.failure, error: ex.message));
     }
   }
 }

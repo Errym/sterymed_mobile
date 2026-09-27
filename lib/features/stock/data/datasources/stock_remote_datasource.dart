@@ -22,7 +22,7 @@ class StockRemoteDatasource {
         queryParameters: {
           if (search != null && search.trim().isNotEmpty)
             'search': search.trim(),
-          'per_page': 100,
+          'limit': 100,
         },
       );
       final raw = res.data;

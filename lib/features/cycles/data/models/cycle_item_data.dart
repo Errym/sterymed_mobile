@@ -29,6 +29,10 @@ class CycleItemData extends Equatable {
     );
   }
 
+  // Field names/enrichment already matched once the backend added
+  // `batch_number`/`created_at` to CycleItemData (Day 45 coherence
+  // sweep) — no further change needed here besides that backend fix.
+
   @override
   List<Object?> get props =>
       [id, cycleId, description, batchId, batchNumber, createdAt];

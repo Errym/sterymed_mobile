@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
@@ -31,6 +33,7 @@ class _CycleListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('cycles.manage');
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
@@ -42,21 +45,22 @@ class _CycleListView extends StatelessWidget {
             onPressed: () =>
                 context.read<CycleListBloc>().add(const RefreshCycles()),
           ),
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.sm),
-            child: FilledButton.icon(
-              onPressed: () => context.go(Routes.cyclesCreate),
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Nouveau Cycle'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.brandPrimary,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xs,
+          if (canManage)
+            Padding(
+              padding: const EdgeInsets.only(right: AppSpacing.sm),
+              child: FilledButton.icon(
+                onPressed: () => context.go(Routes.cyclesCreate),
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Nouveau Cycle'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.brandPrimary,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
       body: Column(

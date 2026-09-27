@@ -12,6 +12,10 @@ class AuditRemoteDatasource {
   Future<CursorPage<AuditEventData>> list({
     String? cursor,
     String? action,
+    String? actorId,
+    String? subjectType,
+    DateTime? from,
+    DateTime? to,
   }) async {
     try {
       final res = await _dio.get(
@@ -19,7 +23,13 @@ class AuditRemoteDatasource {
         queryParameters: {
           if (cursor != null) 'cursor': cursor,
           if (action != null && action.isNotEmpty) 'filter[action]': action,
-          'per_page': 30,
+          if (actorId != null && actorId.isNotEmpty)
+            'filter[actor_id]': actorId,
+          if (subjectType != null && subjectType.isNotEmpty)
+            'filter[subject_type]': subjectType,
+          if (from != null) 'filter[from]': from.toIso8601String(),
+          if (to != null) 'filter[to]': to.toIso8601String(),
+          'limit': 30,
         },
       );
       final raw = res.data;

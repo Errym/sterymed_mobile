@@ -12,7 +12,7 @@ class SiteRemoteDatasource {
     try {
       final res = await _dio.get(
         ApiEndpoints.sites,
-        queryParameters: {'per_page': 100},
+        queryParameters: {'limit': 100},
       );
       return _parseList(res.data);
     } on DioException catch (e) {

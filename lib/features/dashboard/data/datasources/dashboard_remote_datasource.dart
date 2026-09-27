@@ -9,22 +9,34 @@ class DashboardRemoteDatasource {
 
   Future<DashboardData> fetch() async {
     final results = await Future.wait<Object?>([
-      _safeGet(ApiEndpoints.cycles, {'per_page': 50}),
-      _safeGet(ApiEndpoints.alerts, {'resolved': false, 'per_page': 50}),
-      _safeGet(ApiEndpoints.auditEvents, {'per_page': 20}),
+      _safeGet(ApiEndpoints.cycles, {'limit': 50}),
+      // `state` (open/resolved) is the real backend filter — `resolved`
+      // was silently ignored, so this used to also fetch resolved alerts
+      // and count them as active (BUG-014-class mismatch).
+      _safeGet(ApiEndpoints.alerts, {'filter[state]': 'open', 'limit': 50}),
+      _safeGet(ApiEndpoints.auditEvents, {'limit': 20}),
+      _safeGet(ApiEndpoints.devices, {'limit': 50}),
     ]);
 
     final cycles = _list(results[0]);
     final alerts = _list(results[1]);
     final audit = _list(results[2]);
+    final devices = _list(results[3]);
+    final deviceNames = {
+      for (final d in devices)
+        d['id']?.toString() ?? '': d['name']?.toString() ?? '',
+    };
 
     final now = DateTime.now();
     final activeCycles = cycles
         .where((c) => c['status'] != 'released' && c['status'] != 'rejected')
         .length;
 
+    // Cycle has no `created_at` field at all — `started_at` is the
+    // closest real proxy for "happened today" (a still-draft cycle with
+    // no started_at genuinely hasn't done anything today yet).
     final todayCycles = cycles.where((c) {
-      final t = DateTime.tryParse(c['created_at']?.toString() ?? '');
+      final t = DateTime.tryParse(c['started_at']?.toString() ?? '');
       return t != null &&
           t.year == now.year &&
           t.month == now.month &&
@@ -71,8 +83,8 @@ class DashboardRemoteDatasource {
       todayCycles: todayCycles.take(5).map((c) {
         return DashboardTodayCycle(
           id: c['id']?.toString() ?? '',
-          number: c['number']?.toString() ?? '',
-          deviceName: c['device_name']?.toString() ?? '',
+          number: c['cycle_number']?.toString() ?? '',
+          deviceName: deviceNames[c['device_id']?.toString()] ?? '',
           status: c['status']?.toString() ?? '',
         );
       }).toList(),

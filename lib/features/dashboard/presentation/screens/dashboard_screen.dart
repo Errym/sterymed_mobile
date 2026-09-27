@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shimmer/shimmer.dart';
 
+import '../../../../core/router/guards/role_guard.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
@@ -142,7 +143,7 @@ class _DashboardContent extends StatelessWidget {
         ),
         AnimatedListItem(
           index: i++,
-          child: _GovernanceMenu(isOwner: isOwner),
+          child: const _GovernanceMenu(),
         ),
         const SizedBox(height: AppSpacing.xxl),
       ],
@@ -529,11 +530,23 @@ class _TodayCyclesSection extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────
 
 class _GovernanceMenu extends StatelessWidget {
-  final bool isOwner;
-  const _GovernanceMenu({required this.isOwner});
+  const _GovernanceMenu();
 
   @override
   Widget build(BuildContext context) {
+    final session = getIt<SessionStore>();
+    // Every tile is filtered against the same RoleGuard permission map the
+    // router itself enforces (see role_guard.dart) — not `isOwner`, which
+    // was hiding tiles a non-owner role's real backend grants already
+    // allow (e.g. a practitioner has `sites.view`/`devices.view`) and
+    // would have kept showing e.g. "Journal d'Audit" to roles with no
+    // `audit.view`, only for the router to bounce them back out. Team has
+    // no entry in RoleGuard by design (viewing the list isn't
+    // permission-gated server-side, only invite/disable are) so it's
+    // always shown, same as the router allows it.
+    bool allowed(String route) =>
+        RoleGuard.isAllowed(route: route, hasPermission: session.hasPermission);
+
     final groups = <(String, List<_MenuItem>)>[
       (
         'Opérations',
@@ -544,7 +557,17 @@ class _GovernanceMenu extends StatelessWidget {
               Icons.inventory_2_outlined, Routes.stock),
           const _MenuItem('Lots', 'Lots, DLC et traçabilité',
               Icons.inventory_outlined, Routes.batches),
-        ],
+        ].where((item) => allowed(item.route)).toList(),
+      ),
+      (
+        'Prothèses',
+        [
+          const _MenuItem(
+              'Travaux prothétiques',
+              'Suivi empreinte → pose, laboratoires',
+              Icons.medical_services_outlined,
+              Routes.prosthetic),
+        ].where((item) => allowed(item.route)).toList(),
       ),
       (
         'Catalogue & Achats',
@@ -558,7 +581,7 @@ class _GovernanceMenu extends StatelessWidget {
               'Bons de commande et réceptions',
               Icons.shopping_cart_outlined,
               Routes.purchases),
-        ],
+        ].where((item) => allowed(item.route)).toList(),
       ),
       (
         'Clinique & Conformité',
@@ -575,26 +598,27 @@ class _GovernanceMenu extends StatelessWidget {
               Routes.nonConformities),
           const _MenuItem('Journal d\'Audit', 'Traces immuables',
               Icons.verified_user_outlined, Routes.audit),
-        ],
+          const _MenuItem(
+              'Recherche de preuves',
+              'Traçabilité patient, cycle, lot',
+              Icons.manage_search_outlined,
+              Routes.evidenceSearch),
+        ].where((item) => allowed(item.route)).toList(),
       ),
       (
         'Administration',
         [
-          if (isOwner)
-            const _MenuItem('Équipe & Droits', 'Comptes du personnel',
-                Icons.person_add_alt_outlined, Routes.team),
-          if (isOwner)
-            const _MenuItem('Sites & Espaces', 'Fauteuils et zones stériles',
-                Icons.meeting_room_outlined, Routes.sites),
-          if (isOwner)
-            const _MenuItem('Appareils & Programmes', 'Autoclaves et presets',
-                Icons.precision_manufacturing_outlined, Routes.devices),
-          if (isOwner)
-            const _MenuItem('Règles DLU', 'Durées limite d\'utilisation',
-                Icons.timer_outlined, Routes.dluRules),
+          const _MenuItem('Équipe & Droits', 'Comptes du personnel',
+              Icons.person_add_alt_outlined, Routes.team),
+          const _MenuItem('Sites & Espaces', 'Fauteuils et zones stériles',
+              Icons.meeting_room_outlined, Routes.sites),
+          const _MenuItem('Appareils & Programmes', 'Autoclaves et presets',
+              Icons.precision_manufacturing_outlined, Routes.devices),
+          const _MenuItem('Règles DLU', 'Durées limite d\'utilisation',
+              Icons.timer_outlined, Routes.dluRules),
           const _MenuItem('Export Données', 'Portabilité RGPD / ARS',
               Icons.download_outlined, Routes.dataExports),
-        ],
+        ].where((item) => allowed(item.route)).toList(),
       ),
     ];
 

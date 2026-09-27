@@ -34,36 +34,44 @@ extension AlertSeverityLabel on AlertSeverity {
 
 class AlertData extends Equatable {
   final String id;
-  final String type; // low_stock, near_expiry, expired, cycle_failed...
+  final String type; // low_stock, near_expiry, expired, failed_cycle
   final AlertSeverity severity;
+  final String state; // open, resolved
+  final String subjectType;
+  final String? subjectId; // batch id / cycle id / product id
   final String message;
   final DateTime createdAt;
-  final bool resolved;
-  final String? subjectId; // batch id / cycle id / product id
-  final String? subjectLabel; // "LOT-GEL-2026-01" / "Cycle #91"
+  final DateTime? resolvedAt;
+  final String? resolvedByName;
 
   const AlertData({
     required this.id,
     required this.type,
     required this.severity,
+    required this.state,
+    required this.subjectType,
+    this.subjectId,
     required this.message,
     required this.createdAt,
-    required this.resolved,
-    this.subjectId,
-    this.subjectLabel,
+    this.resolvedAt,
+    this.resolvedByName,
   });
+
+  bool get resolved => state == 'resolved';
 
   factory AlertData.fromJson(Map<String, dynamic> json) {
     return AlertData(
       id: json['id']?.toString() ?? '',
       type: json['type']?.toString() ?? 'unknown',
       severity: _severityFromString(json['severity']?.toString()),
+      state: json['state']?.toString() ?? 'open',
+      subjectType: json['subject_type']?.toString() ?? '',
+      subjectId: json['subject_id']?.toString(),
       message: json['message']?.toString() ?? '',
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
-      resolved: json['resolved'] as bool? ?? false,
-      subjectId: json['subject_id']?.toString(),
-      subjectLabel: json['subject_label']?.toString(),
+      resolvedAt: DateTime.tryParse(json['resolved_at']?.toString() ?? ''),
+      resolvedByName: json['resolved_by_name']?.toString(),
     );
   }
 
@@ -72,10 +80,11 @@ class AlertData extends Equatable {
         id,
         type,
         severity,
+        state,
+        subjectType,
+        subjectId,
         message,
         createdAt,
-        resolved,
-        subjectId,
-        subjectLabel,
+        resolvedAt,
       ];
 }

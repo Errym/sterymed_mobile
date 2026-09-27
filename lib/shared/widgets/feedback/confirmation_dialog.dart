@@ -50,30 +50,26 @@ class ConfirmationDialog extends StatelessWidget {
       title: Text(title, style: AppTypography.sectionTitle),
       content: Text(message, style: AppTypography.body),
       actions: [
-        SizedBox(
-          width: 120,
-          child: SecondaryButton(
-            label: cancelLabel,
-            onPressed: () => Navigator.of(context).pop(false),
-          ),
+        SecondaryButton(
+          label: cancelLabel,
+          isFullWidth: false,
+          onPressed: () => Navigator.of(context).pop(false),
         ),
-        SizedBox(
-          width: 140,
-          child: isDestructive
-              ? TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(
-                    confirmLabel,
-                    style: AppTypography.buttonLabel.copyWith(
-                      color: AppColors.danger,
-                    ),
+        isDestructive
+            ? TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  confirmLabel,
+                  style: AppTypography.buttonLabel.copyWith(
+                    color: AppColors.danger,
                   ),
-                )
-              : PrimaryButton(
-                  label: confirmLabel,
-                  onPressed: () => Navigator.of(context).pop(true),
                 ),
-        ),
+              )
+            : PrimaryButton(
+                label: confirmLabel,
+                isFullWidth: false,
+                onPressed: () => Navigator.of(context).pop(true),
+              ),
       ],
     );
   }

@@ -36,7 +36,7 @@ class StockLevelData extends Equatable {
   });
 
   factory StockLevelData.fromJson(Map<String, dynamic> json) {
-    final qty = (json['qty'] as num?)?.toInt() ?? 0;
+    final qty = (json['quantity'] as num?)?.toInt() ?? 0;
     final min = (json['min_threshold'] as num?)?.toInt() ?? 0;
     final expiresAt =
         DateTime.tryParse(json['expiry_date']?.toString() ?? '');
@@ -51,8 +51,8 @@ class StockLevelData extends Equatable {
       id: json['id']?.toString() ?? '',
       productId: json['product_id']?.toString() ?? '',
       productName: json['product_name']?.toString() ?? '',
-      reference: json['reference']?.toString() ?? '',
-      unit: json['unit']?.toString() ?? 'u',
+      reference: json['product_reference']?.toString() ?? '',
+      unit: json['product_unit']?.toString() ?? 'u',
       locationId: json['location_id']?.toString() ?? '',
       locationName: json['location_name']?.toString() ?? '',
       qty: qty,

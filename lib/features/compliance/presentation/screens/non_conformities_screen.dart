@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
@@ -109,11 +110,6 @@ class _NcCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (typeTone, typeLabel) = switch (item.kind) {
-      'recall' => (BadgeTone.red, 'RECALL'),
-      'quarantine' => (BadgeTone.orange, 'QUARANTAINE'),
-      _ => (BadgeTone.blue, 'CORRECTION'),
-    };
     final statusTone = item.isOpen ? BadgeTone.yellow : BadgeTone.green;
 
     return Container(
@@ -132,9 +128,7 @@ class _NcCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              TypeBadge(label: typeLabel, tone: typeTone),
-              const SizedBox(width: AppSpacing.sm),
-              Text(item.reference, style: AppTypography.caption),
+              TypeBadge(label: item.subjectTypeLabel, tone: BadgeTone.blue),
               const Spacer(),
               TypeBadge(
                 label: item.isOpen ? 'En cours' : 'Résolu',
@@ -143,9 +137,13 @@ class _NcCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(item.title, style: AppTypography.bodyStrong),
+          Text(item.description, style: AppTypography.bodyStrong),
           const SizedBox(height: AppSpacing.xs),
-          Text(item.description, style: AppTypography.body),
+          Text(
+            'Signalé le ${DateFormat('dd/MM/yyyy HH:mm').format(item.raisedAt)}'
+            '${item.raisedByName != null ? ' par ${item.raisedByName}' : ''}',
+            style: AppTypography.caption,
+          ),
           if (item.isOpen && canManage) ...[
             const SizedBox(height: AppSpacing.sm),
             Align(
@@ -180,7 +178,8 @@ class _NcCard extends StatelessWidget {
                   const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
-                      'Résolution : ${item.resolution}',
+                      'Résolution : ${item.resolution}'
+                      '${item.resolvedByName != null ? ' (${item.resolvedByName})' : ''}',
                       style: AppTypography.caption.copyWith(
                         color: AppColors.success,
                         fontWeight: FontWeight.w600,

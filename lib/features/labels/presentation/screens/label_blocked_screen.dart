@@ -62,37 +62,18 @@ class _BlockedViewState extends State<_BlockedView>
       ),
       body: BlocBuilder<LabelDetailBloc, LabelDetailState>(
         builder: (context, state) {
-          if (state.status == LabelDetailStatus.failure) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      state.error ?? 'Impossible de charger l\'étiquette.',
-                      style: AppTypography.body,
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: AppSpacing.lg),
-                    PrimaryButton(
-                      label: 'Nouveau scan',
-                      icon: Icons.qr_code_scanner,
-                      onPressed: () => context.go(Routes.scanner),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          }
-          if (state.status != LabelDetailStatus.success ||
-              state.result == null) {
+          if (state.status != LabelDetailStatus.failure) {
             return const LoadingView();
           }
 
-          final r = state.result!;
-          final isExpired = r.status.name == 'expired';
-          final isRecalled = r.status.name == 'recalled';
+          // A blocked label (recalled/expired/voided) is never a success
+          // response — `ResolveLabelScanAction` always throws before
+          // returning one (see BACKEND_BUGS.md's Labeling coherence-sweep
+          // notes). This screen only exists to render that error nicely,
+          // classified by the real backend error code.
+          final isExpired = state.errorCode == 'LABEL_EXPIRED';
+          final isRecalled = state.errorCode == 'LABEL_RECALLED';
+          final isVoided = state.errorCode == 'LABEL_VOIDED';
 
           return Padding(
             padding: const EdgeInsets.all(AppSpacing.md),
@@ -136,14 +117,16 @@ class _BlockedViewState extends State<_BlockedView>
                               ? 'Étiquette expirée'
                               : isRecalled
                                   ? 'Étiquette rappelée'
-                                  : 'Étiquette bloquée',
+                                  : isVoided
+                                      ? 'Étiquette annulée'
+                                      : 'Étiquette bloquée',
                           style: AppTypography.sectionTitle
                               .copyWith(color: AppColors.danger),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: AppSpacing.sm),
                         Text(
-                          r.reason ??
+                          state.error ??
                               'Cette étiquette ne peut pas être utilisée. '
                                   'Contactez le responsable de la stérilisation.',
                           style: AppTypography.body,

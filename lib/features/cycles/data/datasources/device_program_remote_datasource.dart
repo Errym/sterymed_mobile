@@ -14,7 +14,7 @@ class DeviceProgramRemoteDatasource {
     try {
       final res = await _dio.get(
         '/v1/devices/$deviceId/programs',
-        queryParameters: {'per_page': 100},
+        queryParameters: {'limit': 100},
       );
       final raw = res.data;
       if (raw is List) {

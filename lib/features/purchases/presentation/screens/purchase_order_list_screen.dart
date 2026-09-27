@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
@@ -34,23 +35,25 @@ class _PoListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final canManage = getIt<SessionStore>().hasPermission('purchasing.manage');
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
         title: 'Commandes & Réceptions',
         actions: [
-          IconButton(
-            icon: const Icon(Icons.add),
-            tooltip: 'Nouvelle commande',
-            onPressed: () async {
-              final ok = await PurchaseOrderCreateSheet.show(context);
-              if (ok == true && context.mounted) {
-                context
-                    .read<PurchaseOrderListBloc>()
-                    .add(const LoadPurchaseOrders());
-              }
-            },
-          ),
+          if (canManage)
+            IconButton(
+              icon: const Icon(Icons.add),
+              tooltip: 'Nouvelle commande',
+              onPressed: () async {
+                final ok = await PurchaseOrderCreateSheet.show(context);
+                if (ok == true && context.mounted) {
+                  context
+                      .read<PurchaseOrderListBloc>()
+                      .add(const LoadPurchaseOrders());
+                }
+              },
+            ),
         ],
       ),
       body: BlocBuilder<PurchaseOrderListBloc, PurchaseOrderListState>(
@@ -59,20 +62,25 @@ class _PoListView extends StatelessWidget {
               state.orders.isEmpty) {
             return EmptyView(
               title: 'Aucune commande',
-              message: 'Créez votre première commande fournisseur.',
+              message: canManage
+                  ? 'Créez votre première commande fournisseur.'
+                  : 'Aucune commande fournisseur pour le moment.',
               icon: Icons.shopping_cart_outlined,
-              action: FilledButton.icon(
-                onPressed: () async {
-                  final ok = await PurchaseOrderCreateSheet.show(context);
-                  if (ok == true && context.mounted) {
-                    context
-                        .read<PurchaseOrderListBloc>()
-                        .add(const LoadPurchaseOrders());
-                  }
-                },
-                icon: const Icon(Icons.add, size: 18),
-                label: const Text('Nouvelle commande'),
-              ),
+              action: canManage
+                  ? FilledButton.icon(
+                      onPressed: () async {
+                        final ok =
+                            await PurchaseOrderCreateSheet.show(context);
+                        if (ok == true && context.mounted) {
+                          context
+                              .read<PurchaseOrderListBloc>()
+                              .add(const LoadPurchaseOrders());
+                        }
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('Nouvelle commande'),
+                    )
+                  : null,
             );
           }
           return CursorPaginatedList<PurchaseOrderData>(
@@ -129,8 +137,8 @@ class _PoTile extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child:
-                        Text(order.reference, style: AppTypography.bodyStrong),
+                    child: Text(order.supplierName,
+                        style: AppTypography.bodyStrong),
                   ),
                   TypeBadge(
                     label: _statusLabel(order.status),
@@ -139,7 +147,7 @@ class _PoTile extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 4),
-              Text(order.supplierName, style: AppTypography.caption),
+              Text(order.shortId, style: AppTypography.caption),
               const SizedBox(height: AppSpacing.sm),
               Row(
                 children: [
@@ -164,16 +172,20 @@ class _PoTile extends StatelessWidget {
     );
   }
 
+  // Backend enum (PurchaseOrderStatus): draft, ordered, partially_received,
+  // received, closed, cancelled.
   String _statusLabel(String s) {
     switch (s) {
       case 'draft':
         return 'Brouillon';
       case 'ordered':
         return 'Commandé';
-      case 'partial':
+      case 'partially_received':
         return 'Partiel';
       case 'received':
         return 'Reçu';
+      case 'closed':
+        return 'Clôturé';
       case 'cancelled':
         return 'Annulé';
       default:
@@ -185,10 +197,12 @@ class _PoTile extends StatelessWidget {
     switch (s) {
       case 'ordered':
         return BadgeTone.blue;
-      case 'partial':
+      case 'partially_received':
         return BadgeTone.orange;
       case 'received':
         return BadgeTone.green;
+      case 'closed':
+        return BadgeTone.gray;
       case 'cancelled':
         return BadgeTone.gray;
       default:

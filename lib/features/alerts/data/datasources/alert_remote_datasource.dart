@@ -18,8 +18,11 @@ class AlertRemoteDatasource {
       final response = await _dio.get(
         ApiEndpoints.alerts,
         queryParameters: {
-          'resolved': false,
-          'per_page': 50,
+          // The real filter is `state` (open/resolved) — `resolved` was
+          // silently ignored by the backend, so this used to also return
+          // resolved alerts mixed into the "active" list.
+          'filter[state]': 'open',
+          'limit': 50,
           if (cursor != null) 'cursor': cursor,
         },
       );

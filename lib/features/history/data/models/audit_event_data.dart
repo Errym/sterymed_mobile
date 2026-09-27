@@ -53,6 +53,25 @@ class AuditEventData extends Equatable {
     return map[action] ?? action;
   }
 
+  String? get subjectTypeLabel {
+    const map = {
+      'App\\Domain\\Sterilization\\Models\\Cycle': 'Cycle',
+      'App\\Domain\\Sterilization\\Models\\CycleItem':
+          'Instrument de cycle',
+      'App\\Domain\\Catalog\\Models\\Product': 'Produit',
+      'App\\Domain\\Purchasing\\Models\\Supplier': 'Fournisseur',
+      'App\\Domain\\Purchasing\\Models\\PurchaseOrder': 'Commande',
+      'App\\Domain\\Equipment\\Models\\Device': 'Appareil',
+      'App\\Domain\\Equipment\\Models\\MaintenanceRecord':
+          'Fiche de maintenance',
+      'App\\Domain\\Reporting\\Models\\DataExportRequest':
+          'Export de données',
+      'App\\Models\\User': 'Utilisateur',
+    };
+    if (subjectType == null) return null;
+    return map[subjectType] ?? subjectType;
+  }
+
   @override
   List<Object?> get props =>
       [id, actorId, actorLabel, action, subjectType, subjectId, occurredAt];
