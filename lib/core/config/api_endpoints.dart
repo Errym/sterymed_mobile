@@ -45,6 +45,8 @@ abstract final class ApiEndpoints {
   static const devices = '$_v1/devices';
   static String device(String id) => '$_v1/devices/$id';
   static String devicePrograms(String id) => '$_v1/devices/$id/programs';
+  static String deviceMaintenanceRecords(String id) =>
+      '$_v1/devices/$id/maintenance-records';
 
   // Cycles
   static const cycles = '$_v1/cycles';
@@ -91,4 +93,16 @@ abstract final class ApiEndpoints {
   static const dataExports = '$_v1/data-export-requests';
   static String dataExport(String id) => '$_v1/data-export-requests/$id';
   static String dataExportDownload(String id) => '$_v1/data-export-requests/$id/download';
+
+  // Prosthetic
+  static const prostheticDashboard = '$_v1/prosthetic-dashboard';
+  static const prostheticWaitingPlacement = '$_v1/prosthetic-cases/waiting-placement';
+  static const prostheticCases = '$_v1/prosthetic-cases';
+  static String prostheticCase(String id) => '$_v1/prosthetic-cases/$id';
+  static String prostheticCaseStatus(String id) => '$_v1/prosthetic-cases/$id/status';
+  static String prostheticCaseStatusHistory(String id) => '$_v1/prosthetic-cases/$id/status-history';
+  static String prostheticCaseAttachments(String id) => '$_v1/prosthetic-cases/$id/attachments';
+  static String prostheticCaseAttachment(String id, String attachmentId) => '$_v1/prosthetic-cases/$id/attachments/$attachmentId';
+  static const laboratories = '$_v1/laboratories';
+  static String laboratory(String id) => '$_v1/laboratories/$id';
 }
