@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Flutter/Dart packages (pubspec.yaml at repo root)
+  - package-ecosystem: "pub"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # GitHub Actions workflow versions (.github/workflows/*.yml)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  # Android Gradle dependencies (android/build.gradle.kts, android/app/build.gradle.kts)
+  - package-ecosystem: "gradle"
+    directory: "/android"
+    schedule:
+      interval: "weekly"

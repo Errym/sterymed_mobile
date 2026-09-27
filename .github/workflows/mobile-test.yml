@@ -26,12 +26,7 @@ jobs:
         run: flutter pub get
 
       - name: Run tests
-        # Same exclusion as .git/hooks/pre-commit: the repo has ~27
-        # pre-existing empty test-file stubs (0 bytes, no main()) that
-        # fail to even compile and were never a real regression signal.
-        run: |
-          test_files=$(find test -name "*_test.dart" -exec grep -l "void main(" {} \;)
-          flutter test --coverage $test_files
+        run: flutter test --coverage
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
