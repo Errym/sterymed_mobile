@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/export_request_data.dart';
@@ -11,7 +12,7 @@ class ExportRemoteDatasource {
   Future<List<ExportRequestData>> list() async {
     try {
       final res = await _dio.get(
-        '/v1/data-export-requests',
+        ApiEndpoints.dataExports,
         queryParameters: {'limit': 50},
       );
       final raw = res.data;
@@ -28,7 +29,7 @@ class ExportRemoteDatasource {
   Future<ExportRequestData> request() async {
     try {
       final res = await _dio.post(
-        '/v1/data-export-requests',
+        ApiEndpoints.dataExports,
         options: Options(
           headers: {'Idempotency-Key': generateIdempotencyKey()},
         ),
@@ -43,7 +44,7 @@ class ExportRemoteDatasource {
 
   Future<String> downloadUrl(String id) async {
     try {
-      final res = await _dio.post('/v1/data-export-requests/$id/download');
+      final res = await _dio.post(ApiEndpoints.dataExportDownload(id));
       final data = (res.data as Map).cast<String, dynamic>();
       return data['download_url']?.toString() ?? '';
     } on DioException catch (e) {

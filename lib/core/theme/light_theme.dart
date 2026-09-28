@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'colors.dart';
 import 'radius.dart';
+import 'spacing.dart';
 import 'typography.dart';
 
 ThemeData buildLightTheme() {
@@ -120,6 +121,104 @@ ThemeData buildLightTheme() {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
+    ),
+
+    // Default snackbar look. `AppSnackbar.show` only overrides the
+    // background color per [SnackKind] on top of this.
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: AppColors.brandPrimary,
+      behavior: SnackBarBehavior.floating,
+      insetPadding: const EdgeInsets.all(AppSpacing.md),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      contentTextStyle: AppTypography.body.copyWith(
+        color: AppColors.textOnBrand,
+      ),
+    ),
+
+    dialogTheme: DialogThemeData(
+      backgroundColor: AppColors.backgroundCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+      ),
+      titleTextStyle: AppTypography.sectionTitle,
+      contentTextStyle: AppTypography.body,
+    ),
+
+    listTileTheme: const ListTileThemeData(
+      contentPadding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      titleTextStyle: AppTypography.bodyStrong,
+      subtitleTextStyle: AppTypography.caption,
+      iconColor: AppColors.textSecondary,
+    ),
+
+    iconTheme: const IconThemeData(color: AppColors.textPrimary, size: 20),
+    primaryIconTheme: const IconThemeData(
+      color: AppColors.textPrimary,
+      size: 20,
+    ),
+
+    popupMenuTheme: PopupMenuThemeData(
+      color: AppColors.backgroundCard,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      textStyle: AppTypography.body,
+    ),
+
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: AppColors.backgroundApp,
+      indicatorColor: AppColors.brandPrimaryLight,
+      labelTextStyle: WidgetStateProperty.all(AppTypography.caption),
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected)
+              ? AppColors.brandPrimary
+              : AppColors.textSecondary,
+        ),
+      ),
+    ),
+
+    switchTheme: SwitchThemeData(
+      trackColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandPrimary
+            : AppColors.borderMedium,
+      ),
+      thumbColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandPrimary
+            : AppColors.backgroundCard,
+      ),
+    ),
+
+    checkboxTheme: CheckboxThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandPrimary
+            : null,
+      ),
+    ),
+
+    radioTheme: RadioThemeData(
+      fillColor: WidgetStateProperty.resolveWith(
+        (states) => states.contains(WidgetState.selected)
+            ? AppColors.brandPrimary
+            : null,
+      ),
+    ),
+
+    textTheme: const TextTheme(
+      displayLarge: AppTypography.pageTitle,
+      titleLarge: AppTypography.sectionTitle,
+      titleMedium: AppTypography.cardTitle,
+      bodyLarge: AppTypography.body,
+      bodyMedium: AppTypography.body,
+      bodySmall: AppTypography.caption,
+      labelLarge: AppTypography.buttonLabel,
+      labelMedium: AppTypography.label,
+      labelSmall: AppTypography.caption,
     ),
   );
 }

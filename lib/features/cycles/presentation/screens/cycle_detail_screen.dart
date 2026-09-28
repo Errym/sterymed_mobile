@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/errors/api_exception.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
@@ -13,13 +12,8 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
-import '../../../../shared/widgets/inputs/app_dropdown.dart';
-import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
-import '../../../dlu/data/models/dlu_rule_data.dart';
-import '../../../dlu/data/repositories/dlu_repository.dart';
-import '../../data/local/cycle_notes_cache.dart';
 import '../../data/models/control_test_data.dart';
 import '../../data/models/cycle_attachment_data.dart';
 import '../../data/models/cycle_data.dart';
@@ -28,6 +22,15 @@ import '../../data/models/cycle_release_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../bloc/cycle_detail_bloc.dart';
 import '../bloc/cycle_transition_bloc.dart';
+import '../widgets/cycle_detail_attachment_tile.dart';
+import '../widgets/cycle_detail_control_test_row.dart';
+import '../widgets/cycle_detail_item_row.dart';
+import '../widgets/cycle_empty_hint.dart';
+import '../widgets/cycle_info_banner.dart';
+import '../widgets/cycle_info_card.dart';
+import '../widgets/cycle_labels_section.dart';
+import '../widgets/cycle_notes_section.dart';
+import '../widgets/cycle_read_only_banner.dart';
 import '../widgets/cycle_status_badge.dart';
 import '../widgets/cycle_timeline.dart';
 import '../widgets/item_editor_dialog.dart';
@@ -155,7 +158,7 @@ class _CycleDetailView extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.md),
-                        _infoCard(c),
+                        CycleInfoCard(cycle: c),
                       ],
                     ),
                   ),
@@ -181,7 +184,8 @@ class _CycleDetailView extends StatelessWidget {
                       children: [
                         const SizedBox(height: AppSpacing.lg),
                         const SectionHeader(title: 'Notes de suivi'),
-                        _NotesSection(cycleId: cycleId, initialNotes: c.notes),
+                        CycleNotesSection(
+                            cycleId: cycleId, initialNotes: c.notes),
                       ],
                     ),
                   ),
@@ -208,9 +212,9 @@ class _CycleDetailView extends StatelessWidget {
                           ),
                         ),
                         if (state.items.isEmpty)
-                          const _EmptyHint('Aucun instrument enregistré.')
+                          const CycleEmptyHint('Aucun instrument enregistré.')
                         else
-                          ...state.items.map((i) => _ItemRow(
+                          ...state.items.map((i) => CycleDetailItemRow(
                                 item: i,
                                 onEdit: canAddItems
                                     ? () => _editItem(context, cycleId, i)
@@ -245,7 +249,7 @@ class _CycleDetailView extends StatelessWidget {
                           ),
                         ),
                         if (!canAddTests && state.controlTests.isEmpty) ...[
-                          const _InfoBanner(
+                          const CycleInfoBanner(
                             message:
                                 'Les contrôles (Bowie-Dick, Helix, biologique) se '
                                 'saisissent une fois le cycle terminé.',
@@ -253,10 +257,10 @@ class _CycleDetailView extends StatelessWidget {
                           const SizedBox(height: AppSpacing.sm),
                         ],
                         if (state.controlTests.isEmpty && canAddTests)
-                          const _EmptyHint('Aucun contrôle enregistré.')
+                          const CycleEmptyHint('Aucun contrôle enregistré.')
                         else ...[
                           if (state.controlTests.isNotEmpty) ...[
-                            const _InfoBanner(
+                            const CycleInfoBanner(
                               message:
                                   'Les contrôles ne peuvent pas être supprimés une '
                                   'fois enregistrés (exigence de traçabilité).',
@@ -264,7 +268,7 @@ class _CycleDetailView extends StatelessWidget {
                             const SizedBox(height: AppSpacing.sm),
                           ],
                           ...state.controlTests
-                              .map((t) => _ControlTestRow(test: t)),
+                              .map((t) => CycleDetailControlTestRow(test: t)),
                         ],
                       ],
                     ),
@@ -291,13 +295,13 @@ class _CycleDetailView extends StatelessWidget {
                           ),
                         ),
                         if (state.attachments.isEmpty)
-                          const _EmptyHint('Aucune pièce jointe.')
+                          const CycleEmptyHint('Aucune pièce jointe.')
                         else
                           Wrap(
                             spacing: AppSpacing.sm,
                             runSpacing: AppSpacing.sm,
                             children: state.attachments
-                                .map((a) => _AttachmentTile(
+                                .map((a) => CycleDetailAttachmentTile(
                                       a: a,
                                       onDelete: canManage
                                           ? () => _deleteAttachment(
@@ -334,7 +338,7 @@ class _CycleDetailView extends StatelessWidget {
                         children: [
                           const SizedBox(height: AppSpacing.lg),
                           const SectionHeader(title: 'Étiquettes'),
-                          _LabelsSection(cycleId: cycleId),
+                          CycleLabelsSection(cycleId: cycleId),
                         ],
                       ),
                     ),
@@ -372,56 +376,6 @@ class _CycleDetailView extends StatelessWidget {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // Info card
-  // ─────────────────────────────────────────────────────────────────────────
-  Widget _infoCard(CycleData c) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        children: [
-          _row(Icons.precision_manufacturing_outlined, 'Appareil',
-              c.deviceName.isEmpty ? 'Appareil inconnu' : c.deviceName),
-          if (c.programName != null)
-            _row(Icons.thermostat_outlined, 'Programme', c.programName!),
-          if (c.programTemperatureCelsius != null &&
-              c.programPlateauMinutes != null)
-            _row(Icons.speed_outlined, 'Paramètres',
-                '${c.programTemperatureCelsius} °C · ${c.programPlateauMinutes} min'),
-          if (c.operatorName != null)
-            _row(Icons.person_outline, 'Opérateur', c.operatorName!),
-        ],
-      ),
-    );
-  }
-
-  Widget _row(IconData icon, String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.sm),
-          Text(label, style: AppTypography.label),
-          const Spacer(),
-          Flexible(
-            child: Text(
-              value,
-              style: AppTypography.bodyStrong,
-              textAlign: TextAlign.right,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────────────────────────────────
   // Action button
   // ─────────────────────────────────────────────────────────────────────────
   Widget _actionButton(
@@ -433,7 +387,7 @@ class _CycleDetailView extends StatelessWidget {
   }) {
     switch (c.status) {
       case 'created':
-        if (!canManage) return const _ReadOnlyBanner();
+        if (!canManage) return const CycleReadOnlyBanner();
         return PrimaryButton(
           label: 'Démarrer le cycle',
           icon: Icons.play_arrow,
@@ -441,7 +395,7 @@ class _CycleDetailView extends StatelessWidget {
           onPressed: isLoading ? null : () => _confirmAndStart(context, c.id),
         );
       case 'in_progress':
-        if (!canManage) return const _ReadOnlyBanner();
+        if (!canManage) return const CycleReadOnlyBanner();
         return PrimaryButton(
           label: 'Marquer comme terminé',
           icon: Icons.check,
@@ -450,7 +404,7 @@ class _CycleDetailView extends StatelessWidget {
               isLoading ? null : () => _confirmAndComplete(context, c.id),
         );
       case 'completed':
-        if (!canManage) return const _ReadOnlyBanner();
+        if (!canManage) return const CycleReadOnlyBanner();
         return PrimaryButton(
           label: 'Soumettre pour libération',
           icon: Icons.assignment_turned_in_outlined,
@@ -458,7 +412,7 @@ class _CycleDetailView extends StatelessWidget {
           onPressed: isLoading ? null : () => _confirmAndSubmit(context, c.id),
         );
       case 'awaiting_release':
-        if (!canRelease) return const _ReadOnlyBanner();
+        if (!canRelease) return const CycleReadOnlyBanner();
         return PrimaryButton(
           label: 'Prendre la décision de libération',
           icon: Icons.verified_outlined,
@@ -632,76 +586,80 @@ class _CycleDetailView extends StatelessWidget {
     ControlTestResult result = ControlTestResult.pass;
     final notesCtrl = TextEditingController();
 
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Enregistrer un contrôle'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<ControlTestType>(
-                  initialValue: type,
-                  decoration: const InputDecoration(labelText: 'Type'),
-                  items: ControlTestType.values
-                      .map((t) => DropdownMenuItem(
-                            value: t,
-                            child: Text(t.label),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => type = v ?? type),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<ControlTestResult>(
-                  initialValue: result,
-                  decoration: const InputDecoration(labelText: 'Résultat'),
-                  items: ControlTestResult.values
-                      .map((r) => DropdownMenuItem(
-                            value: r,
-                            child: Text(r.label),
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => result = v ?? result),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: notesCtrl,
-                  maxLines: 3,
-                  decoration: const InputDecoration(labelText: 'Notes'),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, false),
-              child: const Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, true),
-              child: const Text('Enregistrer'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (ok != true || !context.mounted) return;
     try {
-      await getIt<CycleRepository>().addControlTest(cycleId, {
-        'type': _typeToString(type),
-        'result': result == ControlTestResult.pass ? 'pass' : 'fail',
-        'performed_at': DateTime.now().toIso8601String(),
-        if (notesCtrl.text.trim().isNotEmpty) 'notes': notesCtrl.text.trim(),
-      });
-      if (!context.mounted) return;
-      AppSnackbar.show(context, 'Contrôle enregistré.',
-          kind: SnackKind.success);
-      context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
-    } catch (e) {
-      if (!context.mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dialogCtx) => StatefulBuilder(
+          builder: (ctx, setState) => AlertDialog(
+            title: const Text('Enregistrer un contrôle'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  DropdownButtonFormField<ControlTestType>(
+                    initialValue: type,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                    items: ControlTestType.values
+                        .map((t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(t.label),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => type = v ?? type),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<ControlTestResult>(
+                    initialValue: result,
+                    decoration: const InputDecoration(labelText: 'Résultat'),
+                    items: ControlTestResult.values
+                        .map((r) => DropdownMenuItem(
+                              value: r,
+                              child: Text(r.label),
+                            ))
+                        .toList(),
+                    onChanged: (v) => setState(() => result = v ?? result),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesCtrl,
+                    maxLines: 3,
+                    decoration: const InputDecoration(labelText: 'Notes'),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, false),
+                child: const Text('Annuler'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx, true),
+                child: const Text('Enregistrer'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (ok != true || !context.mounted) return;
+      try {
+        await getIt<CycleRepository>().addControlTest(cycleId, {
+          'type': _typeToString(type),
+          'result': result == ControlTestResult.pass ? 'pass' : 'fail',
+          'performed_at': DateTime.now().toIso8601String(),
+          if (notesCtrl.text.trim().isNotEmpty) 'notes': notesCtrl.text.trim(),
+        });
+        if (!context.mounted) return;
+        AppSnackbar.show(context, 'Contrôle enregistré.',
+            kind: SnackKind.success);
+        context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
+      } catch (e) {
+        if (!context.mounted) return;
+        AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+      }
+    } finally {
+      notesCtrl.dispose();
     }
   }
 
@@ -758,552 +716,6 @@ class _CycleDetailView extends StatelessWidget {
               ),
             ),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Notes section
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _NotesSection extends StatefulWidget {
-  final String cycleId;
-  final String? initialNotes;
-
-  const _NotesSection({required this.cycleId, this.initialNotes});
-
-  @override
-  State<_NotesSection> createState() => _NotesSectionState();
-}
-
-class _NotesSectionState extends State<_NotesSection> {
-  final _cache = CycleNotesCache();
-  final _notesCtrl = TextEditingController();
-  bool _loading = true;
-  bool _editing = false;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  @override
-  void dispose() {
-    _notesCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _load() async {
-    final cached = await _cache.get(widget.cycleId);
-    if (!mounted) return;
-    setState(() {
-      _notesCtrl.text = cached ?? widget.initialNotes ?? '';
-      _loading = false;
-      _editing = false;
-    });
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    await _cache.save(widget.cycleId, _notesCtrl.text.trim());
-    if (!mounted) return;
-    setState(() {
-      _saving = false;
-      _editing = false;
-    });
-    AppSnackbar.show(context, 'Notes enregistrées.', kind: SnackKind.success);
-  }
-
-  void _cancel() {
-    _load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-        child: Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        ),
-      );
-    }
-
-    if (_editing) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AppTextArea(
-            controller: _notesCtrl,
-            hint:
-                'Ex : Cassettes chirurgicales Dr. Watson, sachets turbines...',
-            maxLines: 5,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: TextButton(
-                  onPressed: _saving ? null : _cancel,
-                  child: const Text('Annuler'),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                flex: 2,
-                child: PrimaryButton(
-                  label: 'Enregistrer',
-                  isLoading: _saving,
-                  onPressed: _save,
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    final hasNotes = _notesCtrl.text.trim().isNotEmpty;
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSubtle,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  hasNotes ? _notesCtrl.text : 'Aucune note pour ce cycle.',
-                  style: hasNotes ? AppTypography.body : AppTypography.caption,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined,
-                    size: 18, color: AppColors.brandPrimary),
-                tooltip: hasNotes ? 'Modifier' : 'Ajouter',
-                onPressed: () => setState(() => _editing = true),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Enregistrées localement — non synchronisées avec le serveur '
-            '(pas d\'endpoint disponible).',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-              fontSize: 11,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Labels section
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _LabelsSection extends StatefulWidget {
-  final String cycleId;
-  const _LabelsSection({required this.cycleId});
-
-  @override
-  State<_LabelsSection> createState() => _LabelsSectionState();
-}
-
-class _LabelsSectionState extends State<_LabelsSection> {
-  late Future<int> _countFuture;
-  bool _generating = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _countFuture = getIt<CycleRepository>().countLabels(widget.cycleId);
-  }
-
-  void _reload() {
-    setState(() {
-      _countFuture = getIt<CycleRepository>().countLabels(widget.cycleId);
-    });
-  }
-
-  Future<void> _generate() async {
-    final rules = await getIt<DluRepository>().list();
-    if (!mounted) return;
-    if (rules.isEmpty) {
-      AppSnackbar.show(
-        context,
-        'Aucune règle DLU configurée. Contactez le titulaire du cabinet.',
-        kind: SnackKind.error,
-      );
-      return;
-    }
-
-    DluRuleData selected = rules.first;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogCtx) => StatefulBuilder(
-        builder: (ctx, setState) => AlertDialog(
-          title: const Text('Générer les étiquettes'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Une étiquette sera créée pour chaque instrument de ce '
-                  'cycle, avec la DLC calculée depuis la règle choisie.',
-                  style: AppTypography.caption,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppDropdown<DluRuleData>(
-                  label: 'Emballage / conditions de stockage',
-                  value: selected,
-                  options: rules
-                      .map((r) => AppDropdownOption(
-                            value: r,
-                            label: '${r.packagingType} — '
-                                '${r.storageCondition} '
-                                '(${r.shelfLifeDays} j)',
-                          ))
-                      .toList(),
-                  onChanged: (v) => setState(() => selected = v ?? selected),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, false),
-              child: const Text('Annuler'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(dialogCtx, true),
-              child: const Text('Générer'),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-
-    setState(() => _generating = true);
-    try {
-      final count = await getIt<CycleRepository>().generateLabels(
-        widget.cycleId,
-        packagingType: selected.packagingType,
-        storageCondition: selected.storageCondition,
-      );
-      if (!mounted) return;
-      AppSnackbar.show(
-        context,
-        '$count étiquette(s) générée(s).',
-        kind: SnackKind.success,
-      );
-      _reload();
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.show(context, _labelError(e), kind: SnackKind.error);
-    } finally {
-      if (mounted) setState(() => _generating = false);
-    }
-  }
-
-  String _labelError(Object e) {
-    if (e is ApiException) {
-      switch (e.code) {
-        case 'CYCLE_NOT_RELEASED':
-          return 'Les étiquettes ne peuvent être générées que pour un '
-              'cycle libéré.';
-        case 'CYCLE_LABELS_ALREADY_GENERATED':
-          return 'Les étiquettes de ce cycle ont déjà été générées.';
-        case 'DLU_RULE_NOT_FOUND':
-          return 'Aucune règle DLU ne correspond à cette combinaison '
-              'emballage/stockage.';
-      }
-    }
-    return ErrorMessage.from(e);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: _countFuture,
-      builder: (context, snap) {
-        if (snap.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-        if (snap.hasError) {
-          return _InfoBanner(message: _labelError(snap.error!));
-        }
-        final count = snap.data ?? 0;
-        if (count > 0) {
-          return _InfoBanner(
-            message: '$count étiquette(s) générée(s) pour ce cycle.',
-          );
-        }
-        return PrimaryButton(
-          label: 'Générer les étiquettes',
-          icon: Icons.qr_code_2_outlined,
-          isLoading: _generating,
-          onPressed: _generating ? null : _generate,
-        );
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _EmptyHint extends StatelessWidget {
-  final String text;
-  const _EmptyHint(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: Text(text, style: AppTypography.caption),
-    );
-  }
-}
-
-class _ReadOnlyBanner extends StatelessWidget {
-  const _ReadOnlyBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return const _InfoBanner(
-      message: 'Vous consultez ce cycle en lecture seule. Contactez '
-          'l\'équipe de stérilisation pour toute modification.',
-    );
-  }
-}
-
-class _InfoBanner extends StatelessWidget {
-  final String message;
-  const _InfoBanner({required this.message});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: AppColors.infoLight,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.info_outline, size: 16, color: AppColors.info),
-          const SizedBox(width: AppSpacing.xs),
-          Expanded(
-            child: Text(
-              message,
-              style: AppTypography.caption.copyWith(color: AppColors.info),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ItemRow extends StatelessWidget {
-  final CycleItemData item;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-
-  const _ItemRow({
-    required this.item,
-    this.onEdit,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.inventory_2_outlined,
-              size: 18, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.description, style: AppTypography.bodyStrong),
-                if (item.batchNumber != null) ...[
-                  const SizedBox(height: 2),
-                  Text('Lot ${item.batchNumber}', style: AppTypography.caption),
-                ],
-              ],
-            ),
-          ),
-          if (onEdit != null || onDelete != null)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert,
-                  size: 20, color: AppColors.textSecondary),
-              onSelected: (v) {
-                if (v == 'edit') onEdit?.call();
-                if (v == 'delete') onDelete?.call();
-              },
-              itemBuilder: (_) => [
-                if (onEdit != null)
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(children: [
-                      Icon(Icons.edit_outlined, size: 18),
-                      SizedBox(width: 8),
-                      Text('Modifier'),
-                    ]),
-                  ),
-                if (onDelete != null)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(children: [
-                      Icon(Icons.delete_outline,
-                          size: 18, color: AppColors.danger),
-                      SizedBox(width: 8),
-                      Text('Supprimer',
-                          style: TextStyle(color: AppColors.danger)),
-                    ]),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ControlTestRow extends StatelessWidget {
-  final ControlTestData test;
-  const _ControlTestRow({required this.test});
-
-  @override
-  Widget build(BuildContext context) {
-    final isPass = test.result == ControlTestResult.pass;
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(test.type.label, style: AppTypography.bodyStrong),
-                const SizedBox(height: 2),
-                Text(
-                  _formatDateTime(test.performedAt),
-                  style: AppTypography.caption,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: isPass ? AppColors.successLight : AppColors.dangerLight,
-              borderRadius: BorderRadius.circular(AppRadius.pill),
-            ),
-            child: Text(
-              test.result.label,
-              style: AppTypography.caption.copyWith(
-                color: isPass ? AppColors.success : AppColors.danger,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDateTime(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year} · '
-        '${two(d.hour)}:${two(d.minute)}';
-  }
-}
-
-class _AttachmentTile extends StatelessWidget {
-  final CycleAttachmentData a;
-  final VoidCallback? onDelete;
-
-  const _AttachmentTile({required this.a, this.onDelete});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 90,
-      height: 90,
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSubtle,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Stack(
-        children: [
-          const Center(
-            child: Icon(Icons.image_outlined,
-                color: AppColors.textSecondary, size: 24),
-          ),
-          if (onDelete != null)
-            Positioned(
-              top: 2,
-              right: 2,
-              child: Material(
-                color: AppColors.backgroundCard,
-                shape: const CircleBorder(),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: onDelete,
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 14, color: AppColors.danger),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );

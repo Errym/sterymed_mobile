@@ -85,11 +85,14 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
           if (snap.connectionState == ConnectionState.waiting) {
             return const LoadingView();
           }
-          if (snap.hasError) {
+           if (snap.hasError) {
             return ErrorView(
               message: 'Impossible de charger le fournisseur.',
               onRetry: _refresh,
             );
+          }
+          if (!snap.hasData) {
+            return const LoadingView();
           }
           final (supplier, links, productsById) = snap.data!;
           if (supplier == null) {

@@ -16,6 +16,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:steriymed_mobile/features/prosthetic/presentation/widgets/prosthetic_payment_section.dart';
+import 'package:steriymed_mobile/shared/widgets/inputs/app_text_field.dart';
 
 import '../fixtures/prosthetic_case_fixture.dart';
 
@@ -101,7 +102,8 @@ void main() {
       expect(find.text('Paiement à jour'), findsNothing);
     });
 
-    testWidgets('save sends the current switch and field values', (tester) async {
+    testWidgets('save sends the current switch and field values',
+        (tester) async {
       Map<String, dynamic>? saved;
       await _pump(
         tester,
@@ -131,5 +133,54 @@ void main() {
 
       expect(find.byType(CircularProgressIndicator), findsOneWidget);
     });
+  });
+
+  group('final payment recalculation (brief page 8)', () {
+    testWidgets(
+      'toggling "Paiement final effectué" on zeroes and disables the '
+      'remaining balance field',
+      (tester) async {
+        await _pump(
+          tester,
+          canEdit: true,
+          busy: false,
+          onSave: (_) {},
+          remainingBalance: 125.0,
+        );
+
+        expect(find.text('125.00'), findsOneWidget);
+
+        await tester.tap(find.text('Paiement final effectué'));
+        await tester.pump();
+
+        expect(find.text('0.00'), findsOneWidget);
+        final field = tester.widget<AppTextField>(
+          find.widgetWithText(AppTextField, 'Solde restant (€)'),
+        );
+        expect(field.enabled, isFalse);
+      },
+    );
+
+    testWidgets(
+      'save() sends a zero remaining balance whenever the final payment is '
+      'completed, even if the loaded data had a stale non-zero balance',
+      (tester) async {
+        Map<String, dynamic>? saved;
+        await _pump(
+          tester,
+          canEdit: true,
+          busy: false,
+          onSave: (data) => saved = data,
+          finalPaymentCompleted: true,
+          remainingBalance: 125.0,
+        );
+
+        await tester.tap(find.text('Enregistrer le paiement'));
+        await tester.pump();
+
+        expect(saved, isNotNull);
+        expect(saved!['remaining_balance'], 0.0);
+      },
+    );
   });
 }

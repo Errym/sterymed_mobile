@@ -35,12 +35,9 @@ abstract final class AppSnackbar {
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
+          // shape/margin/behavior come from ThemeData.snackBarTheme; only
+          // the background color varies per [SnackKind].
           backgroundColor: bg,
-          behavior: SnackBarBehavior.floating,
-          margin: const EdgeInsets.all(AppSpacing.md),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
           content: Row(
             children: [
               Icon(icon, color: AppColors.textOnBrand, size: 20),

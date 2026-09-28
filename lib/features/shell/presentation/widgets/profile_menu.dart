@@ -21,11 +21,9 @@ class ProfileMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // shape comes from ThemeData.popupMenuTheme.
     return PopupMenuButton<String>(
       offset: const Offset(0, 48),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
       onSelected: (value) {
         switch (value) {
           case 'settings':

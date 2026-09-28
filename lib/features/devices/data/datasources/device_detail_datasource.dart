@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../models/device_detail.dart';
 
@@ -10,7 +11,7 @@ class DeviceDetailDatasource {
   Future<List<DeviceDetail>> list() async {
     try {
       final res = await _dio.get(
-        '/v1/devices',
+        ApiEndpoints.devices,
         queryParameters: {'limit': 100},
       );
       final raw = res.data;
@@ -26,7 +27,7 @@ class DeviceDetailDatasource {
 
   Future<DeviceDetail> show(String id) async {
     try {
-      final res = await _dio.get('/v1/devices/$id');
+      final res = await _dio.get(ApiEndpoints.device(id));
       final raw = res.data;
       if (raw is Map && raw['data'] is Map) {
         return DeviceDetail.fromJson(
@@ -50,7 +51,7 @@ class DeviceDetailDatasource {
   }) async {
     try {
       final res = await _dio.patch(
-        '/v1/devices/$id',
+        ApiEndpoints.device(id),
         data: {
           if (name != null) 'name': name,
           if (model != null) 'model': model,
@@ -74,7 +75,7 @@ class DeviceDetailDatasource {
 
   Future<void> destroy(String id) async {
     try {
-      await _dio.delete('/v1/devices/$id');
+      await _dio.delete(ApiEndpoints.device(id));
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

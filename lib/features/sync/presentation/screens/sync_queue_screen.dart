@@ -32,8 +32,10 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
   }
 
   Future<void> _load() async {
+    if (!mounted) return;
     setState(() => _loading = true);
     final store = getIt<OutboxStore>();
+    if (!mounted) return;
     setState(() {
       _items = store.all();
       _loading = false;

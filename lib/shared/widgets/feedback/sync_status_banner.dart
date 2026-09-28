@@ -6,6 +6,7 @@ class SyncStatusBanner extends StatelessWidget {
   final bool online;
   final int pendingCount;
   final int manualReviewCount;
+  final bool isSyncing;
   final VoidCallback? onTap;
 
   const SyncStatusBanner({
@@ -13,6 +14,7 @@ class SyncStatusBanner extends StatelessWidget {
     required this.online,
     required this.pendingCount,
     this.manualReviewCount = 0,
+    this.isSyncing = false,
     this.onTap,
   });
 
@@ -43,7 +45,9 @@ class SyncStatusBanner extends StatelessWidget {
       bg = AppColors.infoLight;
       fg = AppColors.info;
       icon = Icons.sync;
-      label = '$pendingCount synchronisation(s) en attente';
+      label = isSyncing
+          ? 'Synchronisation...'
+          : '$pendingCount synchronisation(s) en attente';
     }
 
     return Material(

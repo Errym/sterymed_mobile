@@ -21,6 +21,7 @@ void main() {
     connectivity = MockConnectivityService();
     when(() => store.manualReview()).thenReturn([]);
     when(() => engine.flush()).thenAnswer((_) async => 0);
+    when(() => engine.isFlushing).thenReturn(false);
     when(() => connectivity.dispose()).thenReturn(null);
   });
 
@@ -29,6 +30,15 @@ void main() {
         engine: engine,
         connectivity: connectivity,
       );
+
+  test('isFlushing proxies the engine\'s own flag', () async {
+    when(() => engine.isFlushing).thenReturn(true);
+    final cubit = buildCubit();
+
+    expect(cubit.isFlushing, isTrue);
+
+    await cubit.close();
+  });
 
   test('does not flush when the app starts offline', () async {
     when(() => connectivity.isConnected).thenAnswer((_) async => false);

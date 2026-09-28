@@ -57,7 +57,9 @@ class _ProstheticHomeScreenState extends State<ProstheticHomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.local_shipping_outlined),
-            tooltip: 'Laboratoires',
+            tooltip: canManage
+                ? 'Laboratoires'
+                : 'Réservé aux praticiens et administrateurs',
             onPressed: canManage
                 ? () => context.push(Routes.prostheticLaboratories)
                 : null,
@@ -72,11 +74,14 @@ class _ProstheticHomeScreenState extends State<ProstheticHomeScreen> {
             if (snap.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snap.hasError) {
+                       if (snap.hasError) {
               return ErrorView(
                 message: ErrorMessage.from(snap.error!),
                 onRetry: _refresh,
               );
+            }
+            if (!snap.hasData) {
+              return const Center(child: CircularProgressIndicator());
             }
             final d = snap.data!;
             return ListView(
@@ -199,7 +204,8 @@ class _Kpi extends StatelessWidget {
           children: [
             Icon(icon, color: accent, size: 20),
             const Spacer(),
-            Text('$value', style: AppTypography.pageTitle.copyWith(color: accent)),
+            Text('$value',
+                style: AppTypography.pageTitle.copyWith(color: accent)),
             Text(label,
                 style: AppTypography.caption
                     .copyWith(color: AppColors.textSecondary),

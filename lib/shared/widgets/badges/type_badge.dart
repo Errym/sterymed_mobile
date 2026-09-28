@@ -49,8 +49,12 @@ class TypeBadge extends StatelessWidget {
       case BadgeTone.red:
         return (AppColors.dangerLight, AppColors.danger);
       case BadgeTone.purple:
+        // TODO(theme): no AppColors token for purple yet — add one
+        // (e.g. tagPurple/tagPurpleLight) instead of hard-coding this pair.
         return (const Color(0xFFEDE9FE), const Color(0xFF7C3AED));
       case BadgeTone.orange:
+        // TODO(theme): no AppColors token for orange yet — add one
+        // (e.g. tagOrange/tagOrangeLight) instead of hard-coding this pair.
         return (const Color(0xFFFFEDD5), const Color(0xFFEA580C));
       case BadgeTone.gray:
         return (AppColors.backgroundMuted, AppColors.textSecondary);

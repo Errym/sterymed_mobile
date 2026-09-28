@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/maintenance_record_data.dart';
@@ -13,7 +14,8 @@ class MaintenanceRecordDatasource {
   /// shape as GET /devices/{device}/programs.
   Future<List<MaintenanceRecordData>> list(String deviceId) async {
     try {
-      final res = await _dio.get('/v1/devices/$deviceId/maintenance-records');
+      final res =
+          await _dio.get(ApiEndpoints.deviceMaintenanceRecords(deviceId));
       final raw = res.data;
       if (raw is List) {
         return raw
@@ -51,7 +53,7 @@ class MaintenanceRecordDatasource {
   }) async {
     try {
       final res = await _dio.post(
-        '/v1/devices/$deviceId/maintenance-records',
+        ApiEndpoints.deviceMaintenanceRecords(deviceId),
         data: {
           'kind': kind,
           if (technician != null && technician.isNotEmpty)

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
@@ -24,6 +26,29 @@ void main() {
     dio = MockDio();
     engine = SyncEngine(store, dio);
     when(() => store.update(any())).thenAnswer((_) async {});
+  });
+
+  test('isFlushing is true only while flush() is running', () async {
+    final item = buildOutboxItem();
+    when(() => store.pending()).thenReturn([item]);
+    when(() => store.remove(item.id)).thenAnswer((_) async {});
+    final completer = Completer<Response<dynamic>>();
+    when(
+      () => dio.request(
+        any(),
+        data: any(named: 'data'),
+        options: any(named: 'options'),
+      ),
+    ).thenAnswer((_) => completer.future);
+
+    expect(engine.isFlushing, isFalse);
+    final flushFuture = engine.flush();
+    expect(engine.isFlushing, isTrue);
+
+    completer.complete(jsonResponse(data: <String, dynamic>{}));
+    await flushFuture;
+
+    expect(engine.isFlushing, isFalse);
   });
 
   test('a successful flush removes the item from the outbox', () async {
@@ -62,7 +87,8 @@ void main() {
           requestOptions: RequestOptions(path: item.endpoint),
           error: const ApiException(
             code: 'IDEMPOTENCY_KEY_REUSED',
-            message: 'This Idempotency-Key was already used with a different request.',
+            message:
+                'This Idempotency-Key was already used with a different request.',
             statusCode: 409,
           ),
         ),
@@ -78,7 +104,8 @@ void main() {
     },
   );
 
-  test('a 422 response keeps the item for manual review, not removed', () async {
+  test('a 422 response keeps the item for manual review, not removed',
+      () async {
     final item = buildOutboxItem();
     when(() => store.pending()).thenReturn([item]);
     when(

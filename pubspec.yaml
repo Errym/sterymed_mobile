@@ -33,6 +33,9 @@ dependencies:
   shimmer: ^3.0.0
   http: ^1.2.2
   sentry_flutter: ^9.30.1
+  package_info_plus: ^9.0.1
+  pdf: ^3.11.1
+  printing: ^5.13.4
 
 dev_dependencies:
   flutter_test:
@@ -46,3 +49,6 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+  assets:
+    - assets/fonts/Inter-Regular.ttf
+    - assets/fonts/Inter-Bold.ttf

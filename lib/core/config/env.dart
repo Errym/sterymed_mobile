@@ -4,6 +4,15 @@ abstract final class Env {
     defaultValue: 'http://10.0.2.2:8000/api',
   );
 
+  /// [apiBaseUrl] with any trailing slash stripped, so callers that
+  /// concatenate a path (e.g. `'${Env.resolvedApiBaseUrl}/v1/...'`) can't
+  /// accidentally produce a `//v1/...` path. [apiBaseUrl] itself is kept
+  /// as-is for backward compat.
+  static String get resolvedApiBaseUrl => stripTrailingSlash(apiBaseUrl);
+
+  static String stripTrailingSlash(String url) =>
+      url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+
   static const environment = String.fromEnvironment('ENV', defaultValue: 'dev');
 
   static const sentryDsn = String.fromEnvironment(

@@ -39,6 +39,7 @@ void main() {
         .thenAnswer((_) => statusChanges.stream);
     when(() => connectivity.dispose()).thenReturn(null);
     when(() => engine.flush()).thenAnswer((_) async => 0);
+    when(() => engine.isFlushing).thenReturn(false);
   });
 
   tearDown(() {
@@ -64,6 +65,11 @@ void main() {
         isA<SyncStatus>()
             .having((s) => s.online, 'online', true)
             .having((s) => s.pendingCount, 'pendingCount', 2),
+        // Emitted right as the flush starts (isSyncing reflects the engine).
+        isA<SyncStatus>()
+            .having((s) => s.online, 'online', true)
+            .having((s) => s.pendingCount, 'pendingCount', 2),
+        // Emitted again once the flush completes.
         isA<SyncStatus>()
             .having((s) => s.online, 'online', true)
             .having((s) => s.pendingCount, 'pendingCount', 2),
@@ -71,6 +77,22 @@ void main() {
       verify: (_) {
         verify(() => engine.flush()).called(1);
       },
+    );
+
+    blocTest<SyncStatusCubit, SyncStatus>(
+      'reflects isSyncing from the engine while a flush is in progress',
+      setUp: () {
+        when(() => connectivity.isConnected).thenAnswer((_) async => true);
+        when(() => store.pendingCount).thenReturn(1);
+        when(() => engine.isFlushing).thenReturn(true);
+      },
+      build: build,
+      act: (c) => c.start(),
+      expect: () => [
+        isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
+        isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
+        isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
+      ],
     );
 
     blocTest<SyncStatusCubit, SyncStatus>(
@@ -106,6 +128,7 @@ void main() {
       expect: () => [
         isA<SyncStatus>().having((s) => s.online, 'online', true),
         isA<SyncStatus>().having((s) => s.online, 'online', true),
+        isA<SyncStatus>().having((s) => s.online, 'online', true),
       ],
       verify: (_) {
         verify(() => engine.flush()).called(1);
@@ -123,7 +146,8 @@ void main() {
         statusChanges.add(false);
         await Future<void>.delayed(Duration.zero);
       },
-      skip: 2, // start()'s initial refresh + post-flush refresh while online
+      skip: 3, // start()'s initial refresh + the two flush-related refreshes
+      // while online
       expect: () => [
         isA<SyncStatus>().having((s) => s.online, 'online', false),
       ],
@@ -153,7 +177,8 @@ void main() {
       },
     );
 
-    test('close() cancels the subscription and disposes connectivity', () async {
+    test('close() cancels the subscription and disposes connectivity',
+        () async {
       when(() => connectivity.isConnected).thenAnswer((_) async => true);
       final cubit = build();
       await cubit.start();

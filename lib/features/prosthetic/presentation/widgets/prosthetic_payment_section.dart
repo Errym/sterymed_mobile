@@ -53,13 +53,30 @@ class _ProstheticPaymentSectionState extends State<ProstheticPaymentSection> {
     super.dispose();
   }
 
+  // Brief page 8: "remaining balance should be automatically recalculated
+  // when amounts change." Neither this model nor the backend has a total
+  // case price to derive a balance from — deposit and remaining balance
+  // are independent figures — but one invariant IS always true regardless
+  // of that: a case with the final payment completed cannot still have a
+  // balance owed. Enforced both live (as the switch is toggled) and again
+  // here at save time, so it holds even if a future change lets the field
+  // become editable again while the switch is on.
+  void _onFinalPaymentToggled(bool v) {
+    setState(() {
+      _finalPaymentCompleted = v;
+      if (v) _remainingBalanceCtrl.text = '0.00';
+    });
+  }
+
   void _save() {
     widget.onSave({
       'deposit_requested': _depositRequested,
       'deposit_received': _depositReceived,
       'deposit_amount': double.tryParse(_depositAmountCtrl.text.trim()),
       'final_payment_completed': _finalPaymentCompleted,
-      'remaining_balance': double.tryParse(_remainingBalanceCtrl.text.trim()),
+      'remaining_balance': _finalPaymentCompleted
+          ? 0.0
+          : double.tryParse(_remainingBalanceCtrl.text.trim()),
       'administrative_comments': _administrativeCommentsCtrl.text.trim().isEmpty
           ? null
           : _administrativeCommentsCtrl.text.trim(),
@@ -103,19 +120,22 @@ class _ProstheticPaymentSectionState extends State<ProstheticPaymentSection> {
             AppTextField(
               label: 'Montant de l\'acompte (€)',
               controller: _depositAmountCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
             ),
             const SizedBox(height: AppSpacing.sm),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Paiement final effectué'),
               value: _finalPaymentCompleted,
-              onChanged: (v) => setState(() => _finalPaymentCompleted = v),
+              onChanged: _onFinalPaymentToggled,
             ),
             AppTextField(
               label: 'Solde restant (€)',
               controller: _remainingBalanceCtrl,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              enabled: !_finalPaymentCompleted,
             ),
             const SizedBox(height: AppSpacing.sm),
             AppTextArea(
@@ -145,7 +165,9 @@ class _ReadOnlyPaymentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
-        color: data.hasPaymentDue ? AppColors.dangerLight : AppColors.backgroundCard,
+        color: data.hasPaymentDue
+            ? AppColors.dangerLight
+            : AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: AppColors.borderLight),
       ),
@@ -155,8 +177,11 @@ class _ReadOnlyPaymentCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                data.hasPaymentDue ? Icons.warning_amber_outlined : Icons.check_circle_outline,
-                color: data.hasPaymentDue ? AppColors.danger : AppColors.success,
+                data.hasPaymentDue
+                    ? Icons.warning_amber_outlined
+                    : Icons.check_circle_outline,
+                color:
+                    data.hasPaymentDue ? AppColors.danger : AppColors.success,
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.sm),
@@ -176,7 +201,8 @@ class _ReadOnlyPaymentCard extends StatelessWidget {
             style: AppTypography.caption,
           ),
           if (data.remainingBalance != null && data.remainingBalance! > 0)
-            Text('Solde restant : ${data.remainingBalance!.toStringAsFixed(2)} €',
+            Text(
+                'Solde restant : ${data.remainingBalance!.toStringAsFixed(2)} €',
                 style: AppTypography.caption),
         ],
       ),

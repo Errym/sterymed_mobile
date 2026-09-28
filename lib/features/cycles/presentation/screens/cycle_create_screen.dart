@@ -19,6 +19,12 @@ import '../../data/models/device_program_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../../data/repositories/device_program_repository.dart';
 import '../../data/repositories/device_repository.dart';
+import '../widgets/cycle_create_banner_card.dart';
+import '../widgets/cycle_create_empty_devices_card.dart';
+import '../widgets/cycle_create_error_card.dart';
+import '../widgets/cycle_create_hint.dart';
+import '../widgets/cycle_create_operator_card.dart';
+import '../widgets/cycle_create_section_label.dart';
 
 class CycleCreateScreen extends StatefulWidget {
   const CycleCreateScreen({super.key});
@@ -190,7 +196,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            const AnimatedListItem(index: 0, child: _BannerCard()),
+            const AnimatedListItem(index: 0, child: CycleCreateBannerCard()),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Device ──
@@ -199,7 +205,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _SectionLabel('APPAREIL AUTOCLAVE'),
+                  const CycleCreateSectionLabel('APPAREIL AUTOCLAVE'),
                   _buildDeviceSection(),
                 ],
               ),
@@ -212,7 +218,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _SectionLabel('PROGRAMME DE STÉRILISATION'),
+                  const CycleCreateSectionLabel('PROGRAMME DE STÉRILISATION'),
                   _buildProgrammeSection(),
                 ],
               ),
@@ -225,8 +231,8 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _SectionLabel('OPÉRATEUR CHARGÉ DU CYCLE'),
-                  _OperatorCard(name: operatorName),
+                  const CycleCreateSectionLabel('OPÉRATEUR CHARGÉ DU CYCLE'),
+                  CycleCreateOperatorCard(name: operatorName),
                 ],
               ),
             ),
@@ -238,7 +244,8 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const _SectionLabel('NOTES SUR LA CHARGE (OPTIONNEL)'),
+                  const CycleCreateSectionLabel(
+                      'NOTES SUR LA CHARGE (OPTIONNEL)'),
                   AppTextArea(
                     controller: _notesCtrl,
                     hint: 'Ex : Cassettes chirurgicales Dr. Watson, sachets '
@@ -290,10 +297,10 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       );
     }
     if (_deviceError != null) {
-      return _ErrorCard(error: _deviceError!, onRetry: _loadDevices);
+      return CycleCreateErrorCard(error: _deviceError!, onRetry: _loadDevices);
     }
     if (_devices.isEmpty) {
-      return _EmptyDevicesCard(onCreateDevice: _openDevicesTab);
+      return CycleCreateEmptyDevicesCard(onCreateDevice: _openDevicesTab);
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -325,7 +332,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
 
   Widget _buildProgrammeSection() {
     if (_deviceId == null) {
-      return const _Hint(
+      return const CycleCreateHint(
         'Sélectionnez d\'abord un appareil.',
       );
     }
@@ -342,7 +349,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       );
     }
     if (_programError != null) {
-      return _ErrorCard(
+      return CycleCreateErrorCard(
         error: _programError!,
         onRetry: () => _loadPrograms(_deviceId!),
       );
@@ -397,213 +404,6 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
           .map((p) => AppDropdownOption(value: p.id, label: p.displayLabel))
           .toList(),
       onChanged: (v) => setState(() => _programId = v),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Sub-widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _BannerCard extends StatelessWidget {
-  const _BannerCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.brandPrimaryLight,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.backgroundCard,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: const Icon(
-              Icons.add_box_outlined,
-              color: AppColors.brandPrimary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cycle de Stérilisation Normé EN 13060',
-                  style: AppTypography.bodyStrong,
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Sélectionnez l\'appareil et le programme de la charge.',
-                  style: AppTypography.caption,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _EmptyDevicesCard extends StatelessWidget {
-  final VoidCallback onCreateDevice;
-  const _EmptyDevicesCard({required this.onCreateDevice});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.warningLight,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.warning),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.warning_amber_outlined,
-                  color: AppColors.warning, size: 20),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Aucun appareil disponible',
-                  style: AppTypography.bodyStrong,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          const Text(
-            'Pour créer un cycle, vous devez d\'abord ajouter un appareil.',
-            style: AppTypography.caption,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onCreateDevice,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Créer un appareil'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorCard extends StatelessWidget {
-  final String error;
-  final Future<void> Function() onRetry;
-  const _ErrorCard({required this.error, required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.dangerLight,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.danger),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(Icons.error_outline, color: AppColors.danger, size: 20),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: Text(
-                  'Impossible de charger les données',
-                  style: AppTypography.bodyStrong,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(error, style: AppTypography.caption),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh, size: 16),
-              label: const Text('Réessayer'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Hint extends StatelessWidget {
-  final String text;
-  const _Hint(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-      child: Text(text, style: AppTypography.caption),
-    );
-  }
-}
-
-class _OperatorCard extends StatelessWidget {
-  final String name;
-  const _OperatorCard({required this.name});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundSubtle,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.person_outline,
-              size: 18, color: AppColors.textSecondary),
-          const SizedBox(width: AppSpacing.sm),
-          Text(name, style: AppTypography.bodyStrong),
-          const Spacer(),
-          const Text('Vous', style: AppTypography.caption),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Text(
-        text,
-        style: AppTypography.label.copyWith(
-          letterSpacing: 0.4,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
     );
   }
 }

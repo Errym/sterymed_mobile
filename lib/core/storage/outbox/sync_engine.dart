@@ -10,22 +10,31 @@ import 'sync_result.dart';
 class SyncEngine {
   final OutboxStore _store;
   final Dio _dio;
+  bool _isFlushing = false;
 
   SyncEngine(this._store, this._dio);
+
+  /// True while a [flush] call is in progress.
+  bool get isFlushing => _isFlushing;
 
   /// Flush every pending item, in order, one at a time.
   /// Returns the number of items that succeeded.
   Future<int> flush() async {
-    final pending = _store.pending();
-    int synced = 0;
+    _isFlushing = true;
+    try {
+      final pending = _store.pending();
+      int synced = 0;
 
-    for (final item in pending) {
-      final result = await _syncOne(item);
-      if (result == SyncResult.success) {
-        synced++;
+      for (final item in pending) {
+        final result = await _syncOne(item);
+        if (result == SyncResult.success) {
+          synced++;
+        }
       }
+      return synced;
+    } finally {
+      _isFlushing = false;
     }
-    return synced;
   }
 
   Future<SyncResult> _syncOne(OutboxItem item) async {

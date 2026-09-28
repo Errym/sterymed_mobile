@@ -43,12 +43,10 @@ class ConfirmationDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // shape/titleTextStyle/contentTextStyle come from ThemeData.dialogTheme.
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      title: Text(title, style: AppTypography.sectionTitle),
-      content: Text(message, style: AppTypography.body),
+      title: Text(title),
+      content: Text(message),
       actions: [
         SecondaryButton(
           label: cancelLabel,

@@ -21,6 +21,9 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
         _connectivity = connectivity,
         super(const SyncStatus());
 
+  /// True while the engine is actively flushing the outbox.
+  bool get isFlushing => _engine.isFlushing;
+
   Future<void> start() async {
     final online = await _connectivity.isConnected;
     _refresh(online: online);
@@ -33,7 +36,9 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
 
   Future<void> _flushIfOnline(bool online) async {
     if (!online) return;
-    await _engine.flush();
+    final flushed = _engine.flush();
+    _refresh(online: true);
+    await flushed;
     _refresh(online: true);
   }
 
@@ -42,6 +47,7 @@ class SyncStatusCubit extends Cubit<SyncStatus> {
       online: online ?? state.online,
       pendingCount: _store.pendingCount,
       manualReviewCount: _store.manualReview().length,
+      isSyncing: _engine.isFlushing,
     ));
   }
 

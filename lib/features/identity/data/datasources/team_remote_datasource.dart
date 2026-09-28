@@ -14,7 +14,7 @@ class TeamRemoteDatasource {
       // GET /v1/members returns a bare JSON array (Spatie Data's
       // DataCollection, not a cursor-paginated envelope) — no `data`/
       // `meta` wrapper, unlike most other list endpoints in this app.
-      final res = await _dio.get('/v1/members');
+      final res = await _dio.get(ApiEndpoints.members);
       final raw = res.data;
       if (raw is! List) return const [];
       return raw

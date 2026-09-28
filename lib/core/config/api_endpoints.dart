@@ -45,6 +45,8 @@ abstract final class ApiEndpoints {
   static const devices = '$_v1/devices';
   static String device(String id) => '$_v1/devices/$id';
   static String devicePrograms(String id) => '$_v1/devices/$id/programs';
+  static String deviceProgram(String id, String programId) =>
+      '$_v1/devices/$id/programs/$programId';
   static String deviceMaintenanceRecords(String id) =>
       '$_v1/devices/$id/maintenance-records';
 
@@ -87,6 +89,7 @@ abstract final class ApiEndpoints {
   // Team
   static const invitations = '$_v1/invitations';
   static String invitation(String id) => '$_v1/invitations/$id';
+  static const members = '$_v1/members';
   static String member(String tenantUserId) => '$_v1/members/$tenantUserId';
 
   // Reporting

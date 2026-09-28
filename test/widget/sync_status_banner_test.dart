@@ -75,6 +75,25 @@ void main() {
     expect(find.text('5 synchronisation(s) en attente'), findsOneWidget);
   });
 
+  testWidgets(
+    'online while actively syncing shows "Synchronisation..." instead of '
+    'the pending count',
+    (tester) async {
+      await pumpApp(
+        tester,
+        const SyncStatusBanner(
+          online: true,
+          pendingCount: 5,
+          isSyncing: true,
+        ),
+      );
+
+      expect(find.byIcon(Icons.sync), findsOneWidget);
+      expect(find.text('Synchronisation...'), findsOneWidget);
+      expect(find.text('5 synchronisation(s) en attente'), findsNothing);
+    },
+  );
+
   testWidgets('shows a chevron and is tappable when onTap is provided',
       (tester) async {
     var tapped = false;

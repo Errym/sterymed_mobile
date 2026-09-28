@@ -52,6 +52,13 @@ class _ProstheticCaseCreateScreenState
     _restoreDraft();
     _loadLaboratories();
   }
+    @override
+  void dispose() {
+    _priorityCtrl.dispose();
+    _notesCtrl.dispose();
+    _internalCommentsCtrl.dispose();
+    super.dispose();
+  }
 
   void _restoreDraft() {
     final draft = _draftStore.load();

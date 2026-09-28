@@ -13,15 +13,12 @@ import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
-import '../../../cycles/data/models/device_program_data.dart';
-import '../../../cycles/data/repositories/device_program_repository.dart';
 import '../../data/models/device_detail.dart';
-import '../../data/models/maintenance_record_data.dart';
 import '../../data/repositories/device_detail_repository.dart';
-import '../../data/repositories/maintenance_record_repository.dart';
+import '../widgets/device_field.dart';
 import '../widgets/device_form_sheet.dart';
-import '../widgets/maintenance_record_form_sheet.dart';
-import '../widgets/programme_form_sheet.dart';
+import '../widgets/device_maintenance_section.dart';
+import '../widgets/device_programmes_section.dart';
 
 class DeviceDetailScreen extends StatefulWidget {
   final String deviceId;
@@ -71,8 +68,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
     try {
       await getIt<DeviceDetailRepository>().destroy(widget.deviceId);
       if (!mounted) return;
-      AppSnackbar.show(context, 'Appareil supprimé.',
-          kind: SnackKind.success);
+      AppSnackbar.show(context, 'Appareil supprimé.', kind: SnackKind.success);
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
@@ -162,20 +158,20 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
 
                 // ── Identification ──
                 const SectionHeader(title: 'Identification'),
-                _Field(label: 'N° de série', value: d.serialNumber),
-                _Field(label: 'Fabricant', value: d.manufacturer),
-                _Field(label: 'Modèle', value: d.model),
+                DeviceField(label: 'N° de série', value: d.serialNumber),
+                DeviceField(label: 'Fabricant', value: d.manufacturer),
+                DeviceField(label: 'Modèle', value: d.model),
                 const SizedBox(height: AppSpacing.lg),
 
                 // ── Programmes ──
-                _ProgrammesSection(
+                DeviceProgrammesSection(
                   deviceId: widget.deviceId,
                   canManage: canManage,
                 ),
 
                 // ── Maintenance ──
                 const SizedBox(height: AppSpacing.lg),
-                _MaintenanceSection(
+                DeviceMaintenanceSection(
                   deviceId: widget.deviceId,
                   canManage: canManage,
                 ),
@@ -183,7 +179,7 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
                 // ── Localisation ──
                 const SizedBox(height: AppSpacing.lg),
                 const SectionHeader(title: 'Localisation'),
-                _Field(label: 'Site', value: d.siteName),
+                DeviceField(label: 'Site', value: d.siteName),
                 const SizedBox(height: AppSpacing.lg),
 
                 // ── Notes ──
@@ -220,488 +216,6 @@ class _DeviceDetailScreenState extends State<DeviceDetailScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Programme section
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ProgrammesSection extends StatefulWidget {
-  final String deviceId;
-  final bool canManage;
-  const _ProgrammesSection({required this.deviceId, required this.canManage});
-
-  @override
-  State<_ProgrammesSection> createState() => _ProgrammesSectionState();
-}
-
-class _ProgrammesSectionState extends State<_ProgrammesSection> {
-  List<DeviceProgramData> _programs = [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final programs = await getIt<DeviceProgramRepository>()
-          .list(widget.deviceId, forceRefresh: true);
-      if (!mounted) return;
-      setState(() {
-        _programs = programs;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = ErrorMessage.from(e);
-      });
-    }
-  }
-
-  Future<void> _add() async {
-    final ok = await ProgrammeFormSheet.show(
-      context,
-      deviceId: widget.deviceId,
-    );
-    if (ok == true) await _load();
-  }
-
-  Future<void> _edit(DeviceProgramData p) async {
-    final ok = await ProgrammeFormSheet.show(
-      context,
-      deviceId: widget.deviceId,
-      existing: p,
-    );
-    if (ok == true) await _load();
-  }
-
-  Future<void> _delete(DeviceProgramData p) async {
-    final ok = await ConfirmationDialog.show(
-      context,
-      title: 'Supprimer ce programme ?',
-      message: p.displayLabel,
-      confirmLabel: 'Supprimer',
-      isDestructive: true,
-    );
-    if (!ok || !mounted) return;
-    try {
-      await getIt<DeviceProgramRepository>().destroy(
-        deviceId: widget.deviceId,
-        programId: p.id,
-      );
-      if (!mounted) return;
-      AppSnackbar.show(context, 'Programme supprimé.',
-          kind: SnackKind.success);
-      await _load();
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Programmes de stérilisation (${_programs.length})',
-          trailing: widget.canManage
-              ? IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Ajouter un programme',
-                  onPressed: _loading ? null : _add,
-                )
-              : null,
-        ),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          )
-        else if (_error != null)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.dangerLight,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Text(_error!, style: AppTypography.caption),
-          )
-        else if (_programs.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.warningLight,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Aucun programme défini',
-                  style: AppTypography.bodyStrong,
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Ajoutez au moins un programme pour pouvoir créer des '
-                  'cycles avec cet appareil.',
-                  style: AppTypography.caption,
-                ),
-                if (widget.canManage) ...[
-                  const SizedBox(height: AppSpacing.sm),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: _add,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Ajouter un programme'),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          )
-        else
-          ..._programs.map((p) => _ProgrammeRow(
-                program: p,
-                onEdit: widget.canManage ? () => _edit(p) : null,
-                onDelete: widget.canManage ? () => _delete(p) : null,
-              )),
-      ],
-    );
-  }
-}
-
-class _ProgrammeRow extends StatelessWidget {
-  final DeviceProgramData program;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-
-  const _ProgrammeRow({
-    required this.program,
-    this.onEdit,
-    this.onDelete,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: program.isActive
-                  ? AppColors.brandPrimaryLight
-                  : AppColors.backgroundMuted,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Icon(
-              Icons.thermostat_outlined,
-              size: 18,
-              color: program.isActive
-                  ? AppColors.brandPrimary
-                  : AppColors.textTertiary,
-            ),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(program.name, style: AppTypography.bodyStrong),
-                const SizedBox(height: 2),
-                Text(
-                  '${program.temperatureCelsius} °C · '
-                  '${program.plateauMinutes} min'
-                  '${program.isActive ? '' : ' · Inactif'}',
-                  style: AppTypography.caption,
-                ),
-              ],
-            ),
-          ),
-          if (onEdit != null || onDelete != null)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert,
-                  size: 20, color: AppColors.textSecondary),
-              onSelected: (v) {
-                if (v == 'edit') onEdit?.call();
-                if (v == 'delete') onDelete?.call();
-              },
-              itemBuilder: (_) => [
-                if (onEdit != null)
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Row(children: [
-                      Icon(Icons.edit_outlined, size: 18),
-                      SizedBox(width: 8),
-                      Text('Modifier'),
-                    ]),
-                  ),
-                if (onDelete != null)
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Row(children: [
-                      Icon(Icons.delete_outline,
-                          size: 18, color: AppColors.danger),
-                      SizedBox(width: 8),
-                      Text('Supprimer',
-                          style: TextStyle(color: AppColors.danger)),
-                    ]),
-                  ),
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Maintenance section
-// ─────────────────────────────────────────────────────────────────────────────
-//
-// Append-only against the real backend (GET/POST /devices/{id}/
-// maintenance-records — no PATCH/DELETE route exists), so unlike
-// _ProgrammesSection there's no edit/delete here.
-
-class _MaintenanceSection extends StatefulWidget {
-  final String deviceId;
-  final bool canManage;
-  const _MaintenanceSection({required this.deviceId, required this.canManage});
-
-  @override
-  State<_MaintenanceSection> createState() => _MaintenanceSectionState();
-}
-
-class _MaintenanceSectionState extends State<_MaintenanceSection> {
-  List<MaintenanceRecordData> _records = [];
-  bool _loading = true;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final records = await getIt<MaintenanceRecordRepository>()
-          .list(widget.deviceId, forceRefresh: true);
-      if (!mounted) return;
-      setState(() {
-        _records = records;
-        _loading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = ErrorMessage.from(e);
-      });
-    }
-  }
-
-  Future<void> _add() async {
-    final ok = await MaintenanceRecordFormSheet.show(
-      context,
-      deviceId: widget.deviceId,
-    );
-    if (ok == true) await _load();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SectionHeader(
-          title: 'Maintenance (${_records.length})',
-          trailing: widget.canManage
-              ? IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Enregistrer une intervention',
-                  onPressed: _loading ? null : _add,
-                )
-              : null,
-        ),
-        if (_loading)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-            child: Center(
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          )
-        else if (_error != null)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.dangerLight,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Text(_error!, style: AppTypography.caption),
-          )
-        else if (_records.isEmpty)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.backgroundSubtle,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.borderLight),
-            ),
-            child: const Text(
-              'Aucune intervention enregistrée.',
-              style: AppTypography.caption,
-            ),
-          )
-        else
-          ..._records.map((r) => _MaintenanceRow(record: r)),
-      ],
-    );
-  }
-}
-
-class _MaintenanceRow extends StatelessWidget {
-  final MaintenanceRecordData record;
-  const _MaintenanceRow({required this.record});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(
-          color: record.isOverdue
-              ? AppColors.danger.withValues(alpha: 0.4)
-              : AppColors.borderLight,
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.brandPrimaryLight,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: const Icon(Icons.build_outlined,
-                size: 18, color: AppColors.brandPrimary),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(record.kindLabel,
-                          style: AppTypography.bodyStrong),
-                    ),
-                    Text(_formatDate(record.performedAt),
-                        style: AppTypography.caption),
-                  ],
-                ),
-                if (record.technician != null &&
-                    record.technician!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(record.technician!, style: AppTypography.caption),
-                ],
-                if (record.description != null &&
-                    record.description!.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(record.description!, style: AppTypography.caption),
-                ],
-                if (record.nextDueAt != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Prochaine échéance : ${_formatDate(record.nextDueAt!)}',
-                    style: AppTypography.caption.copyWith(
-                      color: record.isOverdue
-                          ? AppColors.danger
-                          : AppColors.textSecondary,
-                      fontWeight:
-                          record.isOverdue ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDate(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year}';
-  }
-}
-
-class _Field extends StatelessWidget {
-  final String label;
-  final String? value;
-  const _Field({required this.label, this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: AppTypography.label)),
-          Text(
-            value ?? '—',
-            style: AppTypography.bodyStrong.copyWith(
-              color: value == null
-                  ? AppColors.textTertiary
-                  : AppColors.textPrimary,
-            ),
-          ),
-        ],
       ),
     );
   }

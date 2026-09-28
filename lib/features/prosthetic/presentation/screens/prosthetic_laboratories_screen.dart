@@ -191,6 +191,15 @@ class _LaboratoryFormSheetState extends State<_LaboratoryFormSheet> {
       TextEditingController(text: widget.existing?.contactEmail);
   bool _submitting = false;
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _contactNameCtrl.dispose();
+    _contactPhoneCtrl.dispose();
+    _contactEmailCtrl.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _submitting = true);

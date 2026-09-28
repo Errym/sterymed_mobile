@@ -8,11 +8,11 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
+import '../../../../shared/widgets/inputs/quantity_stepper.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/stock_option.dart';
 import '../../data/repositories/stock_repository.dart';
-import '../widgets/quantity_stepper.dart';
 import '../widgets/stock_options_loader.dart';
 
 class StockTransferScreen extends StatelessWidget {

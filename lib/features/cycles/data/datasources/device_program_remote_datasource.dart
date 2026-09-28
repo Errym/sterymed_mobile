@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/device_program_data.dart';
@@ -13,7 +14,7 @@ class DeviceProgramRemoteDatasource {
   Future<List<DeviceProgramData>> list(String deviceId) async {
     try {
       final res = await _dio.get(
-        '/v1/devices/$deviceId/programs',
+        ApiEndpoints.devicePrograms(deviceId),
         queryParameters: {'limit': 100},
       );
       final raw = res.data;
@@ -46,7 +47,7 @@ class DeviceProgramRemoteDatasource {
   }) async {
     try {
       final res = await _dio.post(
-        '/v1/devices/$deviceId/programs',
+        ApiEndpoints.devicePrograms(deviceId),
         data: {
           'name': name,
           'target_temperature_celsius': temperatureCelsius,
@@ -81,7 +82,7 @@ class DeviceProgramRemoteDatasource {
   }) async {
     try {
       final res = await _dio.patch(
-        '/v1/devices/$deviceId/programs/$programId',
+        ApiEndpoints.deviceProgram(deviceId, programId),
         data: {
           if (name != null) 'name': name,
           if (temperatureCelsius != null)
@@ -109,7 +110,7 @@ class DeviceProgramRemoteDatasource {
     required String programId,
   }) async {
     try {
-      await _dio.delete('/v1/devices/$deviceId/programs/$programId');
+      await _dio.delete(ApiEndpoints.deviceProgram(deviceId, programId));
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

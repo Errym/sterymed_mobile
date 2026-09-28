@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/tokens.dart';
+import '../../../core/theme/tokens.dart';
 
 /// A labeled quantity stepper backed by a [TextEditingController].
 /// Supports direct typing as well as +/- buttons; validated the same
