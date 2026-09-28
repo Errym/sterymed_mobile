@@ -48,7 +48,7 @@ void main() {
     when(() => session.userEmail).thenReturn('test@test.com');
     when(() => session.role).thenReturn('owner');
     when(() => session.isOwner).thenReturn(true);
-    when(() => session.hasPermission(any())).thenReturn(true);
+    when(() => session.hasPermission(any())).thenReturn(false);
     if (GetIt.instance.isRegistered<SessionStore>()) {
       GetIt.instance.unregister<SessionStore>();
     }
@@ -76,6 +76,45 @@ void main() {
 
     expect(find.text('Cycles en cours'), findsOneWidget);
     expect(find.text('Alertes actives'), findsOneWidget);
+    expect(find.text('Cycles de stérilisation'), findsNothing);
+    expect(find.text('Aucun module accessible'), findsOneWidget);
+  });
+
+  testWidgets('shows only cycles menu item when cycles.view is granted',
+      (tester) async {
+    when(() => session.hasPermission(any())).thenAnswer((invocation) {
+      final permission = invocation.positionalArguments.first as String;
+      return permission == 'cycles.view';
+    });
+    when(() => repo.fetch(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => _dashboard);
+
+    await pumpApp(
+      tester,
+      BlocProvider(
+        create: (_) => DashboardCubit(repo, session)..load(),
+        child: const DashboardScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cycles de stérilisation'), findsOneWidget);
+    expect(find.text('Stock & Catalogue'), findsNothing);
+    expect(find.text('Lots'), findsNothing);
+    expect(find.text('Travaux prothétiques'), findsNothing);
+    expect(find.text('Catalogue produits'), findsNothing);
+    expect(find.text('Fournisseurs'), findsNothing);
+    expect(find.text('Commandes & Réceptions'), findsNothing);
+    expect(find.text('Gestion des patients'), findsNothing);
+    expect(find.text('Non-Conformités & Rappels'), findsNothing);
+    expect(find.text('Journal d\'Audit'), findsNothing);
+    expect(find.text('Recherche de preuves'), findsNothing);
+    expect(find.text('Équipe & Droits'), findsNothing);
+    expect(find.text('Sites & Espaces'), findsNothing);
+    expect(find.text('Appareils & Programmes'), findsNothing);
+    expect(find.text('Règles DLU'), findsNothing);
+    expect(find.text('Export Données'), findsNothing);
+    expect(find.text('Aucun module accessible'), findsNothing);
   });
 
   testWidgets('shows error view with retry on failure', (tester) async {

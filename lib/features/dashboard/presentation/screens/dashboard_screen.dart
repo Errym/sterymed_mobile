@@ -622,6 +622,30 @@ class _GovernanceMenu extends StatelessWidget {
       ),
     ];
 
+    if (groups.every((group) => group.$2.isEmpty)) {
+      return const Center(
+        child: Card(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_outline, size: 40, color: AppColors.textTertiary),
+                SizedBox(height: AppSpacing.sm),
+                Text('Aucun module accessible', style: AppTypography.sectionTitle),
+                SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Contactez votre administrateur pour obtenir des accès.',
+                  style: AppTypography.caption,
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
