@@ -7,10 +7,10 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/product_data.dart';
 import '../../data/repositories/product_repository.dart';
 import '../bloc/product_list_bloc.dart';
@@ -64,10 +64,14 @@ class _ProductListView extends StatelessWidget {
               builder: (context, state) {
                 if (state.status == ProductListStatus.loading &&
                     state.products.isEmpty) {
-                  return const LoadingView();
+                  return const ListSkeleton();
                 }
                 if (state.status == ProductListStatus.failure) {
-                  return ErrorView(message: state.error ?? 'Erreur');
+                  return ErrorView(
+                    message: state.error ?? 'Erreur',
+                    onRetry: () =>
+                        context.read<ProductListBloc>().add(const LoadProducts()),
+                  );
                 }
                 if (state.products.isEmpty) {
                   return const EmptyView(
@@ -76,39 +80,43 @@ class _ProductListView extends StatelessWidget {
                     icon: Icons.inventory_2_outlined,
                   );
                 }
-                return ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: state.products.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) {
-                    final p = state.products[i];
-                    return AnimatedListItem(
-                      index: i,
-                      child: _ProductTile(
-                        product: p,
-                        onEdit: canManage
-                            ? () => ProductFormSheet.show(context, existing: p)
-                            : null,
-                        onDelete: canManage
-                            ? () async {
-                                final ok = await ConfirmationDialog.show(
-                                  context,
-                                  title: 'Supprimer le produit ?',
-                                  message: p.name,
-                                  confirmLabel: 'Supprimer',
-                                  isDestructive: true,
-                                );
-                                if (ok && context.mounted) {
-                                  context
-                                      .read<ProductListBloc>()
-                                      .add(DeleteProduct(p.id));
+                return RefreshIndicator(
+                  onRefresh: () async =>
+                      context.read<ProductListBloc>().add(const LoadProducts()),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    itemCount: state.products.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (_, i) {
+                      final p = state.products[i];
+                      return AnimatedListItem(
+                        index: i,
+                        child: _ProductTile(
+                          product: p,
+                          onEdit: canManage
+                              ? () => ProductFormSheet.show(context, existing: p)
+                              : null,
+                          onDelete: canManage
+                              ? () async {
+                                  final ok = await ConfirmationDialog.show(
+                                    context,
+                                    title: 'Supprimer le produit ?',
+                                    message: p.name,
+                                    confirmLabel: 'Supprimer',
+                                    isDestructive: true,
+                                  );
+                                  if (ok && context.mounted) {
+                                    context
+                                        .read<ProductListBloc>()
+                                        .add(DeleteProduct(p.id));
+                                  }
                                 }
-                              }
-                            : null,
-                      ),
-                    );
-                  },
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),

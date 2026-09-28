@@ -10,9 +10,9 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/supplier_data.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../bloc/supplier_list_bloc.dart';
@@ -54,10 +54,14 @@ class _SupplierListView extends StatelessWidget {
         builder: (context, state) {
           if (state.status == SupplierListStatus.loading &&
               state.suppliers.isEmpty) {
-            return const LoadingView();
+            return const ListSkeleton();
           }
           if (state.status == SupplierListStatus.failure) {
-            return ErrorView(message: state.error ?? 'Erreur');
+            return ErrorView(
+              message: state.error ?? 'Erreur',
+              onRetry: () =>
+                  context.read<SupplierListBloc>().add(const LoadSuppliers()),
+            );
           }
           if (state.suppliers.isEmpty) {
             return const EmptyView(
@@ -66,46 +70,51 @@ class _SupplierListView extends StatelessWidget {
               icon: Icons.local_shipping_outlined,
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: state.suppliers.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
-            itemBuilder: (_, i) {
-              final s = state.suppliers[i];
-              return AnimatedListItem(
-                index: i,
-                child: _SupplierTile(
-                  supplier: s,
-                  onTap: () => context.go(Routes.supplierDetail(s.id)),
-                  onEdit: canManage
-                      ? () => SupplierFormSheet.show(context, existing: s)
-                      : null,
-                  onDelete: canManage
-                      ? () async {
-                          final ok = await ConfirmationDialog.show(
-                            context,
-                            title: 'Supprimer ce fournisseur ?',
-                            message: s.name,
-                            confirmLabel: 'Supprimer',
-                            isDestructive: true,
-                          );
-                          if (!ok || !context.mounted) return;
-                          try {
-                            await getIt<SupplierRepository>().destroy(s.id);
-                            if (!context.mounted) return;
-                            context
-                                .read<SupplierListBloc>()
-                                .add(const LoadSuppliers());
-                          } catch (e) {
-                            if (!context.mounted) return;
-                            AppSnackbar.show(context, e.toString(),
-                                kind: SnackKind.error);
+          return RefreshIndicator(
+            onRefresh: () async =>
+                context.read<SupplierListBloc>().add(const LoadSuppliers()),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: state.suppliers.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.sm),
+              itemBuilder: (_, i) {
+                final s = state.suppliers[i];
+                return AnimatedListItem(
+                  index: i,
+                  child: _SupplierTile(
+                    supplier: s,
+                    onTap: () => context.go(Routes.supplierDetail(s.id)),
+                    onEdit: canManage
+                        ? () => SupplierFormSheet.show(context, existing: s)
+                        : null,
+                    onDelete: canManage
+                        ? () async {
+                            final ok = await ConfirmationDialog.show(
+                              context,
+                              title: 'Supprimer ce fournisseur ?',
+                              message: s.name,
+                              confirmLabel: 'Supprimer',
+                              isDestructive: true,
+                            );
+                            if (!ok || !context.mounted) return;
+                            try {
+                              await getIt<SupplierRepository>().destroy(s.id);
+                              if (!context.mounted) return;
+                              context
+                                  .read<SupplierListBloc>()
+                                  .add(const LoadSuppliers());
+                            } catch (e) {
+                              if (!context.mounted) return;
+                              AppSnackbar.show(context, e.toString(),
+                                  kind: SnackKind.error);
+                            }
                           }
-                        }
-                      : null,
-                ),
-              );
-            },
+                        : null,
+                  ),
+                );
+              },
+            ),
           );
         },
       ),

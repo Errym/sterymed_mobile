@@ -7,9 +7,9 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../../cycles/data/repositories/device_repository.dart';
 import '../../data/models/device_detail.dart';
 import '../../data/repositories/device_detail_repository.dart';
@@ -71,7 +71,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const LoadingView();
+              return const ListSkeleton();
             }
             if (snap.hasError) {
               return ErrorView(

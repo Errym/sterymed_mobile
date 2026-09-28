@@ -7,9 +7,9 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/patient_data.dart';
 import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_list_bloc.dart';
@@ -100,7 +100,7 @@ class _PatientView extends StatelessWidget {
                 builder: (context, state) {
                   if (state.status == PatientListStatus.loading &&
                       state.patients.isEmpty) {
-                    return const LoadingView();
+                    return const ListSkeleton();
                   }
                   if (state.status == PatientListStatus.failure) {
                     return ErrorView(

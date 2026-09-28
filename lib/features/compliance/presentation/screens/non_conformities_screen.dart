@@ -8,9 +8,9 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/non_conformity_data.dart';
 import '../../data/repositories/non_conformity_repository.dart';
 import '../bloc/non_conformity_list_bloc.dart';
@@ -62,10 +62,15 @@ class _NcView extends StatelessWidget {
         builder: (context, state) {
           if (state.status == NonConformityStatus.loading &&
               state.items.isEmpty) {
-            return const LoadingView();
+            return const ListSkeleton();
           }
           if (state.status == NonConformityStatus.failure) {
-            return ErrorView(message: state.error ?? 'Erreur');
+            return ErrorView(
+              message: state.error ?? 'Erreur',
+              onRetry: () => context
+                  .read<NonConformityListBloc>()
+                  .add(const LoadNonConformities()),
+            );
           }
           if (state.items.isEmpty) {
             return EmptyView(
@@ -88,13 +93,19 @@ class _NcView extends StatelessWidget {
                   : null,
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: state.items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-            itemBuilder: (_, i) => AnimatedListItem(
-              index: i,
-              child: _NcCard(item: state.items[i], canManage: canManage),
+          return RefreshIndicator(
+            onRefresh: () async => context
+                .read<NonConformityListBloc>()
+                .add(const LoadNonConformities()),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: state.items.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(height: AppSpacing.md),
+              itemBuilder: (_, i) => AnimatedListItem(
+                index: i,
+                child: _NcCard(item: state.items[i], canManage: canManage),
+              ),
             ),
           );
         },

@@ -6,9 +6,9 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/site_data.dart';
 import '../../data/repositories/site_repository.dart';
 import '../bloc/site_list_bloc.dart';
@@ -75,7 +75,7 @@ class _SiteListView extends StatelessWidget {
               builder: (context, state) {
                 if (state.status == SiteListStatus.loading &&
                     state.sites.isEmpty) {
-                  return const LoadingView();
+                  return const ListSkeleton();
                 }
                 if (state.status == SiteListStatus.failure) {
                   return ErrorView(

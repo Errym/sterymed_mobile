@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
-import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
@@ -149,12 +149,15 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 if (links.isEmpty)
-                  EmptyView(
-                    title: 'Aucun produit lié',
-                    message: canManage
-                        ? 'Liez les produits que ce fournisseur peut livrer.'
-                        : 'Aucun produit n\'est encore lié à ce fournisseur.',
-                    icon: Icons.inventory_2_outlined,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                    child: Text(
+                      canManage
+                          ? 'Aucun produit lié. Liez les produits que ce '
+                              'fournisseur peut livrer.'
+                          : 'Aucun produit n\'est encore lié à ce fournisseur.',
+                      style: AppTypography.caption,
+                    ),
                   )
                 else
                   for (var i = 0; i < links.length; i++)
@@ -206,7 +209,7 @@ class _SupplierProductTile extends StatelessWidget {
                       'Réf. ${link.supplierReference}',
                     'Conditionnement ×${link.packSize}',
                     if (link.price != null)
-                      '${link.price!.toStringAsFixed(2)} €',
+                      AppCurrencyFormatter.eur(link.price!),
                   ].join(' · '),
                   style: AppTypography.caption,
                 ),

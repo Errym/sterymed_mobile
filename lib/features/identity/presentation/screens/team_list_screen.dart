@@ -9,11 +9,11 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../../../shared/widgets/media/app_avatar.dart';
 import '../../data/models/team_member_data.dart';
 import '../../data/models/tenant_role.dart';
@@ -65,10 +65,13 @@ class _TeamListView extends StatelessWidget {
       body: BlocBuilder<TeamListBloc, TeamListState>(
         builder: (context, state) {
           if (state.status == TeamStatus.loading && state.members.isEmpty) {
-            return const LoadingView();
+            return const ListSkeleton();
           }
           if (state.status == TeamStatus.failure) {
-            return ErrorView(message: state.error ?? 'Erreur');
+            return ErrorView(
+              message: state.error ?? 'Erreur',
+              onRetry: () => context.read<TeamListBloc>().add(const LoadTeam()),
+            );
           }
           if (state.members.isEmpty) {
             return EmptyView(
@@ -110,45 +113,49 @@ class _TeamListView extends StatelessWidget {
               ),
               const SizedBox(height: AppSpacing.sm),
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  itemCount: state.filtered.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: AppSpacing.sm),
-                  itemBuilder: (_, i) {
-                    final m = state.filtered[i];
-                    final isSelf = m.userId == currentUserId;
-                    return AnimatedListItem(
-                      index: i,
-                      child: _StaffCard(
-                        member: m,
-                        onDisable: !canDisable || !m.active || isSelf
-                            ? null
-                            : () async {
-                                final ok = await ConfirmationDialog.show(
-                                  context,
-                                  title: 'Désactiver ce membre ?',
-                                  message: '${m.name} perdra immédiatement '
-                                      'l\'accès au cabinet.',
-                                  confirmLabel: 'Désactiver',
-                                  isDestructive: true,
-                                );
-                                if (!ok || !context.mounted) return;
-                                try {
-                                  await getIt<TeamRepository>().disable(m.id);
-                                  if (!context.mounted) return;
-                                  context
-                                      .read<TeamListBloc>()
-                                      .add(const LoadTeam());
-                                } catch (e) {
-                                  if (!context.mounted) return;
-                                  AppSnackbar.show(context, e.toString(),
-                                      kind: SnackKind.error);
-                                }
-                              },
-                      ),
-                    );
-                  },
+                child: RefreshIndicator(
+                  onRefresh: () async =>
+                      context.read<TeamListBloc>().add(const LoadTeam()),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    itemCount: state.filtered.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppSpacing.sm),
+                    itemBuilder: (_, i) {
+                      final m = state.filtered[i];
+                      final isSelf = m.userId == currentUserId;
+                      return AnimatedListItem(
+                        index: i,
+                        child: _StaffCard(
+                          member: m,
+                          onDisable: !canDisable || !m.active || isSelf
+                              ? null
+                              : () async {
+                                  final ok = await ConfirmationDialog.show(
+                                    context,
+                                    title: 'Désactiver ce membre ?',
+                                    message: '${m.name} perdra immédiatement '
+                                        'l\'accès au cabinet.',
+                                    confirmLabel: 'Désactiver',
+                                    isDestructive: true,
+                                  );
+                                  if (!ok || !context.mounted) return;
+                                  try {
+                                    await getIt<TeamRepository>().disable(m.id);
+                                    if (!context.mounted) return;
+                                    context
+                                        .read<TeamListBloc>()
+                                        .add(const LoadTeam());
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    AppSnackbar.show(context, e.toString(),
+                                        kind: SnackKind.error);
+                                  }
+                                },
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ],

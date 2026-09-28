@@ -8,9 +8,9 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
-import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
+import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/dlu_rule_data.dart';
 import '../../data/repositories/dlu_repository.dart';
 import '../widgets/dlu_rule_form_sheet.dart';
@@ -87,7 +87,7 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
           future: _future,
           builder: (context, snap) {
             if (snap.connectionState == ConnectionState.waiting) {
-              return const LoadingView();
+              return const ListSkeleton();
             }
             if (snap.hasError) {
               return ErrorView(

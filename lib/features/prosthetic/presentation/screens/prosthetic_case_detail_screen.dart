@@ -11,6 +11,7 @@ import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
@@ -248,7 +249,7 @@ class _ProstheticCaseDetailScreenState
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const LoadingView()
           : _error != null
               ? ErrorView(message: _error!, onRetry: _load)
               : _buildBody(),
