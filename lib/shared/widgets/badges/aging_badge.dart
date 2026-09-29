@@ -6,8 +6,7 @@ class AgingBadge extends StatelessWidget {
   final int daysElapsed;
 
   /// When true, renders a larger, icon-prefixed variant for prominent
-  /// contexts (e.g. the waiting-for-placement priority tiles). Defaults to
-  /// false to keep every existing call site pixel-identical.
+  /// contexts (e.g. waiting-for-placement priority tiles).
   final bool prominent;
 
   const AgingBadge({
@@ -64,8 +63,10 @@ class AgingBadge extends StatelessWidget {
     }
 
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 4,
+      ),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppRadius.pill),
