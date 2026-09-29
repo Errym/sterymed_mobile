@@ -7,14 +7,36 @@ import 'package:steriymed_mobile/features/auth/data/repositories/auth_repository
 import 'package:steriymed_mobile/features/auth/presentation/bloc/auth_bloc.dart';
 import 'package:steriymed_mobile/features/auth/presentation/bloc/auth_event.dart';
 import 'package:steriymed_mobile/features/auth/presentation/bloc/auth_state.dart';
+import 'package:steriymed_mobile/core/sync/sync_status_cubit.dart';
+import 'package:steriymed_mobile/di/di.dart';
 
 class MockAuthRepository extends Mock implements AuthRepository {}
 
+/// A no-op stand-in for the real [SyncStatusCubit]. AuthBloc calls
+/// `refreshNow()` after a successful login; the real cubit needs the
+/// full engine + connectivity stack, which is overkill here. This fake
+/// returns a completed future and nothing else.
+class _FakeSyncStatusCubit extends Mock implements SyncStatusCubit {
+  @override
+  Future<void> refreshNow() async {}
+}
+
 void main() {
   late MockAuthRepository repo;
+  late _FakeSyncStatusCubit fakeSync;
 
-  setUp(() {
+  setUp(() async {
     repo = MockAuthRepository();
+    fakeSync = _FakeSyncStatusCubit();
+    // AuthBloc now calls getIt<SyncStatusCubit>().refreshNow() after a
+    // successful login (Fix 1.8). Register a lightweight fake so the test
+    // doesn't need to construct the real engine + connectivity chain.
+    await getIt.reset();
+    getIt.registerSingleton<SyncStatusCubit>(fakeSync);
+  });
+
+  tearDown(() async {
+    await getIt.reset();
   });
 
   group('AuthBloc', () {

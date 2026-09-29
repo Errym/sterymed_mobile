@@ -7,6 +7,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../bloc/scanner_bloc.dart';
+import 'package:flutter/services.dart';
 
 class ScannerScreen extends StatelessWidget {
   const ScannerScreen({super.key});
@@ -102,6 +103,7 @@ class _ScannerViewState extends State<_ScannerView>
           if (state.status == ScannerStatus.resolved &&
               state.result != null &&
               state.lastCode != null) {
+            HapticFeedback.lightImpact();
             context.go(Routes.labelsDetail(state.lastCode!));
           } else if (state.status == ScannerStatus.error &&
               state.lastCode != null &&

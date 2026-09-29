@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/tokens.dart';
+import 'package:flutter/services.dart';
 
 enum SnackKind { info, success, warning, error, queued }
 
@@ -12,6 +13,12 @@ abstract final class AppSnackbar {
     String? actionLabel,
     VoidCallback? onAction,
   }) {
+    if (kind == SnackKind.error) {
+      HapticFeedback.heavyImpact();
+    } else if (kind == SnackKind.success || kind == SnackKind.queued) {
+      HapticFeedback.lightImpact();
+    }
+
     Color bg;
     IconData icon;
     switch (kind) {

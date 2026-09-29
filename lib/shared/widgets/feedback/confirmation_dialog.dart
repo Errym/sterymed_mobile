@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/tokens.dart';
 import '../buttons/primary_button.dart';
 import '../buttons/secondary_button.dart';
+import 'package:flutter/services.dart';
 
 class ConfirmationDialog extends StatelessWidget {
   final String title;
@@ -55,7 +56,10 @@ class ConfirmationDialog extends StatelessWidget {
         ),
         isDestructive
             ? TextButton(
-                onPressed: () => Navigator.of(context).pop(true),
+                onPressed: () {
+                  HapticFeedback.mediumImpact();
+                  Navigator.of(context).pop(true);
+                },
                 child: Text(
                   confirmLabel,
                   style: AppTypography.buttonLabel.copyWith(
