@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/debouncer.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
@@ -92,7 +95,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
     }
     setState(() => _submitting = true);
     try {
-      await context.read<LabelUsageRepository>().recordUsage(
+      final result = await context.read<LabelUsageRepository>().recordUsage(
             labelId: widget.labelId,
             patientId: _patient!.id,
             patientReference: _patient!.reference,
@@ -104,12 +107,20 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
           );
       await _drafts.clear(widget.labelId);
       if (!mounted) return;
-      AppSnackbar.show(context, 'Utilisation enregistrée.',
-          kind: SnackKind.success);
+      final wasQueued = result.isQueued;
+      AppSnackbar.show(
+        context,
+        wasQueued
+            ? 'Enregistré localement. Synchronisation en attente.'
+            : 'Utilisation enregistrée.',
+        kind: wasQueued ? SnackKind.queued : SnackKind.success,
+        actionLabel: wasQueued ? 'Voir la file' : null,
+        onAction: wasQueued ? () => context.push(Routes.sync) : null,
+      );
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

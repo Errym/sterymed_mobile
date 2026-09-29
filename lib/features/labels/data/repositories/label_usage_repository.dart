@@ -83,6 +83,7 @@ class LabelUsageRepository {
       procedure: procedure,
       notes: notes,
       usedAt: now,
+      isQueued: true,
     );
   }
 

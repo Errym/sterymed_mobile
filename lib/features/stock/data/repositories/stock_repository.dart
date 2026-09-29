@@ -95,6 +95,7 @@ class StockRepository {
         qty: qty,
         reason: reason,
         createdAt: DateTime.now(),
+        isQueued: true,
       ),
     );
   }
@@ -128,6 +129,7 @@ class StockRepository {
         qty: qty,
         reason: reason,
         createdAt: DateTime.now(),
+        isQueued: true,
       ),
     );
   }
@@ -164,6 +166,7 @@ class StockRepository {
         qty: qty,
         reason: reason,
         createdAt: DateTime.now(),
+        isQueued: true,
       ),
     );
   }

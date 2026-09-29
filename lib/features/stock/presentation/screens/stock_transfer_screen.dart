@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
@@ -85,7 +86,7 @@ class _StockTransferFormState extends State<_StockTransferForm> {
 
     setState(() => _submitting = true);
     try {
-      await getIt<StockRepository>().transfer(
+      final result = await getIt<StockRepository>().transfer(
         batchId: _batchId!,
         fromLocationId: _fromId!,
         toLocationId: _toId!,
@@ -94,8 +95,16 @@ class _StockTransferFormState extends State<_StockTransferForm> {
             _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
       );
       if (!mounted) return;
-      AppSnackbar.show(context, 'Transfert enregistré.',
-          kind: SnackKind.success);
+      final wasQueued = result.isQueued;
+      AppSnackbar.show(
+        context,
+        wasQueued
+            ? 'Enregistré localement. Synchronisation en attente.'
+            : 'Transfert enregistré.',
+        kind: wasQueued ? SnackKind.queued : SnackKind.success,
+        actionLabel: wasQueued ? 'Voir la file' : null,
+        onAction: wasQueued ? () => context.push(Routes.sync) : null,
+      );
       context.pop();
     } catch (e) {
       if (!mounted) return;

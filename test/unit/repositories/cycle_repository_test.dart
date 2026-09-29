@@ -107,6 +107,7 @@ void main() {
 
       expect(result.id, isNotEmpty);
       expect(result.status, 'in_progress');
+      expect(result.isQueued, isTrue);
       final captured =
           verify(() => outbox.enqueue(captureAny())).captured.single
               as OutboxItem;
@@ -122,6 +123,7 @@ void main() {
       final result = await repo.start('cycle-1');
 
       expect(result.status, 'in_progress');
+      expect(result.isQueued, isTrue);
       verifyNever(() => remote.start(any()));
       verify(() => outbox.enqueue(any())).called(1);
       verify(() => syncStatus.refreshNow()).called(1);

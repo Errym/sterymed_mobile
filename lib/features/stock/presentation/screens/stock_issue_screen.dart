@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
@@ -78,7 +79,7 @@ class _StockIssueFormState extends State<_StockIssueForm> {
 
     setState(() => _submitting = true);
     try {
-      await getIt<StockRepository>().issue(
+      final result = await getIt<StockRepository>().issue(
         batchId: _batchId!,
         locationId: _locationId!,
         qty: int.tryParse(_qtyCtrl.text.trim()) ?? 0,
@@ -86,7 +87,16 @@ class _StockIssueFormState extends State<_StockIssueForm> {
             _reasonCtrl.text.trim().isEmpty ? null : _reasonCtrl.text.trim(),
       );
       if (!mounted) return;
-      AppSnackbar.show(context, 'Sortie enregistrée.', kind: SnackKind.success);
+      final wasQueued = result.isQueued;
+      AppSnackbar.show(
+        context,
+        wasQueued
+            ? 'Enregistré localement. Synchronisation en attente.'
+            : 'Sortie enregistrée.',
+        kind: wasQueued ? SnackKind.queued : SnackKind.success,
+        actionLabel: wasQueued ? 'Voir la file' : null,
+        onAction: wasQueued ? () => context.push(Routes.sync) : null,
+      );
       context.pop();
     } catch (e) {
       if (!mounted) return;

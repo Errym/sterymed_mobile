@@ -9,6 +9,11 @@ class StockMovementData extends Equatable {
   final String? reason;
   final DateTime createdAt;
 
+  /// True when this result was produced by the offline outbox path (queued
+  /// locally, not yet confirmed by the server) rather than a real server
+  /// response. The backend never sends `is_queued`; the repository sets it.
+  final bool isQueued;
+
   const StockMovementData({
     required this.id,
     required this.kind,
@@ -17,6 +22,7 @@ class StockMovementData extends Equatable {
     required this.qty,
     this.reason,
     required this.createdAt,
+    this.isQueued = false,
   });
 
   factory StockMovementData.fromJson(Map<String, dynamic> json) =>
@@ -30,8 +36,10 @@ class StockMovementData extends Equatable {
         createdAt:
             DateTime.tryParse(json['occurred_at']?.toString() ?? '') ??
                 DateTime.now(),
+        isQueued: json['is_queued'] as bool? ?? false,
       );
 
   @override
-  List<Object?> get props => [id, kind, batchId, locationId, qty, createdAt];
+  List<Object?> get props =>
+      [id, kind, batchId, locationId, qty, createdAt, isQueued];
 }

@@ -109,6 +109,7 @@ class PurchaseRepository {
       purchaseOrderId: poId,
       totalLines: lines.length,
       receivedAt: DateTime.now(),
+      isQueued: true,
     );
   }
 

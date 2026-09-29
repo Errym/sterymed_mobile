@@ -11,6 +11,10 @@ class LabelUsageData extends Equatable {
   final String? notes;
   final DateTime usedAt;
 
+  /// True when queued via the offline outbox rather than confirmed by the
+  /// server. Backend never sends `is_queued`; the repository sets it.
+  final bool isQueued;
+
   const LabelUsageData({
     required this.id,
     required this.labelId,
@@ -21,6 +25,7 @@ class LabelUsageData extends Equatable {
     required this.procedure,
     this.notes,
     required this.usedAt,
+    this.isQueued = false,
   });
 
   factory LabelUsageData.fromJson(Map<String, dynamic> json) {
@@ -35,6 +40,7 @@ class LabelUsageData extends Equatable {
       notes: json['notes']?.toString(),
       usedAt: DateTime.tryParse(json['used_at']?.toString() ?? '') ??
           DateTime.now(),
+      isQueued: json['is_queued'] as bool? ?? false,
     );
   }
 
@@ -49,5 +55,6 @@ class LabelUsageData extends Equatable {
         procedure,
         notes,
         usedAt,
+        isQueued,
       ];
 }

@@ -6,11 +6,16 @@ class GoodsReceiptData extends Equatable {
   final int totalLines;
   final DateTime receivedAt;
 
+  /// True when queued via the offline outbox rather than confirmed by the
+  /// server. Backend never sends `is_queued`; the repository sets it.
+  final bool isQueued;
+
   const GoodsReceiptData({
     required this.id,
     required this.purchaseOrderId,
     required this.totalLines,
     required this.receivedAt,
+    this.isQueued = false,
   });
 
   factory GoodsReceiptData.fromJson(Map<String, dynamic> json) =>
@@ -21,8 +26,9 @@ class GoodsReceiptData extends Equatable {
         receivedAt:
             DateTime.tryParse(json['received_at']?.toString() ?? '') ??
                 DateTime.now(),
+        isQueued: json['is_queued'] as bool? ?? false,
       );
 
   @override
-  List<Object?> get props => [id, purchaseOrderId, receivedAt];
+  List<Object?> get props => [id, purchaseOrderId, receivedAt, isQueued];
 }

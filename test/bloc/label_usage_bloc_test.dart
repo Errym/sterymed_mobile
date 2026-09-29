@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/core/router/routes.dart';
 import 'package:steriymed_mobile/core/storage/session_store.dart';
 import 'package:steriymed_mobile/features/labels/data/local/label_usage_draft_store.dart';
 import 'package:steriymed_mobile/features/labels/data/models/label_usage_data.dart';
@@ -197,6 +199,76 @@ void main() {
       // route ever exists), popping the sole route tears down its subtree
       // before the snackbar can be observed. The repository/draft-store
       // calls above are the real behavior under test.
+    },
+  );
+
+  testWidgets(
+    'a queued (offline) recordUsage result shows the "Enregistré localement" '
+    'SnackBar with a "Voir la file" action instead of the plain success',
+    (tester) async {
+      when(() => drafts.load('label-1')).thenReturn(
+        const LabelUsageDraft(
+          patientId: 'p1',
+          patientReference: 'PAT-000001',
+          procedure: 'Détartrage',
+        ),
+      );
+      when(() => usageRepo.recordUsage(
+            labelId: any(named: 'labelId'),
+            patientId: any(named: 'patientId'),
+            patientReference: any(named: 'patientReference'),
+            practitionerId: any(named: 'practitionerId'),
+            practitionerName: any(named: 'practitionerName'),
+            procedure: any(named: 'procedure'),
+            notes: any(named: 'notes'),
+          )).thenAnswer((_) async => LabelUsageData(
+            id: 'queued-1',
+            labelId: 'label-1',
+            patientId: 'p1',
+            patientReference: 'PAT-000001',
+            practitionerId: 'prat-1',
+            procedure: 'Détartrage',
+            usedAt: DateTime(2026, 9, 20),
+            isQueued: true,
+          ));
+
+      // A GoRouter harness so the form's route survives the post-submit pop
+      // (there's a parent home route to fall back to) and the SnackBar stays
+      // observable — unlike the bare-MaterialApp happy-path test above.
+      final router = GoRouter(
+        initialLocation: '/home/usage',
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (_, __) => const Scaffold(body: Text('HOME')),
+            routes: [
+              GoRoute(
+                path: 'usage',
+                builder: (_, __) => wrap(
+                  const LabelUsageFormScreen(labelId: 'label-1'),
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: Routes.sync,
+            builder: (_, __) => const Scaffold(body: Text('SYNC QUEUE')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Enregistrer'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.text('Enregistré localement. Synchronisation en attente.'),
+        findsOneWidget,
+      );
+      expect(find.text('Voir la file'), findsOneWidget);
+      expect(find.text('Utilisation enregistrée.'), findsNothing);
     },
   );
 }

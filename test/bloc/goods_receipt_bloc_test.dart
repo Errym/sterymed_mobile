@@ -9,7 +9,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/core/router/routes.dart';
 import 'package:steriymed_mobile/features/purchases/data/models/goods_receipt_data.dart';
 import 'package:steriymed_mobile/features/purchases/data/models/purchase_order_data.dart';
 import 'package:steriymed_mobile/features/purchases/data/models/purchase_order_line_data.dart';
@@ -192,4 +194,61 @@ void main() {
           lines: any(named: 'lines'),
         ));
   });
+
+  testWidgets(
+    'a queued (offline) receive result shows the "Enregistré localement" '
+    'SnackBar with a "Voir la file" action',
+    (tester) async {
+      when(() => purchaseRepo.show(any())).thenAnswer((_) async => _buildPo());
+      when(() => purchaseRepo.receive(
+            poId: any(named: 'poId'),
+            locationId: any(named: 'locationId'),
+            lines: any(named: 'lines'),
+          )).thenAnswer((_) async => GoodsReceiptData(
+            id: 'queued-1',
+            purchaseOrderId: 'po-1',
+            totalLines: 1,
+            receivedAt: DateTime(2026, 9, 20),
+            isQueued: true,
+          ));
+
+      // GoRouter harness: the screen calls context.pop() after the SnackBar,
+      // so it needs a parent route to fall back to (keeping the SnackBar
+      // observable) plus a Routes.sync target for the "Voir la file" action.
+      final router = GoRouter(
+        initialLocation: '/home/receive',
+        routes: [
+          GoRoute(
+            path: '/home',
+            builder: (_, __) => const Scaffold(body: Text('HOME')),
+            routes: [
+              GoRoute(
+                path: 'receive',
+                builder: (_, __) => const GoodsReceiptScreen(poId: 'po-1'),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: Routes.sync,
+            builder: (_, __) => const Scaffold(body: Text('SYNC QUEUE')),
+          ),
+        ],
+      );
+      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextFormField).first, '5');
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -600));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Valider la réception'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        find.text('Enregistré localement. Synchronisation en attente.'),
+        findsOneWidget,
+      );
+      expect(find.text('Voir la file'), findsOneWidget);
+    },
+  );
 }

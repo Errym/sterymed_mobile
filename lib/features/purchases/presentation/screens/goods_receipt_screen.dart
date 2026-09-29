@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
@@ -128,18 +130,26 @@ class _GoodsReceiptScreenState extends State<GoodsReceiptScreen> {
         return;
       }
 
-      await getIt<PurchaseRepository>().receive(
+      final result = await getIt<PurchaseRepository>().receive(
         poId: widget.poId,
         locationId: _locationId!,
         lines: lines,
       );
       if (!mounted) return;
-      AppSnackbar.show(context, 'Réception enregistrée.',
-          kind: SnackKind.success);
+      final wasQueued = result.isQueued;
+      AppSnackbar.show(
+        context,
+        wasQueued
+            ? 'Enregistré localement. Synchronisation en attente.'
+            : 'Réception enregistrée.',
+        kind: wasQueued ? SnackKind.queued : SnackKind.success,
+        actionLabel: wasQueued ? 'Voir la file' : null,
+        onAction: wasQueued ? () => context.push(Routes.sync) : null,
+      );
       context.pop();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
