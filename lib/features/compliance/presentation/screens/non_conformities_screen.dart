@@ -8,6 +8,7 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/inputs/filter_chip_row.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
@@ -30,8 +31,14 @@ class NonConformitiesScreen extends StatelessWidget {
   }
 }
 
-class _NcView extends StatelessWidget {
+class _NcView extends StatefulWidget {
   const _NcView();
+  @override
+  State<_NcView> createState() => _NcViewState();
+}
+
+class _NcViewState extends State<_NcView> {
+  String? _statusFilter;
 
   @override
   Widget build(BuildContext context) {
@@ -58,57 +65,85 @@ class _NcView extends StatelessWidget {
             ),
         ],
       ),
-      body: BlocBuilder<NonConformityListBloc, NonConformityListState>(
-        builder: (context, state) {
-          if (state.status == NonConformityStatus.loading &&
-              state.items.isEmpty) {
-            return const ListSkeleton();
-          }
-          if (state.status == NonConformityStatus.failure) {
-            return ErrorView(
-              message: state.error ?? 'Erreur',
-              onRetry: () => context
+      body: Column(
+        children: [
+          FilterChipRow<String?>(
+            selected: _statusFilter,
+            onSelected: (v) {
+              setState(() => _statusFilter = v);
+              context
                   .read<NonConformityListBloc>()
-                  .add(const LoadNonConformities()),
-            );
-          }
-          if (state.items.isEmpty) {
-            return EmptyView(
-              title: 'Aucune non-conformité',
-              message: 'Aucun incident enregistré.',
-              icon: Icons.verified_outlined,
-              action: canManage
-                  ? FilledButton.icon(
-                      onPressed: () async {
-                        final ok = await NcCreateSheet.show(context);
-                        if (ok == true && context.mounted) {
-                          context
-                              .read<NonConformityListBloc>()
-                              .add(const LoadNonConformities());
-                        }
-                      },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: const Text('Nouvelle non-conformité'),
-                    )
-                  : null,
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => context
-                .read<NonConformityListBloc>()
-                .add(const LoadNonConformities()),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: state.items.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(height: AppSpacing.md),
-              itemBuilder: (_, i) => AnimatedListItem(
-                index: i,
-                child: _NcCard(item: state.items[i], canManage: canManage),
-              ),
+                  .add(FilterNonConformities(v));
+            },
+            options: const [
+              FilterChipOption(value: null, label: 'Toutes'),
+              FilterChipOption(value: 'open', label: 'En cours'),
+              FilterChipOption(value: 'resolved', label: 'Résolues'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Expanded(
+            child: BlocBuilder<NonConformityListBloc, NonConformityListState>(
+              builder: (context, state) {
+                if (state.status == NonConformityStatus.loading &&
+                    state.items.isEmpty) {
+                  return const ListSkeleton();
+                }
+                if (state.status == NonConformityStatus.failure) {
+                  return ErrorView(
+                    message: state.error ?? 'Erreur',
+                    onRetry: () => context
+                        .read<NonConformityListBloc>()
+                        .add(const LoadNonConformities()),
+                  );
+                }
+                if (state.items.isEmpty) {
+                  return EmptyView(
+                    title: 'Aucune non-conformité',
+                    message: _statusFilter == 'open'
+                        ? 'Aucun incident en cours.'
+                        : _statusFilter == 'resolved'
+                            ? 'Aucune non-conformité résolue.'
+                            : 'Aucun incident enregistré.',
+                    icon: Icons.verified_outlined,
+                    action: canManage
+                        ? FilledButton.icon(
+                            onPressed: () async {
+                              final ok = await NcCreateSheet.show(context);
+                              if (ok == true && context.mounted) {
+                                context
+                                    .read<NonConformityListBloc>()
+                                    .add(const LoadNonConformities());
+                              }
+                            },
+                            icon: const Icon(Icons.add, size: 18),
+                            label: const Text('Nouvelle non-conformité'),
+                          )
+                        : null,
+                  );
+                }
+                return RefreshIndicator(
+                  onRefresh: () async => context
+                      .read<NonConformityListBloc>()
+                      .add(const LoadNonConformities()),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    itemCount: state.items.length,
+                    separatorBuilder: (_, __) =>
+                        const SizedBox(height: AppSpacing.md),
+                    itemBuilder: (_, i) => AnimatedListItem(
+                      index: i,
+                      child: _NcCard(
+                        item: state.items[i],
+                        canManage: canManage,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
