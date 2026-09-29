@@ -14,7 +14,10 @@ class OutboxStore {
     return OutboxStore(box);
   }
 
-  Future<void> enqueue(OutboxItem item) => _box.put(item.id, item.toJson());
+  Future<void> enqueue(OutboxItem item) async {
+    await _box.put(item.id, item.toJson());
+    await _box.flush();
+  }
 
   List<OutboxItem> all() =>
       _box.values
@@ -30,9 +33,23 @@ class OutboxStore {
 
   int get pendingCount => pending().length;
 
-  Future<void> update(OutboxItem item) => _box.put(item.id, item.toJson());
+  Future<void> update(OutboxItem item) async {
+    await _box.put(item.id, item.toJson());
+    await _box.flush();
+  }
 
-  Future<void> remove(String id) => _box.delete(id);
+  Future<void> remove(String id) async {
+    await _box.delete(id);
+    await _box.flush();
+  }
 
-  Future<void> clear() => _box.clear();
+  Future<void> removeMany(Iterable<String> ids) async {
+    await _box.deleteAll(ids);
+    await _box.flush();
+  }
+
+  Future<void> clear() async {
+    await _box.clear();
+    await _box.flush();
+  }
 }

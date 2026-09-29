@@ -25,6 +25,7 @@ class CycleNotesCache {
   Future<void> save(String cycleId, String notes) async {
     await _ensureBox();
     await _box!.put(cycleId, jsonEncode({'notes': notes}));
+    await _box!.flush();
   }
 
   Future<String?> get(String cycleId) async {
@@ -42,5 +43,6 @@ class CycleNotesCache {
   Future<void> remove(String cycleId) async {
     await _ensureBox();
     await _box!.delete(cycleId);
+    await _box!.flush();
   }
 }

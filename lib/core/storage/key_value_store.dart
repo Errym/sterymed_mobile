@@ -11,7 +11,19 @@ class KeyValueStore {
   }
 
   dynamic get(String key) => _box.get(key);
-  Future<void> set(String key, dynamic value) => _box.put(key, value);
-  Future<void> delete(String key) => _box.delete(key);
-  Future<void> clear() => _box.clear();
+
+  Future<void> set(String key, dynamic value) async {
+    await _box.put(key, value);
+    await _box.flush();
+  }
+
+  Future<void> delete(String key) async {
+    await _box.delete(key);
+    await _box.flush();
+  }
+
+  Future<void> clear() async {
+    await _box.clear();
+    await _box.flush();
+  }
 }
