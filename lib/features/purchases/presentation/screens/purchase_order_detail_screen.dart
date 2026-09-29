@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -183,7 +184,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
                                 style: AppTypography.label),
                             const Spacer(),
                             Text(
-                              '${po.totalAmount!.toStringAsFixed(2)} €',
+                              AppCurrencyFormatter.eur(po.totalAmount!),
                               style: AppTypography.sectionTitle.copyWith(
                                 color: AppColors.brandPrimary,
                               ),
@@ -277,7 +278,7 @@ class _LineTile extends StatelessWidget {
               ),
               if (line.unitPrice != null)
                 Text(
-                  '${line.unitPrice!.toStringAsFixed(2)} €',
+                  AppCurrencyFormatter.eur(line.unitPrice!),
                   style: AppTypography.caption,
                 ),
             ],

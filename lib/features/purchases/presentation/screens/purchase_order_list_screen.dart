@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -156,7 +157,7 @@ class _PoTile extends StatelessWidget {
                   const Spacer(),
                   if (order.totalAmount != null)
                     Text(
-                      '${order.totalAmount!.toStringAsFixed(2)} €',
+                      AppCurrencyFormatter.eur(order.totalAmount!),
                       style: AppTypography.bodyStrong
                           .copyWith(color: AppColors.brandPrimary),
                     ),

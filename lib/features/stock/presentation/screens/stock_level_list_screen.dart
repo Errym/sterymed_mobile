@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/cards/kpi_card.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -258,9 +259,7 @@ class _StockLevelView extends StatelessWidget {
               _detailRow(
                 Icons.event_busy_outlined,
                 'Expire le',
-                '${level.expiryDate!.day.toString().padLeft(2, '0')}/'
-                    '${level.expiryDate!.month.toString().padLeft(2, '0')}/'
-                    '${level.expiryDate!.year}',
+                AppDateFormatter.date(level.expiryDate!),
               ),
             const SizedBox(height: AppSpacing.md),
           ],
