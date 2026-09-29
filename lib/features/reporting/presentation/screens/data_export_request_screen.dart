@@ -65,7 +65,8 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
       if (!mounted) return;
       final file = await getIt<ExportDownloadService>().download(
         url: url,
-        suggestedFileName: 'steriymed-export-${export.id.substring(0, 8)}.zip',
+        suggestedFileName:
+            'steriymed-export-${export.id.substring(0, 8)}.zip',
       );
       if (!mounted) return;
       AppSnackbar.show(
