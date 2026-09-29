@@ -87,8 +87,17 @@ class _CycleDetailView extends StatelessWidget {
         listener: (context, state) {
           if (state.status == CycleTransitionStatus.success) {
             context.read<CycleDetailBloc>().add(RefreshCycleDetail(cycleId));
-            AppSnackbar.show(context, 'Cycle mis à jour.',
-                kind: SnackKind.success);
+            final wasQueued =
+                state.cycle?.isQueued == true || state.release?.isQueued == true;
+            AppSnackbar.show(
+              context,
+              wasQueued
+                  ? 'Enregistré localement. Synchronisation en attente.'
+                  : 'Cycle mis à jour.',
+              kind: wasQueued ? SnackKind.queued : SnackKind.success,
+              actionLabel: wasQueued ? 'Voir la file' : null,
+              onAction: wasQueued ? () => context.push(Routes.sync) : null,
+            );
             Future.delayed(const Duration(milliseconds: 300), () {
               if (context.mounted) {
                 context

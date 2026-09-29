@@ -144,6 +144,7 @@ class CycleRepository {
       deviceId: '',
       deviceName: '',
       createdAt: DateTime.now(),
+      isQueued: true,
     );
   }
 
@@ -188,6 +189,7 @@ class CycleRepository {
           : CycleReleaseDecision.rejected,
       reason: reason,
       releasedAt: DateTime.now(),
+      isQueued: true,
     );
   }
 

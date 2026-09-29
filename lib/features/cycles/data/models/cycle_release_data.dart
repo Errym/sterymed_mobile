@@ -14,6 +14,10 @@ class CycleReleaseData extends Equatable {
   final String? releasedByName;
   final DateTime releasedAt;
 
+  /// True when queued via the offline outbox rather than confirmed by the
+  /// server. Backend never sends `is_queued`; the repository sets it.
+  final bool isQueued;
+
   const CycleReleaseData({
     required this.id,
     required this.cycleId,
@@ -21,6 +25,7 @@ class CycleReleaseData extends Equatable {
     this.reason,
     this.releasedByName,
     required this.releasedAt,
+    this.isQueued = false,
   });
 
   factory CycleReleaseData.fromJson(Map<String, dynamic> json) {
@@ -32,12 +37,13 @@ class CycleReleaseData extends Equatable {
       releasedByName: json['released_by_name']?.toString(),
       releasedAt: DateTime.tryParse(json['released_at']?.toString() ?? '') ??
           DateTime.now(),
+      isQueued: json['is_queued'] as bool? ?? false,
     );
   }
 
   @override
   List<Object?> get props =>
-      [id, cycleId, decision, reason, releasedByName, releasedAt];
+      [id, cycleId, decision, reason, releasedByName, releasedAt, isQueued];
 }
 
 extension CycleReleaseDecisionLabel on CycleReleaseDecision {

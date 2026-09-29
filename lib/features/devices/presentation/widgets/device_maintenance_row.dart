@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
 import '../../data/models/maintenance_record_data.dart';
 
 class DeviceMaintenanceRow extends StatelessWidget {
@@ -45,7 +46,7 @@ class DeviceMaintenanceRow extends StatelessWidget {
                       child: Text(record.kindLabel,
                           style: AppTypography.bodyStrong),
                     ),
-                    Text(_formatDate(record.performedAt),
+                    Text(AppDateFormatter.date(record.performedAt),
                         style: AppTypography.caption),
                   ],
                 ),
@@ -62,7 +63,7 @@ class DeviceMaintenanceRow extends StatelessWidget {
                 if (record.nextDueAt != null) ...[
                   const SizedBox(height: 4),
                   Text(
-                    'Prochaine échéance : ${_formatDate(record.nextDueAt!)}',
+                    'Prochaine échéance : ${AppDateFormatter.date(record.nextDueAt!)}',
                     style: AppTypography.caption.copyWith(
                       color: record.isOverdue
                           ? AppColors.danger
@@ -78,10 +79,5 @@ class DeviceMaintenanceRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year}';
   }
 }

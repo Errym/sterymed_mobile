@@ -17,6 +17,11 @@ class CycleData extends Equatable {
   final DateTime? releasedAt;
   final String? notes;
 
+  /// True when this cycle result was produced by the offline outbox path
+  /// (a queued transition) rather than a real server response. Backend
+  /// never sends `is_queued`; the repository sets it on the synthetic result.
+  final bool isQueued;
+
   const CycleData({
     required this.id,
     required this.number,
@@ -33,6 +38,7 @@ class CycleData extends Equatable {
     this.completedAt,
     this.releasedAt,
     this.notes,
+    this.isQueued = false,
   });
 
   factory CycleData.fromJson(Map<String, dynamic> json) {
@@ -110,6 +116,7 @@ class CycleData extends Equatable {
       completedAt: _parseDate(json['completed_at']),
       releasedAt: _parseDate(json['released_at']),
       notes: json['notes']?.toString(),
+      isQueued: json['is_queued'] as bool? ?? false,
     );
   }
 
@@ -146,6 +153,7 @@ class CycleData extends Equatable {
       completedAt: completedAt,
       releasedAt: releasedAt,
       notes: notes,
+      isQueued: isQueued,
     );
   }
 
@@ -166,5 +174,6 @@ class CycleData extends Equatable {
         completedAt,
         releasedAt,
         notes,
+        isQueued,
       ];
 }

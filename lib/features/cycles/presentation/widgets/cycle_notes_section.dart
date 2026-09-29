@@ -137,13 +137,37 @@ class _CycleNotesSectionState extends State<CycleNotesSection> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Enregistrées localement — non synchronisées avec le serveur '
-            '(pas d\'endpoint disponible).',
-            style: AppTypography.caption.copyWith(
-              color: AppColors.textTertiary,
-              fontSize: 11,
+const SizedBox(height: AppSpacing.sm),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.warningLight,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              border:
+                  Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(
+                  Icons.warning_amber_outlined,
+                  size: 16,
+                  color: AppColors.warning,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Text(
+                    'Ces notes sont stockées uniquement sur cet appareil '
+                    'et ne sont pas synchronisées avec le serveur. '
+                    'Elles seront perdues si l\'application est désinstallée.',
+                    style: AppTypography.caption.copyWith(
+                      color: AppColors.warning,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
 import '../../data/models/cycle_data.dart';
 
 /// Renders the cycle's full path, not just the steps already reached, so a
@@ -137,7 +138,7 @@ class _TimelineEntry extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     timestamp != null
-                        ? _formatDateTime(timestamp!)
+                        ? AppDateFormatter.dateTime(timestamp!)
                         : (dim ? 'À venir' : '—'),
                     style: AppTypography.caption,
                   ),
@@ -148,11 +149,5 @@ class _TimelineEntry extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDateTime(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year} · '
-        '${two(d.hour)}:${two(d.minute)}';
   }
 }

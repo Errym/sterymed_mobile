@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
 import '../../data/models/control_test_data.dart';
 
 /// Control test row shown inline on the cycle detail screen. Distinct from
@@ -30,7 +31,7 @@ class CycleDetailControlTestRow extends StatelessWidget {
                 Text(test.type.label, style: AppTypography.bodyStrong),
                 const SizedBox(height: 2),
                 Text(
-                  _formatDateTime(test.performedAt),
+                  AppDateFormatter.dateTime(test.performedAt),
                   style: AppTypography.caption,
                 ),
               ],
@@ -53,11 +54,5 @@ class CycleDetailControlTestRow extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  String _formatDateTime(DateTime d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.day)}/${two(d.month)}/${d.year} · '
-        '${two(d.hour)}:${two(d.minute)}';
   }
 }
