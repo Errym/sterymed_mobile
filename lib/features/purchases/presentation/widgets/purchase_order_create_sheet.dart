@@ -11,6 +11,7 @@ import '../../../catalog/data/repositories/product_repository.dart';
 import '../../../suppliers/data/models/supplier_data.dart';
 import '../../../suppliers/data/repositories/supplier_repository.dart';
 import '../../data/repositories/purchase_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class PurchaseOrderCreateSheet extends StatefulWidget {
   const PurchaseOrderCreateSheet({super.key});
@@ -132,7 +133,7 @@ class _PurchaseOrderCreateSheetState extends State<PurchaseOrderCreateSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

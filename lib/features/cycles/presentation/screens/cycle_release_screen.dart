@@ -8,6 +8,7 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/cycle_release_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../widgets/release_decision_sheet.dart';
+import '../../../../core/utils/error_message.dart';
 
 class CycleReleaseScreen extends StatelessWidget {
   final String cycleId;
@@ -62,7 +63,7 @@ class CycleReleaseScreen extends StatelessWidget {
                     if (!context.mounted) return;
                     AppSnackbar.show(
                       context,
-                      e.toString(),
+                      ErrorMessage.from(e),
                       kind: SnackKind.error,
                     );
                   }

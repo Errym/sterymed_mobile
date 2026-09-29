@@ -17,6 +17,7 @@ import '../../../catalog/data/repositories/product_repository.dart';
 import '../../data/models/supplier_data.dart';
 import '../../data/models/supplier_product_data.dart';
 import '../../data/repositories/supplier_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class SupplierDetailScreen extends StatefulWidget {
   final String supplierId;
@@ -291,7 +292,7 @@ class _AttachProductSheetState extends State<_AttachProductSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

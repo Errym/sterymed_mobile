@@ -17,6 +17,7 @@ import '../../data/models/supplier_data.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../bloc/supplier_list_bloc.dart';
 import '../widgets/supplier_form_sheet.dart';
+import '../../../../core/utils/error_message.dart';
 
 class SupplierListScreen extends StatelessWidget {
   const SupplierListScreen({super.key});
@@ -106,7 +107,7 @@ class _SupplierListView extends StatelessWidget {
                                   .add(const LoadSuppliers());
                             } catch (e) {
                               if (!context.mounted) return;
-                              AppSnackbar.show(context, e.toString(),
+                              AppSnackbar.show(context, ErrorMessage.from(e),
                                   kind: SnackKind.error);
                             }
                           }

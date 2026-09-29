@@ -14,6 +14,7 @@ import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/dlu_rule_data.dart';
 import '../../data/repositories/dlu_repository.dart';
 import '../widgets/dlu_rule_form_sheet.dart';
+import '../../../../core/utils/error_message.dart';
 
 class DluRulesScreen extends StatefulWidget {
   const DluRulesScreen({super.key});
@@ -58,7 +59,7 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     }
   }
 

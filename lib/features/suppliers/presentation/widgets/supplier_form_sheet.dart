@@ -9,6 +9,7 @@ import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../data/models/supplier_data.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../bloc/supplier_list_bloc.dart';
+import '../../../../core/utils/error_message.dart';
 
 class SupplierFormSheet extends StatefulWidget {
   final SupplierData? existing;
@@ -93,7 +94,7 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
