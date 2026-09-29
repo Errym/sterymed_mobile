@@ -191,6 +191,42 @@ void main() {
   );
 
   testWidgets(
+    'a queued (offline) transition shows the "Enregistré localement" snackbar '
+    'with a "Voir la file" action instead of the plain success',
+    (tester) async {
+      when(() => repo.start(any())).thenAnswer(
+        (_) async => CycleData(
+          id: 'cycle-1',
+          number: '',
+          status: 'in_progress',
+          deviceId: '',
+          deviceName: '',
+          createdAt: DateTime(2026, 9, 20, 8, 0),
+          isQueued: true,
+        ),
+      );
+
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      await tester.drag(find.byType(Scrollable), const Offset(0, -3000));
+      await _settle(tester);
+      await tester.tap(find.text('Démarrer le cycle'));
+      await _settle(tester);
+      await tester.tap(find.text('Démarrer'));
+      await _settle(tester);
+
+      verify(() => repo.start('cycle-1')).called(1);
+      expect(
+        find.text('Enregistré localement. Synchronisation en attente.'),
+        findsOneWidget,
+      );
+      expect(find.text('Voir la file'), findsOneWidget);
+      expect(find.text('Cycle mis à jour.'), findsNothing);
+    },
+  );
+
+  testWidgets(
     'adding an instrument calls CycleRepository.addItem with the entered '
     'description and refreshes the list',
     (tester) async {

@@ -50,6 +50,14 @@ final _declPattern = RegExp(
   '(?:<[^>]*>)?\\??\\s+(\\w+)\\s*[=;]',
 );
 
+/// Catches the inferred-type declaration style the pattern above misses:
+/// `late final _x = TextEditingController(...)` (name before type, type only
+/// in the initializer). A real controller leak once hid in exactly this
+/// blind spot, so both styles are now scanned.
+final _inferredDeclPattern = RegExp(
+  '(?:final|late)\\s+(\\w+)\\s*=\\s*(${_controllerTypes.join('|')})\\s*[(<]',
+);
+
 final _streamControllerDeclPattern =
     RegExp(r'(?:final|late)\s+(\w+)\s*=\s*StreamController');
 
@@ -107,6 +115,8 @@ void main() {
         final decls = <(String type, String name)>[
           for (final m in _declPattern.allMatches(cls.body))
             (m.group(1)!, m.group(2)!),
+          for (final m in _inferredDeclPattern.allMatches(cls.body))
+            (m.group(2)!, m.group(1)!),
           for (final m in _streamControllerDeclPattern.allMatches(cls.body))
             ('StreamController', m.group(1)!),
         ];

@@ -34,6 +34,17 @@ void main() {
     expect(find.text('Se connecter'), findsOneWidget);
   });
 
+  testWidgets('shows the "Mot de passe oublié ?" link', (tester) async {
+    await pumpApp(
+      tester,
+      BlocProvider(
+        create: (_) => AuthBloc(repo),
+        child: const LoginScreen(),
+      ),
+    );
+    expect(find.text('Mot de passe oublié ?'), findsOneWidget);
+  });
+
   testWidgets('shows validation errors on empty submit', (tester) async {
     await pumpApp(
       tester,
