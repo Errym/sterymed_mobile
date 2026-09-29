@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../feedback/sync_status_pill.dart';
 
 /// SteryMed AppBar.
 /// Two modes:
@@ -52,7 +53,11 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
                   onPressed: () => Navigator.of(context).pop(),
                 )
               : null),
-      actions: actions,
+      actions: [
+        ...(actions ?? const <Widget>[]),
+        const SyncStatusPill(),
+        const SizedBox(width: AppSpacing.xs),
+      ],
       bottom: navy
           ? null
           : const PreferredSize(
