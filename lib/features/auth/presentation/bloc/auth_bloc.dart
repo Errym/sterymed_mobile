@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/sync/sync_status_cubit.dart';
+import '../../../../di/di.dart';
 import '../../data/repositories/auth_repository.dart';
 import 'auth_event.dart';
 import 'auth_state.dart';
@@ -37,6 +41,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         email: event.email,
         password: event.password,
       );
+      unawaited(getIt<SyncStatusCubit>().refreshNow());
       emit(const AuthAuthenticated());
     } on ApiException catch (e) {
       emit(AuthError(e));
@@ -95,6 +100,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         ownerEmail: event.ownerEmail,
         password: event.password,
       );
+      unawaited(getIt<SyncStatusCubit>().refreshNow());
       emit(const AuthAuthenticated());
     } on ApiException catch (e) {
       emit(AuthError(e));
