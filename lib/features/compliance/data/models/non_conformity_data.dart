@@ -29,8 +29,28 @@ class NonConformityData extends Equatable {
 
   bool get isOpen => resolvedAt == null;
 
-  String get subjectTypeLabel =>
-      subjectType == 'Cycle' ? 'Cycle' : 'Étiquette';
+  static const _subjectTypeLabels = <String, String>{
+    'App\\Domain\\Sterilization\\Models\\Cycle': 'Cycle',
+    'App\\Domain\\Sterilization\\Models\\CycleItem': 'Instrument de cycle',
+    'App\\Domain\\Labeling\\Models\\Label': 'Étiquette',
+    'App\\Domain\\Catalog\\Models\\Product': 'Produit',
+    'App\\Domain\\Purchasing\\Models\\Supplier': 'Fournisseur',
+    'App\\Domain\\Purchasing\\Models\\PurchaseOrder': 'Commande',
+    'App\\Domain\\Equipment\\Models\\Device': 'Appareil',
+    'App\\Domain\\Equipment\\Models\\MaintenanceRecord': 'Maintenance',
+    'App\\Domain\\Reporting\\Models\\DataExportRequest': 'Export',
+    'App\\Models\\User': 'Utilisateur',
+  };
+
+  String get subjectTypeLabel {
+    final mapped = _subjectTypeLabels[subjectType];
+    if (mapped != null) return mapped;
+    final last = subjectType.split('\\').last;
+    return last.replaceAllMapped(
+      RegExp(r'(?<=[a-z])(?=[A-Z])'),
+      (_) => ' ',
+    );
+  }
 
   factory NonConformityData.fromJson(Map<String, dynamic> json) =>
       NonConformityData(

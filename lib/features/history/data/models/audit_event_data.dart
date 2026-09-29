@@ -69,7 +69,13 @@ class AuditEventData extends Equatable {
       'App\\Models\\User': 'Utilisateur',
     };
     if (subjectType == null) return null;
-    return map[subjectType] ?? subjectType;
+    final mapped = map[subjectType];
+    if (mapped != null) return mapped;
+    final last = subjectType!.split('\\').last;
+    return last.replaceAllMapped(
+      RegExp(r'(?<=[a-z])(?=[A-Z])'),
+      (_) => ' ',
+    );
   }
 
   @override
