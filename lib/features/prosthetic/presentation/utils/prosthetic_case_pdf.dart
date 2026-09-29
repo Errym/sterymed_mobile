@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../data/models/prosthetic_case_data.dart';
 
 /// One-page PDF summary of a prosthetic case — the `[🖨]` action on the
@@ -67,7 +68,7 @@ Future<Uint8List> buildProstheticCasePdf(ProstheticCaseData c) async {
               if (c.depositAmount != null)
                 (
                   'Montant de l\'acompte',
-                  '${c.depositAmount!.toStringAsFixed(2)} €'
+                  AppCurrencyFormatter.eur(c.depositAmount!)
                 ),
               (
                 'Paiement final effectué',
@@ -76,7 +77,7 @@ Future<Uint8List> buildProstheticCasePdf(ProstheticCaseData c) async {
               if (c.remainingBalance != null)
                 (
                   'Solde restant',
-                  '${c.remainingBalance!.toStringAsFixed(2)} €'
+                  AppCurrencyFormatter.eur(c.remainingBalance!)
                 ),
             ]),
             if (c.notes != null && c.notes!.isNotEmpty) ...[

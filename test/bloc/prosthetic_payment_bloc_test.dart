@@ -15,6 +15,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:steriymed_mobile/core/utils/formatters/currency_formatter.dart';
 import 'package:steriymed_mobile/features/prosthetic/presentation/widgets/prosthetic_payment_section.dart';
 import 'package:steriymed_mobile/shared/widgets/inputs/app_text_field.dart';
 
@@ -89,7 +90,10 @@ void main() {
       );
 
       expect(find.text('Paiement à vérifier'), findsOneWidget);
-      expect(find.text('Solde restant : 150.50 €'), findsOneWidget);
+      expect(
+        find.text('Solde restant : ${AppCurrencyFormatter.eur(150.5)}'),
+        findsOneWidget,
+      );
     });
   });
 

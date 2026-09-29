@@ -74,7 +74,10 @@ class ProstheticCaseTile extends StatelessWidget {
                     style: AppTypography.caption),
                 if (item.daysWaitingForPlacement != null) ...[
                   const Spacer(),
-                  AgingBadge(daysElapsed: item.daysWaitingForPlacement!),
+                  AgingBadge(
+                    daysElapsed: item.daysWaitingForPlacement!,
+                    prominent: true,
+                  ),
                 ],
                 if (item.hasPaymentDue) ...[
                   const SizedBox(width: AppSpacing.sm),

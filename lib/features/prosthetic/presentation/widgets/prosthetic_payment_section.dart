@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
@@ -195,14 +196,14 @@ class _ReadOnlyPaymentCard extends StatelessWidget {
           Text(
             data.depositRequested
                 ? (data.depositReceived
-                    ? 'Acompte reçu (${data.depositAmount?.toStringAsFixed(2) ?? '?'} €).'
+                    ? 'Acompte reçu (${data.depositAmount != null ? AppCurrencyFormatter.eur(data.depositAmount!) : '?'}).'
                     : 'Acompte demandé, non reçu.')
                 : 'Aucun acompte demandé.',
             style: AppTypography.caption,
           ),
           if (data.remainingBalance != null && data.remainingBalance! > 0)
             Text(
-                'Solde restant : ${data.remainingBalance!.toStringAsFixed(2)} €',
+                'Solde restant : ${AppCurrencyFormatter.eur(data.remainingBalance!)}',
                 style: AppTypography.caption),
         ],
       ),
