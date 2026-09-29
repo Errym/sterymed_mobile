@@ -14,6 +14,7 @@ import 'package:get_it/get_it.dart';
 
 import '../core/cache/cache.dart';
 import '../core/network/dio_client.dart';
+import '../core/network/dio_factory.dart';
 import '../core/storage/session_store.dart';
 import '../core/storage/token_storage.dart';
 import '../core/storage/outbox/outbox_store.dart';
@@ -24,6 +25,7 @@ import '../core/sync/sync_status_cubit.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/repositories/auth_repository.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
+import '../features/auth/presentation/bloc/forgot_password_bloc.dart';
 
 // ── Dashboard ───────────────────────────────────────────────────────────────
 import '../features/dashboard/data/datasources/dashboard_remote_datasource.dart';
@@ -111,6 +113,7 @@ import '../features/reporting/data/datasources/evidence_search_remote_datasource
 import '../features/reporting/data/datasources/export_remote_datasource.dart';
 import '../features/reporting/data/repositories/evidence_search_repository.dart';
 import '../features/reporting/data/repositories/export_repository.dart';
+import '../features/reporting/data/services/export_download_service.dart';
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
 import '../features/scanner/presentation/bloc/scanner_bloc.dart';
@@ -153,6 +156,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   // throwaway instance nothing is listening to. See network_di.dart and
   // core/router/app_router.dart's refreshListenable.
   getIt.registerLazySingleton<AuthBloc>(() => AuthBloc(getIt<AuthRepository>()));
+  getIt.registerFactory<ForgotPasswordBloc>(
+    () => ForgotPasswordBloc(getIt<AuthRepository>()),
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   // Dashboard
@@ -445,6 +451,12 @@ Future<void> registerFeatures(GetIt getIt) async {
         getIt<ExportRemoteDatasource>(),
         getIt<AppCache>(),
       ));
+  // Bare Dio on purpose: the download URL is a presigned object-storage link,
+  // not a `/v1` API route — it must not carry the bearer token or be rewritten
+  // against the API base URL.
+  getIt.registerLazySingleton<ExportDownloadService>(
+    () => ExportDownloadService(DioFactory.bare()),
+  );
   getIt.registerLazySingleton<EvidenceSearchRemoteDatasource>(
     () => EvidenceSearchRemoteDatasource(getIt<DioClient>().dio),
   );

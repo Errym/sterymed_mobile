@@ -2,6 +2,7 @@ abstract final class RouteNames {
   static const splash = 'splash';
   static const login = 'login';
   static const register = 'register';
+  static const forgotPassword = 'forgot-password';
   static const cameraPermission = 'camera-permission';
   static const dashboard = 'dashboard';
   static const scanner = 'scanner';

@@ -6,6 +6,8 @@ abstract final class ApiEndpoints {
   static const register = '$_v1/tenants';
   static const logout = '$_v1/auth/logout';
   static const logoutEverywhere = '$_v1/auth/tokens';
+  static const forgotPassword = '$_v1/auth/forgot-password';
+  static const resetPassword = '$_v1/auth/reset-password';
   static const me = '$_v1/me';
 
   // Alerts

@@ -8,6 +8,7 @@ import 'guards/role_guard.dart';
 import '../../features/alerts/presentation/screens/alert_list_screen.dart';
 // Auth
 import '../../features/auth/presentation/screens/camera_permission_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/register_screen.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
@@ -101,6 +102,7 @@ class AppRouter {
       final isPublic = loc == Routes.splash ||
           loc == Routes.login ||
           loc == Routes.register ||
+          loc == Routes.forgotPassword ||
           loc == Routes.cameraPermission;
       if (isPublic) return null;
       final authed = isAuthenticated() || await hasStoredToken();
@@ -128,6 +130,11 @@ class AppRouter {
         path: Routes.register,
         name: RouteNames.register,
         pageBuilder: (_, s) => _fade(s, const RegisterScreen()),
+      ),
+      GoRoute(
+        path: Routes.forgotPassword,
+        name: RouteNames.forgotPassword,
+        pageBuilder: (_, s) => _fade(s, const ForgotPasswordScreen()),
       ),
       GoRoute(
         path: Routes.cameraPermission,

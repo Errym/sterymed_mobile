@@ -67,6 +67,12 @@ class AuthRepository {
     }
   }
 
+  Future<void> forgotPassword({
+    required String tenantSlug,
+    required String email,
+  }) =>
+      _remote.forgotPassword(tenantSlug: tenantSlug, email: email);
+
   Future<void> logoutEverywhere() async {
     try {
       await _remote.logoutEverywhere();

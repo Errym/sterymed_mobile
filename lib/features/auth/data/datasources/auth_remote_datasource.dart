@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';
+import '../../../../core/errors/error_mapper.dart';
 import '../models/login_response.dart';
 import '../models/user_data.dart';
 import '../models/tenant_data.dart';
@@ -26,6 +27,20 @@ class AuthRemoteDatasource {
 
   Future<void> logout() async {
     await _dio.delete(ApiEndpoints.logout);
+  }
+
+  Future<void> forgotPassword({
+    required String tenantSlug,
+    required String email,
+  }) async {
+    try {
+      await _dio.post(
+        ApiEndpoints.forgotPassword,
+        data: {'tenant_slug': tenantSlug, 'email': email},
+      );
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
   }
 
   Future<void> logoutEverywhere() async {

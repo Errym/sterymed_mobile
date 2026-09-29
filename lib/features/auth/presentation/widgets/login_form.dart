@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -79,6 +81,13 @@ class _LoginFormState extends State<LoginForm> {
                     : Icons.visibility_off_outlined,
               ),
               onPressed: () => setState(() => _obscure = !_obscure),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => context.go(Routes.forgotPassword),
+              child: const Text('Mot de passe oublié ?'),
             ),
           ),
           const SizedBox(height: AppSpacing.xl),

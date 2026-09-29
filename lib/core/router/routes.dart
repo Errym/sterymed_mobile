@@ -2,6 +2,7 @@ abstract final class Routes {
   static const splash = '/';
   static const login = '/login';
   static const register = '/register';
+  static const forgotPassword = '/forgot-password';
   static const cameraPermission = '/camera-permission';
 
   // Shell tabs

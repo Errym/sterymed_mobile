@@ -59,3 +59,7 @@ Thumbs.db
 # Claude Code local tool state (hooks config, scheduled-task lock) —
 # machine-local, not project source; would break for any other clone.
 .claude/
+.aider*
+*.bak
+pjdocs/
+_script_backups/
