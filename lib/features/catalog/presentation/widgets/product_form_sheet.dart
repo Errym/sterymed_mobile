@@ -14,6 +14,7 @@ import '../../data/models/product_data.dart';
 import '../../data/repositories/product_category_repository.dart';
 import '../../data/repositories/product_repository.dart';
 import '../bloc/product_list_bloc.dart';
+import '../../../../core/utils/error_message.dart';
 
 class ProductFormSheet extends StatefulWidget {
   const ProductFormSheet({super.key, this.existing});
@@ -134,7 +135,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

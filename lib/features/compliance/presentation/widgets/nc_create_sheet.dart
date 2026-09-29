@@ -11,6 +11,7 @@ import '../../../cycles/data/models/cycle_data.dart';
 import '../../../cycles/data/repositories/cycle_repository.dart';
 import '../../../labels/data/repositories/label_repository.dart';
 import '../../data/repositories/non_conformity_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class NcCreateSheet extends StatefulWidget {
   const NcCreateSheet({super.key});
@@ -118,7 +119,7 @@ class _NcCreateSheetState extends State<NcCreateSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

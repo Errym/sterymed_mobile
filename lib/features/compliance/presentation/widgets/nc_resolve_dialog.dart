@@ -6,6 +6,7 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../data/repositories/non_conformity_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class NcResolveDialog extends StatefulWidget {
   final String ncId;
@@ -50,7 +51,7 @@ class _NcResolveDialogState extends State<NcResolveDialog> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

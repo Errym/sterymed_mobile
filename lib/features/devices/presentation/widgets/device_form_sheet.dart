@@ -11,6 +11,7 @@ import '../../../cycles/data/repositories/device_repository.dart';
 import '../../../sites/data/models/site_data.dart';
 import '../../../sites/data/repositories/site_repository.dart';
 import '../../data/repositories/device_detail_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class DeviceFormSheet extends StatefulWidget {
   final String? existingId;
@@ -146,7 +147,7 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

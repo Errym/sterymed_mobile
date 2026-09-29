@@ -9,6 +9,7 @@ import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../data/repositories/maintenance_record_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 /// Records-only — the backend exposes no update/delete route for
 /// maintenance records, so unlike `ProgrammeFormSheet` this sheet only
@@ -80,7 +81,7 @@ class _MaintenanceRecordFormSheetState
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

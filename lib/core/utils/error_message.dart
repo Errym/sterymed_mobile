@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+
 import '../errors/api_exception.dart';
 
 /// Turn an exception object into a clean, user-facing French string.
@@ -5,6 +7,9 @@ import '../errors/api_exception.dart';
 /// `ApiException(code: ..., status: ...)` wrapper and keep just the message.
 abstract final class ErrorMessage {
   static String from(Object error) {
+    if (error is DioException) {
+      return 'Une erreur réseau est survenue. Réessayez.';
+    }
     if (error is ApiException) {
       // If the API gave us a real French message, use it.
       if (error.message.isNotEmpty) return error.message;

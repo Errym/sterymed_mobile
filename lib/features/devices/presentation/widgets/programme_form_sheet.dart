@@ -7,6 +7,7 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../cycles/data/models/device_program_data.dart';
 import '../../../cycles/data/repositories/device_program_repository.dart';
+import '../../../../core/utils/error_message.dart';
 
 class ProgrammeFormSheet extends StatefulWidget {
   final String deviceId;
@@ -105,7 +106,7 @@ class _ProgrammeFormSheetState extends State<ProgrammeFormSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
