@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import 'package:open_filex/open_filex.dart';
 
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/export_request_data.dart';
 import '../../data/repositories/export_repository.dart';
+import '../../data/services/export_download_service.dart';
 
 class DataExportRequestScreen extends StatefulWidget {
   const DataExportRequestScreen({super.key});
@@ -24,6 +26,7 @@ class DataExportRequestScreen extends StatefulWidget {
 class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
   late Future<List<ExportRequestData>> _future;
   bool _requesting = false;
+  String? _downloadingId;
 
   @override
   void initState() {
@@ -57,18 +60,26 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
 
   Future<void> _download(ExportRequestData export) async {
     try {
+      setState(() => _downloadingId = export.id);
       final url = await getIt<ExportRepository>().downloadUrl(export.id);
       if (!mounted) return;
-      await Clipboard.setData(ClipboardData(text: url));
+      final file = await getIt<ExportDownloadService>().download(
+        url: url,
+        suggestedFileName: 'steriymed-export-${export.id.substring(0, 8)}.zip',
+      );
       if (!mounted) return;
       AppSnackbar.show(
         context,
-        'Lien copié — ouvrez-le dans un navigateur pour télécharger.',
+        'Téléchargement terminé.',
         kind: SnackKind.success,
+        actionLabel: 'Ouvrir',
+        onAction: () => OpenFilex.open(file.path),
       );
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+    } finally {
+      if (mounted) setState(() => _downloadingId = null);
     }
   }
 
@@ -186,7 +197,11 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
                 return Column(
                   children: [
                     for (final e in exports) ...[
-                      _ExportCard(export: e, onDownload: () => _download(e)),
+                      _ExportCard(
+                        export: e,
+                        onDownload: () => _download(e),
+                        downloading: _downloadingId == e.id,
+                      ),
                       const SizedBox(height: AppSpacing.sm),
                     ],
                   ],
@@ -203,8 +218,13 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
 class _ExportCard extends StatelessWidget {
   final ExportRequestData export;
   final VoidCallback onDownload;
+  final bool downloading;
 
-  const _ExportCard({required this.export, required this.onDownload});
+  const _ExportCard({
+    required this.export,
+    required this.onDownload,
+    this.downloading = false,
+  });
 
   String get _statusLabel => switch (export.status) {
         'completed' => 'Disponible',
@@ -295,9 +315,22 @@ class _ExportCard extends StatelessWidget {
           if (export.isCompleted) ...[
             const SizedBox(height: AppSpacing.sm),
             OutlinedButton.icon(
-              onPressed: onDownload,
-              icon: const Icon(Icons.download, size: 16),
-              label: const Text('Copier le lien de l\'archive ZIP'),
+              onPressed: downloading ? null : onDownload,
+              icon: downloading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.brandPrimary,
+                      ),
+                    )
+                  : const Icon(Icons.download, size: 16),
+              label: Text(
+                downloading
+                    ? 'Téléchargement…'
+                    : 'Télécharger l\'archive ZIP',
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.brandPrimary,
                 side: const BorderSide(color: AppColors.brandPrimary),
