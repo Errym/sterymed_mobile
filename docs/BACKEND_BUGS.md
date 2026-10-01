@@ -57,16 +57,20 @@ endpoint is real, scoped follow-up work, not done in this pass.
 
 ---
 
-## BUG-002 — Missing `GET /api/v1/locations`
-**Severity:** 🔴 Blocking
+## BUG-002 — ✅ FIXED 2026-10-02: `GET /api/v1/locations` now exists
+Complete, cursor-paginated, includes locations that hold no stock; mobile uses it (`StockRemoteDatasource.listOptions`). Proven live by `scripts/verify_empty_clinic_journey.py`.
+
+**Original report — Severity:** 🔴 Blocking
 **Called by:** `GoodsReceiptScreen`, `StockAdjustScreen`, `StockTransferScreen`
 **Current workaround:** derived from `/stock-levels` (zero-stock locations missing).
 **Expected:** `[{id, name, site_id}]`
 
 ---
 
-## BUG-003 — Missing `GET /api/v1/batches`
-**Severity:** 🔴 Blocking
+## BUG-003 — ✅ FIXED 2026-10-02: `GET /api/v1/batches` now exists
+Filters `product_id`, `status`, `search`, `in_stock`; returns the quantity on hand; stable cursor order so no row repeats or is lost.
+
+**Original report — Severity:** 🔴 Blocking
 **Called by:** Same as BUG-002.
 **Expected:** `[{id, batch_number, product_id, product_name, expiry_date}]`
 

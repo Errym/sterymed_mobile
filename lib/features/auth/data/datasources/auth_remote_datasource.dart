@@ -29,15 +29,12 @@ class AuthRemoteDatasource {
     await _dio.delete(ApiEndpoints.logout, options: _revocationOptions(token));
   }
 
-  Future<void> forgotPassword({
-    required String tenantSlug,
-    required String email,
-  }) async {
+  /// Asks the server to e-mail a reset link. Password reset is per person, not
+  /// per practice, so only the address is sent. The server answers 202 whether
+  /// or not an account exists (it never reveals who has one).
+  Future<void> forgotPassword({required String email}) async {
     try {
-      await _dio.post(
-        ApiEndpoints.forgotPassword,
-        data: {'tenant_slug': tenantSlug, 'email': email},
-      );
+      await _dio.post(ApiEndpoints.forgotPassword, data: {'email': email});
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

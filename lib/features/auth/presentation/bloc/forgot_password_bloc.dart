@@ -20,10 +20,7 @@ class ForgotPasswordBloc
   ) async {
     emit(const ForgotPasswordLoading());
     try {
-      await _repository.forgotPassword(
-        tenantSlug: event.tenantSlug,
-        email: event.email,
-      );
+      await _repository.forgotPassword(email: event.email);
       emit(const ForgotPasswordSuccess());
     } on ApiException catch (e) {
       emit(ForgotPasswordFailure(ErrorMessage.from(e)));

@@ -14,6 +14,8 @@ import 'package:get_it/get_it.dart';
 import 'package:intl/intl.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/storage/session_store.dart';
+import 'package:steriymed_mobile/features/identity/data/models/practitioner_option.dart';
+import 'package:steriymed_mobile/features/identity/data/repositories/practitioner_repository.dart';
 import 'package:steriymed_mobile/features/patients/data/models/patient_data.dart';
 import 'package:steriymed_mobile/features/patients/data/repositories/patient_repository.dart';
 import 'package:steriymed_mobile/features/prosthetic/data/local/prosthetic_case_draft_store.dart';
@@ -32,26 +34,35 @@ class MockProstheticRepository extends Mock implements ProstheticRepository {}
 
 class MockPatientRepository extends Mock implements PatientRepository {}
 
+class MockPractitionerRepository extends Mock
+    implements PractitionerRepository {}
+
 const _patient = PatientData(id: 'p1', reference: 'PAT-000001');
 
+const _practitioners = [
+  PractitionerOption(id: 'prat-1', name: 'Dr Test', role: 'practitioner'),
+  PractitionerOption(id: 'prat-2', name: 'Dr Martin', role: 'admin'),
+];
+
 ProstheticCaseData _fakeCase() => ProstheticCaseData(
-      id: 'case-1',
-      patientId: _patient.id,
-      patientReference: _patient.reference,
-      practitionerId: 'prat-1',
-      practitionerName: 'Dr Test',
-      status: ProstheticCaseStatus.impressionCompleted,
-      impressionType: ProstheticImpressionType.digital,
-      workType: ProstheticWorkType.crown,
-      impressionDate: DateTime.now(),
-      createdAt: DateTime.now(),
-    );
+  id: 'case-1',
+  patientId: _patient.id,
+  patientReference: _patient.reference,
+  practitionerId: 'prat-1',
+  practitionerName: 'Dr Test',
+  status: ProstheticCaseStatus.impressionCompleted,
+  impressionType: ProstheticImpressionType.digital,
+  workType: ProstheticWorkType.crown,
+  impressionDate: DateTime.now(),
+  createdAt: DateTime.now(),
+);
 
 void main() {
   late MockSessionStore session;
   late MockProstheticCaseDraftStore draftStore;
   late MockProstheticRepository prostheticRepo;
   late MockPatientRepository patientRepo;
+  late MockPractitionerRepository practitionerRepo;
 
   setUpAll(() {
     registerFallbackValue(const ProstheticCaseDraft());
@@ -62,6 +73,7 @@ void main() {
     draftStore = MockProstheticCaseDraftStore();
     prostheticRepo = MockProstheticRepository();
     patientRepo = MockPatientRepository();
+    practitionerRepo = MockPractitionerRepository();
 
     when(() => session.userId).thenReturn('prat-1');
     when(() => session.userName).thenReturn('Dr Test');
@@ -69,9 +81,13 @@ void main() {
     when(() => draftStore.save(any())).thenAnswer((_) async {});
     when(() => draftStore.clear()).thenAnswer((_) async {});
     when(() => prostheticRepo.listLaboratories()).thenAnswer((_) async => []);
+    when(
+      () => practitionerRepo.list(forceRefresh: any(named: 'forceRefresh')),
+    ).thenAnswer((_) async => _practitioners);
     when(() => patientRepo.search(any())).thenAnswer((_) async => [_patient]);
-    when(() => prostheticRepo.create(any()))
-        .thenAnswer((_) async => _fakeCase());
+    when(
+      () => prostheticRepo.create(any()),
+    ).thenAnswer((_) async => _fakeCase());
 
     if (GetIt.instance.isRegistered<SessionStore>()) {
       GetIt.instance.unregister<SessionStore>();
@@ -85,6 +101,10 @@ void main() {
     if (GetIt.instance.isRegistered<PatientRepository>()) {
       GetIt.instance.unregister<PatientRepository>();
     }
+    if (GetIt.instance.isRegistered<PractitionerRepository>()) {
+      GetIt.instance.unregister<PractitionerRepository>();
+    }
+    GetIt.instance.registerSingleton<PractitionerRepository>(practitionerRepo);
     GetIt.instance.registerSingleton<SessionStore>(session);
     GetIt.instance.registerSingleton<ProstheticCaseDraftStore>(draftStore);
     GetIt.instance.registerSingleton<ProstheticRepository>(prostheticRepo);
@@ -96,6 +116,7 @@ void main() {
     GetIt.instance.unregister<ProstheticCaseDraftStore>();
     GetIt.instance.unregister<ProstheticRepository>();
     GetIt.instance.unregister<PatientRepository>();
+    GetIt.instance.unregister<PractitionerRepository>();
   });
 
   /// Pushes the create screen onto a real navigation stack so its own
@@ -161,9 +182,9 @@ void main() {
       await tester.tap(find.text('Créer le dossier'));
       await tester.pumpAndSettle();
 
-      final captured = verify(() => prostheticRepo.create(captureAny()))
-          .captured
-          .single as Map<String, dynamic>;
+      final captured =
+          verify(() => prostheticRepo.create(captureAny())).captured.single
+              as Map<String, dynamic>;
 
       expect(captured['patient_id'], 'p1');
       expect(captured['practitioner_id'], 'prat-1');
@@ -183,4 +204,105 @@ void main() {
       expect(find.text('Dossier prothétique créé.'), findsOneWidget);
     },
   );
+
+  Future<void> pickPatientAndScrollToSubmit(WidgetTester tester) async {
+    await tester.tap(find.text('Sélectionner un patient'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('PAT-000001'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> submit(WidgetTester tester) async {
+    await tester.dragUntilVisible(
+      find.text('Créer le dossier'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Créer le dossier'));
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('the practitioner defaults to the signed-in user when eligible', (
+    tester,
+  ) async {
+    await pumpCreateScreen(tester);
+
+    expect(find.text('Dr Test'), findsOneWidget);
+  });
+
+  testWidgets('choosing another practitioner sends that person', (
+    tester,
+  ) async {
+    await pumpCreateScreen(tester);
+    await pickPatientAndScrollToSubmit(tester);
+
+    await tester.dragUntilVisible(
+      find.text('Dr Test'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+    await tester.tap(find.text('Dr Test'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dr Martin').last);
+    await tester.pumpAndSettle();
+    await submit(tester);
+
+    final captured =
+        verify(() => prostheticRepo.create(captureAny())).captured.single
+            as Map<String, dynamic>;
+    expect(captured['practitioner_id'], 'prat-2');
+  });
+
+  testWidgets(
+    'a signed-in user who is not an eligible practitioner must choose one: '
+    'nothing is sent until they do',
+    (tester) async {
+      when(() => session.userId).thenReturn('someone-else');
+
+      await pumpCreateScreen(tester);
+      await pickPatientAndScrollToSubmit(tester);
+      await submit(tester);
+
+      expect(find.text('Choisissez un praticien.'), findsOneWidget);
+      verifyNever(() => prostheticRepo.create(any()));
+    },
+  );
+
+  testWidgets(
+    'a practitioner saved in a draft who is no longer valid is dropped, not '
+    'submitted',
+    (tester) async {
+      when(() => draftStore.load()).thenReturn(
+        const ProstheticCaseDraft(
+          patientId: 'p1',
+          patientReference: 'PAT-000001',
+          practitionerId: 'left-the-practice',
+        ),
+      );
+      when(() => session.userId).thenReturn('someone-else');
+
+      await pumpCreateScreen(tester);
+      await submit(tester);
+
+      verifyNever(() => prostheticRepo.create(any()));
+      expect(find.text('Choisissez un praticien.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('a failure to load practitioners is shown with a retry', (
+    tester,
+  ) async {
+    when(
+      () => practitionerRepo.list(forceRefresh: any(named: 'forceRefresh')),
+    ).thenThrow(Exception('réseau'));
+
+    await pumpCreateScreen(tester);
+    await tester.dragUntilVisible(
+      find.text('Réessayer'),
+      find.byType(ListView),
+      const Offset(0, -200),
+    );
+
+    expect(find.text('Réessayer'), findsOneWidget);
+  });
 }

@@ -129,6 +129,22 @@ void main() {
       expect(saved!['deposit_received'], isTrue);
       expect(saved!['deposit_amount'], 100.0);
       expect(saved!['final_payment_completed'], isFalse);
+      // Mirror of the clinical edit: a payment save carries only payment fields,
+      // because the server rejects a patch mixing both permissions.
+      const clinicalFields = [
+        'practitioner_id',
+        'laboratory_id',
+        'impression_type',
+        'work_type',
+        'impression_date',
+        'planned_placement_date',
+        'priority',
+        'notes',
+        'internal_comments',
+      ];
+      for (final field in clinicalFields) {
+        expect(saved!.containsKey(field), isFalse, reason: field);
+      }
     });
 
     testWidgets('the save button shows a loading state when busy',

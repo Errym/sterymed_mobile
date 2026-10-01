@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/network/cursor_page.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../models/supplier_data.dart';
 import '../models/supplier_product_data.dart';
@@ -10,18 +11,42 @@ class SupplierRemoteDatasource {
   final Dio _dio;
   SupplierRemoteDatasource(this._dio);
 
+  /// Every supplier, across all pages (the cap only guards against a server
+  /// that never stops paginating).
   Future<List<SupplierData>> list() async {
+    const maxPages = 50;
     try {
-      final res = await _dio.get(
-        ApiEndpoints.suppliers,
-        queryParameters: {'limit': 100},
-      );
+      final suppliers = <SupplierData>[];
+      String? cursor;
+      for (var page = 0; page < maxPages; page++) {
+        final res = await _dio.get(
+          ApiEndpoints.suppliers,
+          queryParameters: {'limit': 100, if (cursor != null) 'cursor': cursor},
+        );
+        final raw = res.data;
+        if (raw is! Map || raw['data'] is! List) break;
+        suppliers.addAll(
+          (raw['data'] as List).whereType<Map>().map(
+            (e) => SupplierData.fromJson(e.cast<String, dynamic>()),
+          ),
+        );
+        cursor = CursorPage.cursorFromMeta(raw.cast<String, dynamic>());
+        if (cursor == null) break;
+      }
+      return suppliers;
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  /// One supplier by id. The detail screen must not search a list: a supplier
+  /// beyond the first page, or reached by a deep link, would be "not found".
+  Future<SupplierData> show(String id) async {
+    try {
+      final res = await _dio.get(ApiEndpoints.supplier(id));
       final raw = res.data;
-      if (raw is! Map || raw['data'] is! List) return const [];
-      return (raw['data'] as List)
-          .whereType<Map>()
-          .map((e) => SupplierData.fromJson(e.cast<String, dynamic>()))
-          .toList();
+      final map = raw is Map && raw['data'] is Map ? raw['data'] as Map : raw as Map;
+      return SupplierData.fromJson(map.cast<String, dynamic>());
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

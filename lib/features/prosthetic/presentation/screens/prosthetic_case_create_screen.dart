@@ -16,6 +16,8 @@ import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../patients/data/models/patient_data.dart';
 import '../../../patients/data/repositories/patient_repository.dart';
 import '../../data/local/prosthetic_case_draft_store.dart';
+import '../../../identity/data/models/practitioner_option.dart';
+import '../../../identity/data/repositories/practitioner_repository.dart';
 import '../../data/models/laboratory_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
 
@@ -42,6 +44,10 @@ class _ProstheticCaseCreateScreenState
   List<LaboratoryData> _laboratories = [];
   bool _loadingLabs = true;
   String? _labsError;
+  String? _practitionerId;
+  List<PractitionerOption> _practitioners = [];
+  bool _loadingPractitioners = true;
+  String? _practitionersError;
   bool _submitting = false;
 
   ProstheticCaseDraftStore get _draftStore => getIt<ProstheticCaseDraftStore>();
@@ -51,6 +57,7 @@ class _ProstheticCaseCreateScreenState
     super.initState();
     _restoreDraft();
     _loadLaboratories();
+    _loadPractitioners();
   }
     @override
   void dispose() {
@@ -71,6 +78,7 @@ class _ProstheticCaseCreateScreenState
         );
       }
       _laboratoryId = draft.laboratoryId;
+      _practitionerId = draft.practitionerId;
       _impressionType = draft.impressionType;
       _workType = draft.workType;
       _impressionDate = draft.impressionDate ?? DateTime.now();
@@ -85,6 +93,7 @@ class _ProstheticCaseCreateScreenState
       patientId: _patient?.id,
       patientReference: _patient?.reference,
       laboratoryId: _laboratoryId,
+      practitionerId: _practitionerId,
       impressionType: _impressionType,
       workType: _workType,
       impressionDate: _impressionDate,
@@ -115,6 +124,39 @@ class _ProstheticCaseCreateScreenState
     }
   }
 
+  /// Loads who may be named as practitioner. The server's own rule decides, so
+  /// the list never offers someone the server would reject. Defaults to the
+  /// signed-in user when they are on it; a draft choice that is no longer valid
+  /// (left the practice, changed role) is dropped rather than submitted.
+  Future<void> _loadPractitioners() async {
+    setState(() {
+      _loadingPractitioners = true;
+      _practitionersError = null;
+    });
+    try {
+      final people = await getIt<PractitionerRepository>().list();
+      if (!mounted) return;
+      final ids = people.map((p) => p.id).toSet();
+      final self = getIt<SessionStore>().userId;
+      setState(() {
+        _practitioners = people;
+        if (_practitionerId != null && !ids.contains(_practitionerId)) {
+          _practitionerId = null;
+        }
+        _practitionerId ??= self != null && ids.contains(self)
+            ? self
+            : (people.length == 1 ? people.first.id : null);
+        _loadingPractitioners = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loadingPractitioners = false;
+        _practitionersError = ErrorMessage.from(e);
+      });
+    }
+  }
+
   Future<void> _pickPatient() async {
     final selected = await showModalBottomSheet<PatientData>(
       context: context,
@@ -139,10 +181,9 @@ class _ProstheticCaseCreateScreenState
       return;
     }
 
-    final session = getIt<SessionStore>();
-    final practitionerId = session.userId;
-    if (practitionerId == null) {
-      AppSnackbar.show(context, 'Session invalide. Reconnectez-vous.',
+    final practitionerId = _practitionerId;
+    if (practitionerId == null || practitionerId.isEmpty) {
+      AppSnackbar.show(context, 'Choisissez un praticien.',
           kind: SnackKind.error);
       return;
     }
@@ -177,7 +218,6 @@ class _ProstheticCaseCreateScreenState
 
   @override
   Widget build(BuildContext context) {
-    final session = getIt<SessionStore>();
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: const AppAppBar(title: 'Nouveau dossier prothétique'),
@@ -218,10 +258,6 @@ class _ProstheticCaseCreateScreenState
               ),
             ),
             const SizedBox(height: AppSpacing.md),
-            Text('Praticien : ${session.userName ?? '—'}',
-                style: AppTypography.caption
-                    .copyWith(color: AppColors.textSecondary)),
-            const SizedBox(height: AppSpacing.md),
             AppDropdown<String>(
               label: 'Type d\'empreinte *',
               value: _impressionType,
@@ -254,6 +290,31 @@ class _ProstheticCaseCreateScreenState
               lastDate: DateTime.now(),
               onChanged: (d) => setState(() => _impressionDate = d),
             ),
+            const SizedBox(height: AppSpacing.md),
+            _loadingPractitioners
+                ? const LoadingView()
+                : _practitionersError != null
+                    ? ErrorView(
+                        message: _practitionersError!,
+                        onRetry: _loadPractitioners,
+                      )
+                    : AppDropdown<String?>(
+                        label: 'Praticien *',
+                        value: _practitionerId,
+                        options: [
+                          if (_practitionerId == null)
+                            const AppDropdownOption(
+                              value: null,
+                              label: 'Choisir un praticien',
+                            ),
+                          ..._practitioners.map((p) =>
+                              AppDropdownOption(value: p.id, label: p.name)),
+                        ],
+                        onChanged: (v) {
+                          setState(() => _practitionerId = v);
+                          _saveDraft();
+                        },
+                      ),
             const SizedBox(height: AppSpacing.md),
             _loadingLabs
                 ? const LoadingView()

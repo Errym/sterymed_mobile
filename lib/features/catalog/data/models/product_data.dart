@@ -70,4 +70,18 @@ class ProductCreateRequest {
         if (categoryId != null) 'category_id': categoryId,
         if (defaultLocationId != null) 'default_location_id': defaultLocationId,
       };
+
+  /// PATCH body. Unlike create, an empty barcode, category or location must be
+  /// sent as an explicit null: omitting it would leave the stored value in
+  /// place, so a user who cleared a field would see it come back.
+  Map<String, dynamic> toUpdateJson() => {
+        'name': name,
+        'reference': reference,
+        'unit': unit,
+        'min_threshold': minThreshold,
+        'is_sterilizable': isSterilizable,
+        'barcode': barcode,
+        'category_id': categoryId,
+        'default_location_id': defaultLocationId,
+      };
 }

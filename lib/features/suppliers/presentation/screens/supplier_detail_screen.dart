@@ -41,21 +41,14 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
   Future<(SupplierData?, List<SupplierProductData>, Map<String, ProductData>)>
       _load() async {
     final results = await Future.wait([
-      getIt<SupplierRepository>().list(),
+      getIt<SupplierRepository>().show(widget.supplierId),
       getIt<SupplierRepository>()
           .listProducts(widget.supplierId, forceRefresh: true),
       getIt<ProductRepository>().list(),
     ]);
-    final suppliers = results[0] as List<SupplierData>;
+    final supplier = results[0] as SupplierData;
     final links = results[1] as List<SupplierProductData>;
     final products = results[2] as List<ProductData>;
-    SupplierData? supplier;
-    for (final s in suppliers) {
-      if (s.id == widget.supplierId) {
-        supplier = s;
-        break;
-      }
-    }
     final byId = {for (final p in products) p.id: p};
     return (supplier, links, byId);
   }

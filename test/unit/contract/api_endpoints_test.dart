@@ -7,7 +7,7 @@
 // between mobile and backend pass silently. Instead this test compares
 // against test/fixtures/contract/openapi_paths_snapshot.json, a minimal
 // path-only snapshot pulled from the LIVE, auto-generated
-// GET /docs/api.json (78 paths, confirmed current against real route
+// GET /docs/api.json (82 paths, confirmed current against real route
 // definitions in app/Http/... at snapshot time). This keeps the test
 // hermetic (no live backend needed to run `flutter test`) while still
 // checking against reality rather than a known-stale file. Refresh the
@@ -98,6 +98,10 @@ void main() {
       'prostheticWaitingPlacement': ApiEndpoints.prostheticWaitingPlacement,
       'prostheticCases': ApiEndpoints.prostheticCases,
       'laboratories': ApiEndpoints.laboratories,
+      'forgotPassword': ApiEndpoints.forgotPassword,
+      'locations': ApiEndpoints.locations,
+      'batches': ApiEndpoints.batches,
+      'practitioners': ApiEndpoints.practitioners,
     };
 
     staticPaths.forEach((name, path) {
@@ -175,6 +179,6 @@ void main() {
   );
 
   test('snapshot sanity: has the expected live path count from the fetch', () {
-    expect(rawLivePaths.length, 78);
+    expect(rawLivePaths.length, 82);
   });
 }

@@ -12,6 +12,9 @@ import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../../../shared/widgets/inputs/app_dropdown.dart';
+import '../../../identity/data/models/practitioner_option.dart';
+import '../../../identity/data/repositories/practitioner_repository.dart';
 import '../../../patients/data/models/patient_data.dart';
 import '../../../patients/presentation/widgets/patient_picker_sheet.dart';
 import '../../data/local/label_usage_draft_store.dart';
@@ -36,6 +39,11 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
   PatientData? _patient;
   bool _submitting = false;
   bool _restoredDraft = false;
+  // Who performed the act. Defaults to the signed-in user. The list is a
+  // convenience: if it cannot be loaded (offline), the signed-in user is used,
+  // exactly as before, so recording a usage is never blocked by it.
+  String? _practitionerId;
+  List<PractitionerOption> _practitioners = const [];
 
   @override
   void initState() {
@@ -49,6 +57,26 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
     }
     _procedureCtrl.addListener(_saveDraft);
     _notesCtrl.addListener(_saveDraft);
+    _practitionerId = getIt<SessionStore>().userId;
+    _loadPractitioners();
+  }
+
+  Future<void> _loadPractitioners() async {
+    try {
+      final people = await getIt<PractitionerRepository>().list();
+      if (!mounted) return;
+      final ids = people.map((p) => p.id).toSet();
+      setState(() {
+        _practitioners = people;
+        // The signed-in user stays selected only while the server would accept
+        // them; otherwise the user must choose.
+        if (_practitionerId != null && !ids.contains(_practitionerId)) {
+          _practitionerId = people.length == 1 ? people.first.id : null;
+        }
+      });
+    } catch (_) {
+      // Keep the signed-in user (see above).
+    }
   }
 
   void _saveDraft() {
@@ -83,28 +111,44 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
 
   Future<void> _submit() async {
     if (_patient == null) {
-      AppSnackbar.show(context, 'Sélectionnez un patient.',
-          kind: SnackKind.warning);
+      AppSnackbar.show(
+        context,
+        'Sélectionnez un patient.',
+        kind: SnackKind.warning,
+      );
       return;
     }
     if (!_formKey.currentState!.validate()) return;
-    final practitionerId = getIt<SessionStore>().userId ?? '';
+    final practitionerId = _practitionerId ?? '';
     if (practitionerId.isEmpty) {
-      AppSnackbar.show(context, 'Session invalide.', kind: SnackKind.error);
+      AppSnackbar.show(
+        context,
+        _practitioners.isEmpty
+            ? 'Session invalide.'
+            : 'Choisissez un praticien.',
+        kind: _practitioners.isEmpty ? SnackKind.error : SnackKind.warning,
+      );
       return;
     }
+    final session = getIt<SessionStore>();
+    final fromList = _practitioners
+        .where((p) => p.id == practitionerId)
+        .map((p) => p.name)
+        .firstOrNull;
+    final practitionerName =
+        fromList ??
+        (practitionerId == session.userId ? session.userName : null);
     setState(() => _submitting = true);
     try {
       final result = await context.read<LabelUsageRepository>().recordUsage(
-            labelId: widget.labelId,
-            patientId: _patient!.id,
-            patientReference: _patient!.reference,
-            practitionerId: practitionerId,
-            practitionerName: getIt<SessionStore>().userName,
-            procedure: _procedureCtrl.text.trim(),
-            notes:
-                _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-          );
+        labelId: widget.labelId,
+        patientId: _patient!.id,
+        patientReference: _patient!.reference,
+        practitionerId: practitionerId,
+        practitionerName: practitionerName,
+        procedure: _procedureCtrl.text.trim(),
+        notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      );
       await _drafts.clear(widget.labelId);
       if (!mounted) return;
       final wasQueued = result.isQueued;
@@ -151,8 +195,10 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                       color: AppColors.brandPrimary.withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.qr_code_2,
-                        color: AppColors.brandPrimary),
+                    child: const Icon(
+                      Icons.qr_code_2,
+                      color: AppColors.brandPrimary,
+                    ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
@@ -192,13 +238,18 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.history, size: 16, color: AppColors.warning),
+                    const Icon(
+                      Icons.history,
+                      size: 16,
+                      color: AppColors.warning,
+                    ),
                     const SizedBox(width: AppSpacing.xs),
                     Expanded(
                       child: Text(
                         'Brouillon restauré depuis votre dernière saisie.',
-                        style: AppTypography.caption
-                            .copyWith(color: AppColors.warning),
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.warning,
+                        ),
                       ),
                     ),
                   ],
@@ -225,6 +276,25 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
                 ),
               ),
             ),
+            if (_practitioners.length > 1) ...[
+              const SizedBox(height: AppSpacing.md),
+              const _SectionLabel('PRATICIEN'),
+              AppDropdown<String?>(
+                label: 'Praticien',
+                value: _practitionerId,
+                options: [
+                  if (_practitionerId == null)
+                    const AppDropdownOption(
+                      value: null,
+                      label: 'Choisir un praticien',
+                    ),
+                  ..._practitioners.map(
+                    (p) => AppDropdownOption(value: p.id, label: p.name),
+                  ),
+                ],
+                onChanged: (v) => setState(() => _practitionerId = v),
+              ),
+            ],
             const SizedBox(height: AppSpacing.md),
             const _SectionLabel('ACTE / PROCÉDURE'),
             AppTextField(

@@ -35,12 +35,10 @@ class _ForgotPasswordView extends StatefulWidget {
 
 class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
   final _formKey = GlobalKey<FormState>();
-  final _tenantCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
 
   @override
   void dispose() {
-    _tenantCtrl.dispose();
     _emailCtrl.dispose();
     super.dispose();
   }
@@ -48,10 +46,7 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     context.read<ForgotPasswordBloc>().add(
-      SubmitForgotPassword(
-        tenantSlug: _tenantCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-      ),
+      SubmitForgotPassword(email: _emailCtrl.text.trim()),
     );
   }
 
@@ -64,71 +59,133 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
         showBack: true,
         navy: false,
       ),
-      body: BlocListener<ForgotPasswordBloc, ForgotPasswordState>(
+      body: BlocConsumer<ForgotPasswordBloc, ForgotPasswordState>(
         listener: (context, state) {
-          if (state is ForgotPasswordSuccess) {
-            AppSnackbar.show(
-              context,
-              'Si un compte correspond, un e-mail de réinitialisation a été '
-              'envoyé.',
-              kind: SnackKind.success,
-            );
-            context.go(Routes.login);
-          }
           if (state is ForgotPasswordFailure) {
             AppSnackbar.show(context, state.message, kind: SnackKind.error);
           }
         },
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text(
-                  'Réinitialiser votre mot de passe',
-                  style: AppTypography.pageTitle,
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  'Indiquez l\'identifiant de votre cabinet et votre adresse '
-                  'e-mail. Vous recevrez un lien pour définir un nouveau mot '
-                  'de passe.',
-                  style: AppTypography.body.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxl),
-                AppTextField(
-                  label: 'Identifiant du cabinet',
-                  hint: 'ex. cabinet-martin',
-                  controller: _tenantCtrl,
-                  validator: (v) =>
-                      Validators.required(v, field: 'L\'identifiant'),
-                ),
-                const SizedBox(height: AppSpacing.md),
-                AppTextField(
-                  label: 'Adresse e-mail',
-                  hint: 'vous@cabinet.fr',
-                  controller: _emailCtrl,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: Validators.email,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                BlocBuilder<ForgotPasswordBloc, ForgotPasswordState>(
-                  builder: (context, state) {
-                    return PrimaryButton(
-                      label: 'Envoyer le lien',
-                      isLoading: state is ForgotPasswordLoading,
-                      onPressed: _submit,
-                    );
-                  },
-                ),
-              ],
+        builder: (context, state) {
+          if (state is ForgotPasswordSuccess) {
+            return _SentPanel(
+              email: _emailCtrl.text.trim(),
+              onBack: () => context.go(Routes.login),
+              // The form is not on screen here, so skip its validator: the
+              // address was already validated when first submitted.
+              onResend: () => context.read<ForgotPasswordBloc>().add(
+                SubmitForgotPassword(email: _emailCtrl.text.trim()),
+              ),
+            );
+          }
+          return _buildForm(context, state);
+        },
+      ),
+    );
+  }
+
+  Widget _buildForm(BuildContext context, ForgotPasswordState state) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Réinitialiser votre mot de passe',
+              style: AppTypography.pageTitle,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Indiquez l\'adresse e-mail de votre compte. Nous vous '
+              'enverrons un lien pour définir un nouveau mot de passe.',
+              style: AppTypography.body.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xxl),
+            AppTextField(
+              label: 'Adresse e-mail',
+              hint: 'vous@cabinet.fr',
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.email,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            PrimaryButton(
+              label: 'Envoyer le lien',
+              isLoading: state is ForgotPasswordLoading,
+              onPressed: _submit,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shown after the request. The reset itself happens in the browser, so this
+/// says exactly what to do next and offers a way back to the sign-in screen.
+/// It never claims an account exists: the server answers the same either way.
+class _SentPanel extends StatelessWidget {
+  final String email;
+  final VoidCallback onBack;
+  final VoidCallback onResend;
+
+  const _SentPanel({
+    required this.email,
+    required this.onBack,
+    required this.onResend,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.xl),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Icon(
+            Icons.mark_email_read_outlined,
+            size: 56,
+            color: AppColors.brandPrimary,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const Text(
+            'Vérifiez votre boîte mail',
+            style: AppTypography.pageTitle,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Si un compte correspond à $email, un e-mail de réinitialisation '
+            'vient d\'être envoyé.',
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const Text(
+            '1. Ouvrez l\'e-mail et touchez le lien.\n'
+            '2. Choisissez un nouveau mot de passe dans le navigateur.\n'
+            '3. Revenez ici et connectez-vous.',
+            style: AppTypography.body,
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Le lien expire au bout d\'un moment. Pensez à vérifier vos '
+            'courriers indésirables.',
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textSecondary,
             ),
           ),
-        ),
+          const SizedBox(height: AppSpacing.xl),
+          PrimaryButton(label: 'Retour à la connexion', onPressed: onBack),
+          const SizedBox(height: AppSpacing.sm),
+          TextButton(
+            onPressed: onResend,
+            child: const Text('Renvoyer l\'e-mail'),
+          ),
+        ],
       ),
     );
   }

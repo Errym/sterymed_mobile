@@ -1,8 +1,3 @@
-// NOTE: docs/BACKEND_BUGS.md#bug-006 claims PATCH /v1/products/{id} doesn't
-// exist, but product_remote_datasource.dart's update() calls a real PATCH.
-// This has not been independently re-verified against a live backend --
-// treat the discrepancy as unresolved rather than trusting either source.
-
 import '../../../../core/cache/cache.dart';
 import '../datasources/product_remote_datasource.dart';
 import '../models/product_data.dart';

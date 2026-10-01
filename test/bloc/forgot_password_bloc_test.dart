@@ -22,24 +22,18 @@ void main() {
       'emits [loading, success] when the repository accepts the request',
       build: () => ForgotPasswordBloc(repo),
       setUp: () {
-        when(() => repo.forgotPassword(
-              tenantSlug: any(named: 'tenantSlug'),
-              email: any(named: 'email'),
-            )).thenAnswer((_) async {});
+        when(
+          () => repo.forgotPassword(email: any(named: 'email')),
+        ).thenAnswer((_) async {});
       },
-      act: (bloc) => bloc.add(const SubmitForgotPassword(
-        tenantSlug: 'cabinet-martin',
-        email: 'dr@cabinet.fr',
-      )),
+      act: (bloc) =>
+          bloc.add(const SubmitForgotPassword(email: 'dr@cabinet.fr')),
       expect: () => [
         isA<ForgotPasswordLoading>(),
         isA<ForgotPasswordSuccess>(),
       ],
       verify: (_) {
-        verify(() => repo.forgotPassword(
-              tenantSlug: 'cabinet-martin',
-              email: 'dr@cabinet.fr',
-            )).called(1);
+        verify(() => repo.forgotPassword(email: 'dr@cabinet.fr')).called(1);
       },
     );
 
@@ -47,19 +41,16 @@ void main() {
       'emits [loading, failure] with the server message on ApiException',
       build: () => ForgotPasswordBloc(repo),
       setUp: () {
-        when(() => repo.forgotPassword(
-              tenantSlug: any(named: 'tenantSlug'),
-              email: any(named: 'email'),
-            )).thenThrow(const ApiException(
-          code: ErrorCodes.rateLimited,
-          message: 'Trop de requêtes. Réessayez dans un instant.',
-          statusCode: 429,
-        ));
+        when(() => repo.forgotPassword(email: any(named: 'email'))).thenThrow(
+          const ApiException(
+            code: ErrorCodes.rateLimited,
+            message: 'Trop de requêtes. Réessayez dans un instant.',
+            statusCode: 429,
+          ),
+        );
       },
-      act: (bloc) => bloc.add(const SubmitForgotPassword(
-        tenantSlug: 'cabinet-martin',
-        email: 'dr@cabinet.fr',
-      )),
+      act: (bloc) =>
+          bloc.add(const SubmitForgotPassword(email: 'dr@cabinet.fr')),
       expect: () => [
         isA<ForgotPasswordLoading>(),
         isA<ForgotPasswordFailure>().having(
@@ -74,15 +65,12 @@ void main() {
       'emits [loading, failure] on an unexpected (non-Api) error',
       build: () => ForgotPasswordBloc(repo),
       setUp: () {
-        when(() => repo.forgotPassword(
-              tenantSlug: any(named: 'tenantSlug'),
-              email: any(named: 'email'),
-            )).thenThrow(Exception('boom'));
+        when(
+          () => repo.forgotPassword(email: any(named: 'email')),
+        ).thenThrow(Exception('boom'));
       },
-      act: (bloc) => bloc.add(const SubmitForgotPassword(
-        tenantSlug: 'cabinet-martin',
-        email: 'dr@cabinet.fr',
-      )),
+      act: (bloc) =>
+          bloc.add(const SubmitForgotPassword(email: 'dr@cabinet.fr')),
       expect: () => [
         isA<ForgotPasswordLoading>(),
         isA<ForgotPasswordFailure>(),

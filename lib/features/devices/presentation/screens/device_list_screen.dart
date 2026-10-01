@@ -104,10 +104,11 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                 child: _DeviceCard(
                   device: devices[i],
                   onTap: () async {
-                    final changed = await context.push<bool>(
-                      '/app/devices/${devices[i].id}',
-                    );
-                    if (changed == true && mounted) _refresh();
+                    // Reload whatever way the user comes back (Back button,
+                    // delete, edit): the detail screen may have changed or
+                    // removed this device, and Back returns no result at all.
+                    await context.push<bool>('/app/devices/${devices[i].id}');
+                    if (mounted) _refresh();
                   },
                 ),
               ),

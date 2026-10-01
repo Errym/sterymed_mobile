@@ -13,11 +13,19 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
   final ProductRepository _repository;
   final _debouncer = Debouncer(delay: const Duration(milliseconds: 300));
 
+  /// Bumped by every load. A response that arrives after a newer request was
+  /// started (typing faster than the network answers) is dropped, so an old
+  /// query can never overwrite the list for the current one.
+  int _generation = 0;
+
   ProductListBloc(this._repository) : super(const ProductListState()) {
     on<LoadProducts>(_onLoad);
     on<SearchProducts>(_onSearchQueryChanged);
     on<_ProductSearchDebounced>(_onSearch);
     on<DeleteProduct>(_onDelete);
+    on<ClearProductActionError>(
+      (e, emit) => emit(state.copyWith(clearActionError: true)),
+    );
   }
 
   void _onSearchQueryChanged(
@@ -30,36 +38,49 @@ class ProductListBloc extends Bloc<ProductListEvent, ProductListState> {
     });
   }
 
-  Future<void> _onLoad(LoadProducts e, Emitter<ProductListState> emit) async {
-    emit(state.copyWith(status: ProductListStatus.loading, error: null));
-    try {
-      final list = await _repository.list();
-      emit(state.copyWith(status: ProductListStatus.success, products: list));
-    } on ApiException catch (ex) {
-      emit(
-          state.copyWith(status: ProductListStatus.failure, error: ex.message));
-    }
-  }
+  /// Refresh and reload always honour the current search box and always bypass
+  /// the cache, so they never show an unfiltered or stale list.
+  Future<void> _onLoad(LoadProducts e, Emitter<ProductListState> emit) =>
+      _load(emit, query: state.query, forceRefresh: true);
 
   Future<void> _onSearch(
-      _ProductSearchDebounced e, Emitter<ProductListState> emit) async {
-    emit(state.copyWith(status: ProductListStatus.loading, error: null));
+    _ProductSearchDebounced e,
+    Emitter<ProductListState> emit,
+  ) => _load(emit, query: e.query, forceRefresh: false);
+
+  Future<void> _load(
+    Emitter<ProductListState> emit, {
+    required String query,
+    required bool forceRefresh,
+  }) async {
+    final generation = ++_generation;
+    emit(state.copyWith(status: ProductListStatus.loading, clearError: true));
     try {
-      final list = await _repository.list(search: e.query);
+      final list = await _repository.list(
+        search: query.trim().isEmpty ? null : query,
+        forceRefresh: forceRefresh,
+      );
+      if (generation != _generation) return;
       emit(state.copyWith(status: ProductListStatus.success, products: list));
     } on ApiException catch (ex) {
+      if (generation != _generation) return;
       emit(
-          state.copyWith(status: ProductListStatus.failure, error: ex.message));
+        state.copyWith(status: ProductListStatus.failure, error: ex.message),
+      );
     }
   }
 
   Future<void> _onDelete(
-      DeleteProduct e, Emitter<ProductListState> emit) async {
+    DeleteProduct e,
+    Emitter<ProductListState> emit,
+  ) async {
     try {
       await _repository.destroy(e.id);
       add(const LoadProducts());
     } on ApiException catch (ex) {
-      emit(state.copyWith(error: ex.message));
+      // The list is still valid: report the failure without replacing it by an
+      // error page, so the user sees why the product is still there.
+      emit(state.copyWith(actionError: ex.message));
     }
   }
 

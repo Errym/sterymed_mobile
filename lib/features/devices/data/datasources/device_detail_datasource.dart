@@ -40,25 +40,29 @@ class DeviceDetailDatasource {
     }
   }
 
+  /// [name], [serialNumber] and [status] are sent only when given. [model],
+  /// [manufacturer] and [notes] are REQUIRED and always sent: a null means
+  /// "clear it". Omitting them would leave the stored value in place, so a user
+  /// who emptied the field would see it come back after saving.
   Future<DeviceDetail> update({
     required String id,
     String? name,
-    String? model,
     String? serialNumber,
-    String? manufacturer,
     String? status,
-    String? notes,
+    required String? model,
+    required String? manufacturer,
+    required String? notes,
   }) async {
     try {
       final res = await _dio.patch(
         ApiEndpoints.device(id),
         data: {
           if (name != null) 'name': name,
-          if (model != null) 'model': model,
           if (serialNumber != null) 'serial_number': serialNumber,
-          if (manufacturer != null) 'manufacturer': manufacturer,
           if (status != null) 'status': status,
-          if (notes != null) 'notes': notes,
+          'model': model,
+          'manufacturer': manufacturer,
+          'notes': notes,
         },
       );
       final raw = res.data;

@@ -33,7 +33,10 @@ Which endpoint feeds which screen.
 | Supplier detail | `GET/PATCH/DELETE /v1/suppliers/{id}`, `GET/POST /v1/suppliers/{id}/products` (attach a product to the supplier) |
 | Products (Catalogue) | `GET/POST /v1/products`, `PATCH/DELETE /v1/products/{id}` |
 | Non-conformities | `GET/POST /v1/non-conformities`, `POST /v1/non-conformities/{id}/resolve` |
-| Lots (batches) | Derived from `GET /v1/stock-levels` — no dedicated `/v1/batches` endpoint exists yet (BUG-003, see below) |
+| Lots (batches) | `GET /v1/batches` (all pages; quantity on hand; BUG-003 fixed 2026-10-02) |
+| Stock pickers (locations) | `GET /v1/locations` (all pages; includes locations with no stock; BUG-002 fixed 2026-10-02) |
+| Practitioner picker (case create, case filter, label usage) | `GET /v1/practitioners` (id, name, role only; the same rule the server validates with) |
+| Forgot password | `POST /v1/auth/forgot-password` (always 202; the reset happens in the browser) |
 | Evidence search | `GET /v1/evidence-search`. `GET /v1/evidence-search/export` **exists as a constant but has zero call sites** — no export button is wired to it yet. |
 | Alerts | `GET /v1/alerts`, `POST /v1/alerts/{id}/resolve` |
 | Audit | `GET /v1/audit-events` |
@@ -72,9 +75,6 @@ For every screen:
 
 - `PATCH /v1/cycles/{id}` — missing (BUG-007). Notes are cached
   device-only, never synced.
-- `GET /v1/locations` — missing (BUG-002). Mitigated: mobile derives
-  location options from `GET /v1/stock-levels` instead.
-- `GET /v1/batches` — missing (BUG-003). Same mitigation as above.
 - `POST /v1/sites`, `POST /v1/locations` — missing (BUG-004).
 - `POST /purchase-orders/{id}/receipts/attachments` — missing (BUG-009).
 - No print/export endpoint for a prosthetic case (BUG-024).

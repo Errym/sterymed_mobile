@@ -26,6 +26,11 @@ class _ProductSearchDebounced extends ProductListEvent {
   List<Object?> get props => [query];
 }
 
+/// Dispatched by the screen once it has shown [ProductListState.actionError].
+class ClearProductActionError extends ProductListEvent {
+  const ClearProductActionError();
+}
+
 class DeleteProduct extends ProductListEvent {
   final String id;
   const DeleteProduct(this.id);

@@ -18,7 +18,9 @@ class SupplierListBloc extends Bloc<SupplierListEvent, SupplierListState> {
   Future<void> _onLoad(LoadSuppliers e, Emitter<SupplierListState> emit) async {
     emit(state.copyWith(status: SupplierListStatus.loading, error: null));
     try {
-      final list = await _repository.list();
+      // Always fresh: a pull-to-refresh or a return from an edit must show the
+      // server's current list, not a cached one.
+      final list = await _repository.list(forceRefresh: true);
       emit(state.copyWith(status: SupplierListStatus.success, suppliers: list));
     } on ApiException catch (ex) {
       emit(state.copyWith(

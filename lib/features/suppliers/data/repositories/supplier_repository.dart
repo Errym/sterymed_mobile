@@ -19,6 +19,8 @@ class SupplierRepository {
     return fresh;
   }
 
+  Future<SupplierData> show(String id) => _remote.show(id);
+
   Future<SupplierData> create({
     required String name,
     String? email,

@@ -23,11 +23,11 @@ class DeviceDetailRepository {
   Future<DeviceDetail> update({
     required String id,
     String? name,
-    String? model,
     String? serialNumber,
-    String? manufacturer,
     String? status,
-    String? notes,
+    required String? model,
+    required String? manufacturer,
+    required String? notes,
   }) async {
     final d = await _remote.update(
       id: id,

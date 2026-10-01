@@ -30,6 +30,27 @@ applicable.
 
 `[Capture d'écran : écran de connexion]`
 
+### Première connexion (invitation)
+
+1. Le responsable du cabinet vous invite : vous recevez un e-mail « Invitation à
+   rejoindre … sur SteryMed ».
+2. Touchez **Accepter l'invitation** : une page s'ouvre dans votre navigateur.
+   Indiquez votre nom et choisissez un mot de passe (si vous avez déjà un compte
+   SteryMed avec cette adresse, saisissez votre mot de passe actuel).
+3. La page affiche l'**identifiant du cabinet** (repris aussi dans l'e-mail).
+4. Ouvrez l'application SteryMed et connectez-vous avec cet identifiant, votre
+   adresse e-mail et votre mot de passe.
+
+Un lien expiré, annulé ou déjà utilisé affiche une page qui l'explique ;
+demandez alors une nouvelle invitation au responsable du cabinet.
+
+### Mot de passe oublié
+
+Sur l'écran de connexion, touchez **Mot de passe oublié**, saisissez votre
+adresse e-mail puis suivez les trois étapes affichées : ouvrez l'e-mail, choisissez
+un nouveau mot de passe dans le navigateur, puis revenez vous connecter.
+L'application ne dit jamais si une adresse correspond à un compte.
+
 ## 2. Tableau de bord
 
 `Routes.dashboard` — contenu et indicateurs différents selon le rôle

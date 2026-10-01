@@ -130,6 +130,20 @@ void main() {
               as Map<String, dynamic>;
       expect(captured['impression_type'], 'digital');
       expect(captured['work_type'], 'crown');
+      // The server rejects a patch that mixes clinical and payment fields from
+      // a caller who holds only one of the two permissions, so the clinical
+      // edit must never carry a payment field.
+      const paymentFields = [
+        'deposit_requested',
+        'deposit_received',
+        'deposit_amount',
+        'final_payment_completed',
+        'remaining_balance',
+        'administrative_comments',
+      ];
+      for (final field in paymentFields) {
+        expect(captured.containsKey(field), isFalse, reason: field);
+      }
       expect(
         captured['impression_date'],
         DateTime(2026, 9, 1).toIso8601String().split('T').first,

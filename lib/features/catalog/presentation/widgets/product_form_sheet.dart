@@ -55,6 +55,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
   List<ProductCategoryData> _categories = [];
   List<StockOption> _locations = [];
   bool _loadingOptions = true;
+  bool _optionsFailed = false;
 
   @override
   void initState() {
@@ -90,10 +91,15 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
         _loadingOptions = false;
       });
     } catch (_) {
-      // Both fields are optional server-side — a failed lookup just means
-      // an empty dropdown, not a blocked form.
+      // Both fields are optional, so a failed lookup does not block the form.
+      // The record's current choices stay selected (see AppDropdown), and the
+      // user is told the lists could not be loaded rather than seeing them
+      // silently empty.
       if (!mounted) return;
-      setState(() => _loadingOptions = false);
+      setState(() {
+        _loadingOptions = false;
+        _optionsFailed = true;
+      });
     }
   }
 
@@ -112,8 +118,8 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
     final req = ProductCreateRequest(
       name: _nameCtrl.text.trim(),
       reference: _refCtrl.text.trim(),
-      unit: _unitCtrl.text.trim(),
-      minThreshold: int.tryParse(_thresholdCtrl.text.trim()) ?? 0,
+      unit: _unitCtrl.text.trim().isEmpty ? 'u' : _unitCtrl.text.trim(),
+      minThreshold: int.parse(_thresholdCtrl.text.trim()),
       isSterilizable: _isSterilizable,
       barcode:
           _barcodeCtrl.text.trim().isEmpty ? null : _barcodeCtrl.text.trim(),
@@ -180,10 +186,25 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
               label: 'Seuil minimum',
               controller: _thresholdCtrl,
               keyboardType: TextInputType.number,
+              validator: (v) {
+                final text = v?.trim() ?? '';
+                if (text.isEmpty) return 'Requis.';
+                final n = int.tryParse(text);
+                if (n == null || n < 0) return 'Entrez un nombre entier positif.';
+                return null;
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             AppTextField(label: 'Code-barres', controller: _barcodeCtrl),
             const SizedBox(height: AppSpacing.md),
+            if (_optionsFailed) ...[
+              Text(
+                'Les listes (familles, emplacements) n\'ont pas pu être '
+                'chargées. Les valeurs actuelles sont conservées.',
+                style: AppTypography.caption.copyWith(color: AppColors.warning),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
             AppDropdown<String?>(
               label: 'Famille',
               value: _categoryId,

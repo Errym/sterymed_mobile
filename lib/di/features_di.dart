@@ -84,6 +84,7 @@ import '../features/history/presentation/bloc/audit_list_bloc.dart';
 
 // ── Identity (team) ─────────────────────────────────────────────────────────
 import '../features/identity/data/datasources/team_remote_datasource.dart';
+import '../features/identity/data/repositories/practitioner_repository.dart';
 import '../features/identity/data/repositories/team_repository.dart';
 import '../features/identity/presentation/bloc/team_list_bloc.dart';
 
@@ -406,6 +407,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   );
   getIt.registerFactory<TeamListBloc>(
     () => TeamListBloc(getIt<TeamRepository>()),
+  );
+  getIt.registerLazySingleton<PractitionerRepository>(
+    () => PractitionerRepository(getIt<DioClient>().dio, getIt<AppCache>()),
   );
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -19,18 +19,6 @@ class TeamRepository {
   }
 
 
-  /// Filtered list of members who can be assigned as a prosthetic
-  /// practitioner: owner, admin, or practitioner role.
-  Future<List<TeamMemberData>> practitioners() async {
-    final all = await list();
-    return all
-        .where((m) =>
-            m.role == 'owner' ||
-            m.role == 'admin' ||
-            m.role == 'practitioner')
-        .toList();
-  }
-
   Future<void> invite({required String email, required String role}) async {
     await _remote.invite(email: email, role: role);
     _cache.invalidate('team');

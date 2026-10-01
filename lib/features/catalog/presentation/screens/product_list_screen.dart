@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
@@ -60,7 +61,19 @@ class _ProductListView extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Expanded(
-            child: BlocBuilder<ProductListBloc, ProductListState>(
+            child: BlocConsumer<ProductListBloc, ProductListState>(
+              listenWhen: (a, b) =>
+                  b.actionError != null && a.actionError != b.actionError,
+              listener: (context, state) {
+                AppSnackbar.show(
+                  context,
+                  state.actionError!,
+                  kind: SnackKind.error,
+                );
+                context.read<ProductListBloc>().add(
+                  const ClearProductActionError(),
+                );
+              },
               builder: (context, state) {
                 if (state.status == ProductListStatus.loading &&
                     state.products.isEmpty) {

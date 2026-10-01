@@ -14,6 +14,8 @@ import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
+import '../../../identity/data/models/practitioner_option.dart';
+import '../../../identity/data/repositories/practitioner_repository.dart';
 import '../../data/models/laboratory_data.dart';
 import '../../data/models/prosthetic_case_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
@@ -50,6 +52,8 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
   // Loaded once and reused both by the filter sheet's dropdown and by the
   // active-filter-chip row (to show a laboratory's real name, not its id).
   List<LaboratoryData> _laboratories = [];
+  // Same idea for practitioners: real names in the dropdown and in the chip.
+  List<PractitionerOption> _practitioners = [];
 
   static final _dateFmt = DateFormat('dd/MM/yyyy');
 
@@ -57,6 +61,24 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
   void initState() {
     super.initState();
     _loadLaboratories();
+    _loadPractitioners();
+  }
+
+  Future<void> _loadPractitioners() async {
+    try {
+      final people = await getIt<PractitionerRepository>().list();
+      if (!mounted) return;
+      setState(() => _practitioners = people);
+    } catch (_) {
+      // Secondary data: the other filters stay usable if this fails.
+    }
+  }
+
+  String? _practitionerName(String id) {
+    for (final p in _practitioners) {
+      if (p.id == id) return p.name;
+    }
+    return null;
   }
 
   Future<void> _loadLaboratories() async {
@@ -98,6 +120,7 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
       builder: (_) => _ProstheticFilterSheet(
         initial: bloc.state.filters,
         laboratories: _laboratories,
+        practitioners: _practitioners,
       ),
     );
     if (result != null && context.mounted) {
@@ -140,7 +163,7 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
     }
     if (filters.practitionerId != null && filters.practitionerId!.isNotEmpty) {
       addChip(
-        'Praticien : ${filters.practitionerId}',
+        'Praticien : ${_practitionerName(filters.practitionerId!) ?? 'inconnu'}',
         () => _applyFilters(
           context,
           filters.copyWith(clearPractitionerId: true),
@@ -280,10 +303,12 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
 class _ProstheticFilterSheet extends StatefulWidget {
   final ProstheticCaseListFilters initial;
   final List<LaboratoryData> laboratories;
+  final List<PractitionerOption> practitioners;
 
   const _ProstheticFilterSheet({
     required this.initial,
     required this.laboratories,
+    required this.practitioners,
   });
 
   @override
@@ -293,11 +318,7 @@ class _ProstheticFilterSheet extends StatefulWidget {
 class _ProstheticFilterSheetState extends State<_ProstheticFilterSheet> {
   late final _patientCtrl =
       TextEditingController(text: widget.initial.patientReference ?? '');
-  // TODO: no GET /v1/members-style "list practitioners" endpoint exists
-  // yet for this module — free text (matched against practitioner_id
-  // server-side) until one does, per the brief's own documented fallback.
-  late final _practitionerCtrl =
-      TextEditingController(text: widget.initial.practitionerId ?? '');
+  late String? _practitionerId = widget.initial.practitionerId;
   late String? _laboratoryId = widget.initial.laboratoryId;
   late String? _workType = widget.initial.workType;
   late String? _status = widget.initial.status;
@@ -307,14 +328,13 @@ class _ProstheticFilterSheetState extends State<_ProstheticFilterSheet> {
   @override
   void dispose() {
     _patientCtrl.dispose();
-    _practitionerCtrl.dispose();
     super.dispose();
   }
 
   void _clear() {
     setState(() {
       _patientCtrl.clear();
-      _practitionerCtrl.clear();
+      _practitionerId = null;
       _laboratoryId = null;
       _workType = null;
       _status = null;
@@ -327,9 +347,7 @@ class _ProstheticFilterSheetState extends State<_ProstheticFilterSheet> {
     Navigator.of(context).pop(ProstheticCaseListFilters(
       patientReference:
           _patientCtrl.text.trim().isEmpty ? null : _patientCtrl.text.trim(),
-      practitionerId: _practitionerCtrl.text.trim().isEmpty
-          ? null
-          : _practitionerCtrl.text.trim(),
+      practitionerId: _practitionerId,
       laboratoryId: _laboratoryId,
       workType: _workType,
       status: _status,
@@ -359,10 +377,27 @@ class _ProstheticFilterSheetState extends State<_ProstheticFilterSheet> {
               onChanged: null,
             ),
             const SizedBox(height: AppSpacing.md),
-            AppSearchField(
-              hint: 'Praticien (nom ou identifiant)...',
-              controller: _practitionerCtrl,
-              onChanged: null,
+            AppDropdown<String?>(
+              label: 'Praticien',
+              value: _practitionerId,
+              options: [
+                const AppDropdownOption(
+                  value: null,
+                  label: 'Tous les praticiens',
+                ),
+                ...widget.practitioners.map(
+                  (p) => AppDropdownOption(value: p.id, label: p.name),
+                ),
+                // A filter chosen earlier for someone no longer on the list
+                // stays visible instead of silently disappearing.
+                if (_practitionerId != null &&
+                    !widget.practitioners.any((p) => p.id == _practitionerId))
+                  AppDropdownOption(
+                    value: _practitionerId,
+                    label: 'Praticien inconnu',
+                  ),
+              ],
+              onChanged: (v) => setState(() => _practitionerId = v),
             ),
             const SizedBox(height: AppSpacing.md),
             AppDropdown<String?>(

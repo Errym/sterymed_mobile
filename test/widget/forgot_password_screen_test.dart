@@ -1,9 +1,9 @@
-// TASK verification (widget): the forgot-password screen fills the form,
-// submits, and (a) dispatches SubmitForgotPassword to the bloc with the right
-// args and (b) shows the success SnackBar. The screen resolves its
-// ForgotPasswordBloc from GetIt, so we register a real bloc backed by a mocked
-// AuthRepository there. A GoRouter is provided because the success path calls
-// context.go(Routes.login).
+// Widget tests for the forgot-password screen (account recovery, R05).
+// The screen asks only for the e-mail, then shows a confirmation panel that
+// tells the user how to finish in the browser and come back. It resolves its
+// ForgotPasswordBloc from GetIt, so a real bloc backed by a mocked
+// AuthRepository is registered there. A GoRouter is provided because the
+// "back to sign in" button calls context.go(Routes.login).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -36,8 +36,6 @@ void main() {
     getIt.unregister<ForgotPasswordBloc>();
   });
 
-  // A minimal 2-route GoRouter: the screen under test plus a login stub so the
-  // success-path context.go(Routes.login) has somewhere to land.
   Future<void> pumpScreen(WidgetTester tester) async {
     final router = GoRouter(
       initialLocation: Routes.forgotPassword,
@@ -56,67 +54,95 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('asks only for the e-mail address (no practice identifier)', (
+    tester,
+  ) async {
+    await pumpScreen(tester);
+
+    expect(find.byType(TextFormField), findsOneWidget);
+    expect(find.text('Adresse e-mail'), findsOneWidget);
+    expect(find.textContaining('Identifiant du cabinet'), findsNothing);
+  });
+
   testWidgets(
-    'filling the form and submitting calls the repository with the right args '
-    'and shows the success SnackBar',
+    'submitting sends only the e-mail and shows what to do next in the browser',
     (tester) async {
-      when(() => repo.forgotPassword(
-            tenantSlug: any(named: 'tenantSlug'),
-            email: any(named: 'email'),
-          )).thenAnswer((_) async {});
+      when(
+        () => repo.forgotPassword(email: any(named: 'email')),
+      ).thenAnswer((_) async {});
 
       await pumpScreen(tester);
-
-      await tester.enterText(
-          find.byType(TextFormField).at(0), 'cabinet-martin');
-      await tester.enterText(find.byType(TextFormField).at(1), 'dr@cabinet.fr');
+      await tester.enterText(find.byType(TextFormField), 'dr@cabinet.fr');
       await tester.tap(find.text('Envoyer le lien'));
-      await tester.pump(); // build loading + fire async
-      await tester.pump(); // settle success emission
+      await tester.pumpAndSettle();
 
-      verify(() => repo.forgotPassword(
-            tenantSlug: 'cabinet-martin',
-            email: 'dr@cabinet.fr',
-          )).called(1);
-
-      expect(
-        find.textContaining('e-mail de réinitialisation'),
-        findsOneWidget,
-      );
+      verify(() => repo.forgotPassword(email: 'dr@cabinet.fr')).called(1);
+      expect(find.text('Vérifiez votre boîte mail'), findsOneWidget);
+      expect(find.textContaining('dr@cabinet.fr'), findsOneWidget);
+      expect(find.textContaining('navigateur'), findsOneWidget);
+      // It must not claim the account exists.
+      expect(find.textContaining('Si un compte correspond'), findsOneWidget);
     },
   );
 
-  testWidgets('an invalid email blocks submission (client-side validation)',
-      (tester) async {
+  testWidgets('"Retour à la connexion" goes to the sign-in screen', (
+    tester,
+  ) async {
+    when(
+      () => repo.forgotPassword(email: any(named: 'email')),
+    ).thenAnswer((_) async {});
+    await pumpScreen(tester);
+    await tester.enterText(find.byType(TextFormField), 'dr@cabinet.fr');
+    await tester.tap(find.text('Envoyer le lien'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Retour à la connexion'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('LOGIN STUB'), findsOneWidget);
+  });
+
+  testWidgets('"Renvoyer l\'e-mail" asks the server again', (tester) async {
+    when(
+      () => repo.forgotPassword(email: any(named: 'email')),
+    ).thenAnswer((_) async {});
+    await pumpScreen(tester);
+    await tester.enterText(find.byType(TextFormField), 'dr@cabinet.fr');
+    await tester.tap(find.text('Envoyer le lien'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Renvoyer l\'e-mail'));
+    await tester.pumpAndSettle();
+
+    verify(() => repo.forgotPassword(email: 'dr@cabinet.fr')).called(2);
+  });
+
+  testWidgets('an invalid email blocks submission (client-side validation)', (
+    tester,
+  ) async {
     await pumpScreen(tester);
 
-    await tester.enterText(find.byType(TextFormField).at(0), 'cabinet-martin');
-    await tester.enterText(find.byType(TextFormField).at(1), 'not-an-email');
+    await tester.enterText(find.byType(TextFormField), 'not-an-email');
     await tester.tap(find.text('Envoyer le lien'));
     await tester.pumpAndSettle();
 
     expect(find.text('Adresse e-mail invalide.'), findsOneWidget);
-    verifyNever(() => repo.forgotPassword(
-          tenantSlug: any(named: 'tenantSlug'),
-          email: any(named: 'email'),
-        ));
+    verifyNever(() => repo.forgotPassword(email: any(named: 'email')));
   });
 
-  testWidgets('a server failure surfaces the error SnackBar and stays put',
-      (tester) async {
-    when(() => repo.forgotPassword(
-          tenantSlug: any(named: 'tenantSlug'),
-          email: any(named: 'email'),
-        )).thenThrow(const ApiException(
-      code: ErrorCodes.rateLimited,
-      message: 'Trop de requêtes. Réessayez dans un instant.',
-      statusCode: 429,
-    ));
+  testWidgets('a server failure surfaces the error and stays on the form', (
+    tester,
+  ) async {
+    when(() => repo.forgotPassword(email: any(named: 'email'))).thenThrow(
+      const ApiException(
+        code: ErrorCodes.rateLimited,
+        message: 'Trop de requêtes. Réessayez dans un instant.',
+        statusCode: 429,
+      ),
+    );
 
     await pumpScreen(tester);
-
-    await tester.enterText(find.byType(TextFormField).at(0), 'cabinet-martin');
-    await tester.enterText(find.byType(TextFormField).at(1), 'dr@cabinet.fr');
+    await tester.enterText(find.byType(TextFormField), 'dr@cabinet.fr');
     await tester.tap(find.text('Envoyer le lien'));
     await tester.pump();
     await tester.pump();
@@ -125,7 +151,7 @@ void main() {
       find.text('Trop de requêtes. Réessayez dans un instant.'),
       findsOneWidget,
     );
-    // Did not navigate to the login stub.
+    expect(find.text('Vérifiez votre boîte mail'), findsNothing);
     expect(find.text('LOGIN STUB'), findsNothing);
   });
 }

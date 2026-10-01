@@ -25,6 +25,7 @@ class AppCache {
     'patients': const Duration(seconds: 120),
     'sites': const Duration(minutes: 5),
     'team': const Duration(minutes: 2),
+    'practitioners': const Duration(minutes: 2),
     'non_conformities': const Duration(seconds: 30),
     'purchase_orders': const Duration(seconds: 30),
     'suppliers': const Duration(minutes: 2),

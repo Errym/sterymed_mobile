@@ -12,12 +12,16 @@ No endpoint name is reserved by a proposal in this register. New methods/paths, 
 
 ### BD-01 — Account recovery contract
 
+> **Status 2026-10-02: DONE.** `POST /v1/auth/forgot-password` (non-enumerating 202, idempotent, rate-limited) sends the standard reset e-mail; the reset happens on the web reset page; the app shows exactly what to do next. 3 Pest tests + 6 widget tests.
+
 - **Owner/task:** J, **R05**; prerequisite for J02. Required journey blocker.
 - **Confirmed:** mobile calls a forgot-password API absent from `routes/api.php:47`; Fortify enables web recovery in `config/fortify.php:155`. Mobile source: `lib/features/auth/data/datasources/auth_remote_datasource.dart:37`.
 - **Proposed scope:** choose a complete supported web handoff or API recovery flow, including tenant/account handling, actual reset link and return to mobile login. Do not keep a success-looking form pointed at an absent route.
 - **Acceptance:** known/unknown email has agreed non-enumerating behavior; valid, expired and reused links are exercised; password changes permit a fresh login and have documented session invalidation behavior. Actual outgoing mail and external link reachability are verified in staging.
 
 ### BD-02 — Complete locations, batches, practitioner and scanned-code lookups
+
+> **Status 2026-10-02: DONE except scanned-code lookup (Phase 5/I01).** `GET /v1/locations`, `/v1/batches`, `/v1/practitioners` exist, are paginated and tested; mobile consumes them. Empty-clinic first delivery proven live (`scripts/verify_empty_clinic_journey.py`).
 
 - **Owner/task:** J, **R03, I01, P01**; prerequisites for J04/J07/J20/J22/J24. Required journey blocker.
 - **Confirmed:** API declares sites and stock levels, but no location/batch list or product/batch-code resolver (`routes/api.php:59`, `:113`). `/members` requires invitation-create permission (`app/Http/Controllers/Api/V1/Identity/MemberController.php:31`). Mobile derives both pickers from the first stock page (`mobile:lib/features/stock/data/datasources/stock_remote_datasource.dart:20`, `:41`).
@@ -33,6 +37,8 @@ No endpoint name is reserved by a proposal in this register. New methods/paths, 
 
 ### BD-06 — Tenant-safe clinical practitioner assignment
 
+> **Status 2026-10-02: DONE.** One definition of eligibility (`ListEligiblePractitionersAction`, decision D05 default: active owner/admin/practitioner) used by the picker and by `EligiblePractitioner` validation on prosthetic create/update and label usage; a practitioner who later became ineligible may stay on an existing record.
+
 - **Owner/task:** B/J, **R02, P01, C06**; J07/J16/J25. Tenant-attribution blocker.
 - **Confirmed:** prosthetic requests only check global users existence (`app/Http/Requests/Api/V1/Prosthetic/CreateProstheticCaseRequest.php:31`, `UpdateProstheticCaseRequest.php:35`). Label usage checks tenant membership but does not encode the pending active/role eligibility rule (`app/Http/Requests/Api/V1/Traceability/RecordLabelUsageRequest.php:27`).
 - **Proposed scope:** enforce tenant membership and agreed eligibility on create/update/usage; expose the minimal picker in BD-02. Decide explicit practitioner selection/self-default without substituting an arbitrary current administrator.
@@ -40,12 +46,16 @@ No endpoint name is reserved by a proposal in this register. New methods/paths, 
 
 ### BD-07 — Ownership, identity disable and DLU authorization
 
+> **Status 2026-10-02: ownership DONE, DLU authority still a clinic decision (D06).** Only an owner can invite or disable an owner; nobody can disable themselves; the last active owner is protected. DLU mutation permission is unchanged pending D06.
+
 - **Owner/task:** B/J with C decisions D06/D07, **R01–R02**; J03/J13. Ownership/evidence prerequisite.
 - **Confirmed:** invitation validator accepts owner and admin has invitations.create (`app/Http/Requests/Api/V1/Identity/CreateInvitationRequest.php:23`, `app/Policies/InvitationPolicy.php:11`). Disable lacks self/last-owner guards (`app/Domain/Identity/Actions/DisableTenantMembershipAction.php:25`). Web profile deletion hard-deletes User (`app/Http/Controllers/Settings/ProfileController.php:47`). DLU API uses labels.manage, web settings uses evidence_settings.manage (`app/Policies/DluRulePolicy.php:17`, `app/Http/Controllers/Web/Tenancy/PracticeSettingsController.php:41`).
 - **Proposed scope:** implement agreed ownership transfer/delegation/disable rules and retained historical identities; document deliberate DLU delegation or enforce the approved change on both surfaces. No unauthorized role policy has been selected in Phase0.
 - **Acceptance:** last active owner cannot be accidentally lost under concurrent disable/delete; session/token revocation is verified; users with evidence history can lose access without erasing/breaking records; all six roles have direct API allow/deny cases for DLU, invitations and ownership.
 
 ### BD-18 — Invitation acceptance and expiry recovery
+
+> **Status 2026-10-02: DONE.** The e-mail link was a dead path; it now opens a French acceptance page (name + password, existing accounts prove their password), and the e-mail and the confirmation page give the practice identifier the app asks for. Expired/revoked/used links end on a clear page. Live proof: `scripts/verify_invitation_journey.py`.
 
 - **Owner/task:** J, **R05, R02**; J03. Required handoff blocker.
 - **Confirmed:** API acceptance exists (`routes/api.php:51`), but emailed `/accept-invitation` target has no matching route in `routes/web.php`; pending-invitation checks and disabled memberships impede reinvitation. See `app/Domain/Identity/Actions/CreateInvitationAction.php` and invitation mail source in the full inventory.

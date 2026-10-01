@@ -42,6 +42,11 @@ abstract final class ApiEndpoints {
   static String purchaseOrderReceipts(String id) =>
       '$_v1/purchase-orders/$id/receipts';
 
+  // Lookups for pickers (complete, paginated, independent of stock rows)
+  static const locations = '$_v1/locations';
+  static const batches = '$_v1/batches';
+  static const practitioners = '$_v1/practitioners';
+
   // Sites
   static const sites = '$_v1/sites';
   static String site(String id) => '$_v1/sites/$id';
