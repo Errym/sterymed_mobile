@@ -75,7 +75,7 @@ void main() {
   });
   test('retry window expiry requires reconciliation without sending', () async {
     final result = await submit(online: false);
-    await q.store.update((result.item as OutboxItem).copyWith(firstAttemptAt: clock.subtract(const Duration(days: 2))));
+    await q.store.update((result.item as OutboxItem).copyWith(firstAttemptAt: clock.subtract(kReplayWindow + const Duration(days: 1))));
     await q.engine.flush(); expect(q.adapter.requests, isEmpty); expect(q.store.all().single.status, OutboxStatus.unknownOutcome);
   });
   test('online-only decisions are not queued offline and cannot auto-replay', () async {

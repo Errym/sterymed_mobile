@@ -84,13 +84,13 @@ refused (`operation_unresolved`).
 | 429 (up to 5 tries) | `pending` with `Retry-After` | retried automatically, same key |
 | timeout, dropped connection, 5xx, killed mid-send | `unknownOutcome` | never auto-resent; user chooses below |
 | app restarted while `syncing` | `unknownOutcome` | same as above |
-| older than 23 h after first attempt | `unknownOutcome` | **cannot be resent**; check the record, then abandon |
+| older than 60 days after first attempt | `unknownOutcome` | **cannot be resent**; check the record, then abandon |
 
 **Resolving a stuck item** (Sync queue screen). `unknownOutcome` inside the
-23 h replay window offers **Renvoyer**: it re-sends with the *same key and
-body*, so a server that already recorded the key replays its answer instead of
-repeating the effect (residual risk: backend BD-08, a commit that failed to
-record its key). Every stuck state offers **Abandonner**, which warns about the
+60-day replay window offers **Renvoyer**: it re-sends with the *same key and
+body*, and the server, which records each operation durably in the same
+transaction as its effect, replays its answer instead of repeating the effect.
+Every stuck state offers **Abandonner**, which warns about the
 loss and removes the item (never while it is being sent). Unresolved items stay
 visible and block further actions on the same record until resolved.
 
@@ -117,13 +117,26 @@ needs the network.
 
 ## Server contract the client relies on (`steriqore` `EnsureIdempotency`)
 
-Per tenant + user + key, atomic: concurrent identical requests execute once and
-the others replay (`Idempotency-Replayed: true`) or get `IDEMPOTENCY_IN_PROGRESS`.
-Same key with another body or path: `409 IDEMPOTENCY_KEY_REUSED`. Responses with
-5xx, 429 or 408 are never remembered, so a key whose first attempt failed
-transiently can still succeed. Proven live: 8 simultaneous requests with one
-key created 1 row (8 on the previous version); see
-`scripts/verify_idempotency_concurrency.py`.
+**Authenticated requests are recorded durably** in the `api_operations` table
+(tenant + user + key, 90-day retention, `idempotency:prune`), inside the same
+database transaction as the business change, so "committed but not recorded"
+cannot happen and a lost answer can be recovered by resending the original key
+any time within the client's 60-day window. A Postgres advisory lock held until
+commit makes concurrent identical requests run one after the other: the second
+replays (`Idempotency-Replayed: true`) or, if the first is still running, gets
+`409 IDEMPOTENCY_IN_PROGRESS`. Same key with another body or path:
+`409 IDEMPOTENCY_KEY_REUSED`. Responses with 5xx, 429 or 408 are never
+remembered, and a request that ends in 5xx has all of its writes rolled back, so
+a failed attempt leaves no trace and the same key can still succeed. Uploads are
+protected too (hashed by method, path and Content-Length, never reading the
+body). Public endpoints with no tenant (login, registration, invitation
+acceptance) use a 24 h cache so bearer tokens are never stored in the database.
+Only POST is protected: PATCH and DELETE set absolute values or remove a record,
+so repeating them gives the same state.
+
+Proven live: 8 simultaneous requests with one key created 1 row (8 on the
+previous version) - `scripts/verify_idempotency_concurrency.py`; and the real
+mobile queue with a lost answer - `test/live/queue_lost_response_live_test.dart`.
 
 ## Verification
 

@@ -16,6 +16,8 @@ import '../../utils/idempotency_key.dart';
 /// deterministic 4xx) forgets the key, so a deliberate second creation is never
 /// swallowed as a "replay".
 ///
+/// Multipart uploads opt in through [callerFingerprintKey].
+///
 /// The memory is per app run. Queued operations (stock, usage, receipts,
 /// cycle transitions) do not rely on this: their key is persisted with them.
 class IdempotencyInterceptor extends Interceptor {
@@ -30,7 +32,21 @@ class IdempotencyInterceptor extends Interceptor {
   IdempotencyInterceptor({this._owner, DateTime Function()? now})
     : _now = now ?? DateTime.now;
 
+  /// Callers that send a body this interceptor cannot read (multipart) may
+  /// provide their own stable description of it, e.g. `upload:<case>:<file>:<size>`.
+  static const callerFingerprintKey = 'idempotency_caller_fingerprint';
+
   String? _fingerprint(RequestOptions options) {
+    final caller = options.extra[callerFingerprintKey];
+    if (caller is String && caller.isNotEmpty) {
+      return jsonEncode([
+        _owner?.call(),
+        options.method,
+        options.path,
+        'caller',
+        caller,
+      ]);
+    }
     final data = options.data;
     if (data != null && data is! Map && data is! List && data is! String) {
       return null; // multipart/streams: never reuse

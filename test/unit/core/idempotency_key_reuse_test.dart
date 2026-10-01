@@ -140,4 +140,47 @@ void main() {
     );
     expect(script.keys.single, 'queue-key');
   });
+
+  test(
+    'a multipart upload reuses its key only when the caller fingerprints it',
+    () async {
+      Future<void> upload({String? fingerprint}) async {
+        try {
+          await dio.post<void>(
+            '/v1/prosthetic-cases/c1/attachments',
+            data: FormData.fromMap({
+              'file': MultipartFile.fromBytes([
+                1,
+                2,
+                3,
+              ], filename: 'rapport.pdf'),
+            }),
+            options: Options(
+              extra: {
+                if (fingerprint != null)
+                  IdempotencyInterceptor.callerFingerprintKey: fingerprint,
+              },
+            ),
+          );
+        } on DioException {
+          // outcome is asserted through the keys the server saw
+        }
+      }
+
+      script.outcomes.addAll([
+        DioExceptionType.receiveTimeout,
+        DioExceptionType.receiveTimeout,
+        DioExceptionType.receiveTimeout,
+        DioExceptionType.receiveTimeout,
+      ]);
+      await upload(fingerprint: 'upload:c1:rapport.pdf:3');
+      await upload(fingerprint: 'upload:c1:rapport.pdf:3'); // same file retried
+      await upload(fingerprint: 'upload:c1:autre.pdf:3'); // another file
+      await upload(); // no fingerprint: unreadable body, never reused
+
+      expect(script.keys[1], script.keys[0]);
+      expect(script.keys[2], isNot(script.keys[0]));
+      expect(script.keys[3], isNot(script.keys[0]));
+    },
+  );
 }

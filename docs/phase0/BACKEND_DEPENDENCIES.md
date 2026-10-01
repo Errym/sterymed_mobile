@@ -70,7 +70,7 @@ No endpoint name is reserved by a proposal in this register. New methods/paths, 
 
 ### BD-08 — Durable, scoped, concurrent command deduplication
 
-> **Status 2026-10-01: implemented in `steriqore` for POST routes** (atomic lock per key, tenant+user scope, no caching of 5xx/429/408, `IDEMPOTENCY_IN_PROGRESS`, replay header). 8 Pest tests; live: 8 concurrent requests created 1 row (8 before). Still open: the 24 h retention limit is unchanged, PATCH/DELETE routes have no idempotency middleware, and multipart uploads are intentionally not covered.
+> **Status 2026-10-02: DONE in `steriqore`.** Tenant-scoped POSTs are recorded durably in `api_operations` (tenant+user+key, 90-day retention, `idempotency:prune`) in the same transaction as the business change, serialized by a Postgres advisory lock held to commit; 5xx/429/408 are never remembered and a 5xx request's writes are rolled back; uploads are covered; public no-tenant endpoints keep a 24 h cache so tokens are never stored. 14 Pest tests; live: 8 concurrent requests created 1 row (8 before), and a key replays after a worker restart and cache clear. PATCH/DELETE need no key: verified none uses increments, so they are idempotent by construction.
 
 - **Owner/task:** B/J, **O01, O04–O06, V03, D04**; all replayable writes. Duplicate-write blocker.
 - **Confirmed:** middleware cache TTL86400; raw method/path/body hash; cache key user/key without tenant; get→execute→put is not atomic; multipart bypasses cache; stored result omits response headers and includes errors (`app/Http/Middleware/Api/EnsureIdempotency.php:31`, `:49`, `:54`, `:60`, `:74`, `:85`). Route coverage excludes PATCH/DELETE and prosthetic uploads. Existing stock-ledger uniqueness is useful but does not guarantee all domain commands.

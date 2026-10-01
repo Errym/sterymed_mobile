@@ -2,9 +2,10 @@ import 'dart:convert';
 import 'outbox_operation.dart';
 import 'outbox_status.dart';
 
-/// The server remembers an Idempotency-Key for 24 h. Replays stop one hour
-/// earlier so a retry never races the key's expiry.
-const Duration kReplayWindow = Duration(hours: 23);
+/// The server keeps every tenant-scoped operation for 90 days
+/// (`idempotency:prune`). Replays stop at 60 days so a client never resends a
+/// key the server may already have forgotten.
+const Duration kReplayWindow = Duration(days: 60);
 
 class OutboxItem {
   final String? ownerScope;

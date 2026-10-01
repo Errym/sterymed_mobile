@@ -9,6 +9,7 @@ import '../../../../core/config/env.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/network/cursor_page.dart';
+import '../../../../core/network/interceptors/idempotency_interceptor.dart';
 import '../../../../core/storage/token_storage.dart';
 import '../../../../core/utils/idempotency_key.dart';
 import '../../../../di/di.dart';
@@ -203,6 +204,14 @@ class ProstheticRemoteDatasource {
       final res = await _dio.post(
         ApiEndpoints.prostheticCaseAttachments(caseId),
         data: FormData.fromMap({'file': file}),
+        // A retried upload of the same file reuses its key, so the server
+        // replays the first answer instead of attaching the file twice.
+        options: Options(
+          extra: {
+            IdempotencyInterceptor.callerFingerprintKey:
+                'upload:$caseId:$fileName:${bytes.length}',
+          },
+        ),
       );
       return ProstheticCaseAttachmentData.fromJson(
         (res.data as Map).cast<String, dynamic>(),
@@ -240,6 +249,7 @@ class ProstheticRemoteDatasource {
     final req = http.MultipartRequest('POST', uri);
     req.headers['Accept'] = 'application/json';
     req.headers['Authorization'] = 'Bearer $token';
+    req.headers['Idempotency-Key'] = generateIdempotencyKey();
     req.files.add(http.MultipartFile.fromBytes(
       'file',
       bytes,
