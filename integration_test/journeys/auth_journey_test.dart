@@ -1,10 +1,9 @@
 // Journey 1: Login.
 //
-// Run against a live local `steriqore` backend (`docker compose up -d` in
-// that repo) on the default dev port:
-//   flutter test integration_test/journeys/auth_journey_test.dart -d chrome \
-//     --dart-define=API_BASE_URL=http://localhost:8010/api --dart-define=ENV=dev \
-//     --dart-define=RUN_LIVE_INTEGRATION_TESTS=true
+// Seed and serve the isolated fixture kit before running on a fresh test install:
+//   flutter test integration_test/journeys/auth_journey_test.dart -d <device-id> \
+//     --dart-define-from-file=build/clinic-fixture/flutter_defines.json
+// Use flutter drive with integration_test_driver.dart for Chrome.
 //
 // Skipped by default (see ../support/live_backend_guard.dart) so a bare
 // `flutter test integration_test/` — which some Flutter/`integration_test`
@@ -25,10 +24,14 @@ import 'package:steriymed_mobile/app.dart';
 import 'package:steriymed_mobile/bootstrap.dart';
 
 import '../support/live_backend_guard.dart';
+import '../support/backend_fixture.dart';
 import '../support/test_user.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  if (kRunLiveIntegrationTests) {
+    setUpAll(() => verifyFixtureBackend());
+  }
 
   testWidgets(
       'login with valid credentials reaches the dashboard shell',

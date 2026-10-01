@@ -1,8 +1,25 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Keep credentials in ignored android/key.properties; see key.properties.example.
+val signingPropertiesFile = rootProject.file("key.properties")
+val signingProperties = Properties().apply {
+    if (signingPropertiesFile.isFile) {
+        signingPropertiesFile.inputStream().use { load(it) }
+    }
+}
+val requiredSigningFields = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+val hasReleaseSigning = requiredSigningFields.all {
+    !signingProperties.getProperty(it).isNullOrBlank()
+}
+val releaseKeystore = signingProperties.getProperty("storeFile")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { rootProject.file(it) }
 
 android {
     namespace = "com.example.sterymed_mobile"
@@ -29,6 +46,17 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = signingProperties.getProperty("storePassword")
+                keyAlias = signingProperties.getProperty("keyAlias")
+                keyPassword = signingProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -37,9 +65,21 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
+        }
+    }
+}
+
+// Check the resolved task graph, including abbreviated/aggregate Gradle invocations.
+// Debug preparation remains possible without distribution credentials.
+gradle.taskGraph.whenReady {
+    if (allTasks.any { it.project == project && it.name.contains("Release", ignoreCase = true) }) {
+        check(hasReleaseSigning && releaseKeystore?.isFile == true) {
+            "Release signing is not configured. Complete android/key.properties using " +
+                "android/key.properties.example and an existing owned keystore. " +
+                "Debug builds do not require these credentials."
         }
     }
 }

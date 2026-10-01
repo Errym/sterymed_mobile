@@ -1,0 +1,8 @@
+# Copy to android/key.properties (already ignored by Git).
+# Use an existing owner-controlled upload key. Never commit real passwords or keys.
+# storeFile is absolute or relative to android/, not android/app/.
+# On Windows use forward slashes, for example C:/secure/path/upload-keystore.jks.
+storeFile=
+storePassword=
+keyAlias=
+keyPassword=

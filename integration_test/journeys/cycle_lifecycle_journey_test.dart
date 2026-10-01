@@ -1,14 +1,12 @@
 // Journey 2: Full cycle lifecycle — Gate 6 item 1.
 //
 // create -> start -> complete -> submit-for-release -> release (compliant).
-// Requires a site/device/program already seeded in the demo2 tenant (site
-// creation has no mobile API — web-only — so this was seeded directly via
-// `docker exec steriqore-app php artisan tinker`, then device/program
-// created through the real API, matching what the app itself would send).
+// Requires the isolated clinic fixture's site/device/program and a fresh test
+// install. Credentials and expected identities come from its generated defines.
 //
 //   flutter test integration_test/journeys/cycle_lifecycle_journey_test.dart \
-//     -d <device-id> --dart-define=API_BASE_URL=http://localhost:8010/api \
-//     --dart-define=ENV=dev --dart-define=RUN_LIVE_INTEGRATION_TESTS=true
+//     -d <device-id> \
+//     --dart-define-from-file=build/clinic-fixture/flutter_defines.json
 //
 // Skipped by default (see ../support/live_backend_guard.dart) so a bare
 // `flutter test integration_test/` — which some Flutter/`integration_test`
@@ -22,6 +20,7 @@ import 'package:steriymed_mobile/app.dart';
 import 'package:steriymed_mobile/bootstrap.dart';
 
 import '../support/live_backend_guard.dart';
+import '../support/backend_fixture.dart';
 import '../support/test_user.dart';
 
 Future<void> _login(WidgetTester tester) async {
@@ -66,6 +65,9 @@ Future<void> _tapVisible(WidgetTester tester, String text) async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  if (kRunLiveIntegrationTests) {
+    setUpAll(() => verifyFixtureBackend());
+  }
 
   testWidgets(
       'create -> start -> complete -> submit -> release (compliant)',
@@ -81,7 +83,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Device + programme auto-select to the only seeded ones.
-    expect(find.text('Autoclave Gate6 Test'), findsOneWidget,
+    expect(find.text(TestUser.deviceName), findsOneWidget,
         reason: 'the seeded device should be auto-selected');
 
     await tester.tap(find.text('Initialiser & Charger les Sachets'));

@@ -1,0 +1,26 @@
+name: sterymed-clinic-fixture
+services:
+  postgres:
+    image: postgres:18
+    container_name: sterymed-clinic-fixture-postgres
+    labels:
+      com.sterymed.fixture: sterymed-clinic-fixture-v1
+    environment:
+      POSTGRES_DB: steriqore_mobile_fixture
+      POSTGRES_USER: clinic_fixture_owner
+      POSTGRES_PASSWORD: ${FIXTURE_OWNER_PASSWORD:?Run fixture prepare first}
+    ports:
+      - "127.0.0.1:5466:5432"
+    volumes:
+      - fixture-postgres:/var/lib/postgresql
+      - ../../build/clinic-fixture/init.sql:/docker-entrypoint-initdb.d/01-fixture.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinic_fixture_owner -d steriqore_mobile_fixture"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+volumes:
+  fixture-postgres:
+    name: sterymed-clinic-fixture-postgres-v1
+    labels:
+      com.sterymed.fixture: sterymed-clinic-fixture-v1

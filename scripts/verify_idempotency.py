@@ -290,9 +290,11 @@ def main():
     lines.append("```")
     lines.append("")
 
-    (docs / "IDEMPOTENCY_VERIFICATION.md").write_text("\n".join(lines), encoding="utf-8")
+    out_dir = docs.parent / "testing"
+    out_dir.mkdir(exist_ok=True)
+    (out_dir / "IDEMPOTENCY_VERIFICATION.md").write_text("\n".join(lines), encoding="utf-8")
     print("")
-    print("-> docs/IDEMPOTENCY_VERIFICATION.md written")
+    print("-> testing/IDEMPOTENCY_VERIFICATION.md written")
     if not ok:
         sys.exit(1)
     print("OK IDEMPOTENCY VERIFIED - safe to commit")

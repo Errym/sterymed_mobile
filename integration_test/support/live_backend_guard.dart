@@ -1,6 +1,6 @@
 /// Every journey in `integration_test/journeys/` drives the real app
-/// against a real, already-seeded `steriqore` backend (see each journey's
-/// own header comment for the exact seed/dart-define it expects) — there
+/// against the real, isolated clinic fixture backend (see each journey's
+/// header for its generated dart-define file) — there
 /// is no mock/fake backend involved, unlike `test/`. That makes them
 /// unsafe to run unattended: `mobile-test.yml` only runs `flutter test`
 /// (which does not pick up `integration_test/` by default), but recent
@@ -13,6 +13,7 @@
 /// whatever `API_BASE_URL`/`ENV` defines a journey's own header already
 /// asks for, so a bare `flutter test integration_test/...` skips every
 /// journey instead of trying to reach a backend that may not exist.
+/// Implemented journeys also verify the fixture server's identity before boot.
 const bool kRunLiveIntegrationTests =
     bool.fromEnvironment('RUN_LIVE_INTEGRATION_TESTS');
 

@@ -32,6 +32,6 @@ jobs:
       # `flutter config --no-enable-swift-package-manager` does NOT fix
       # this (confirmed against flutter_tools source — the SPM warning is
       # unconditional and unrelated to the actual linker failure). Needs
-      # interactive Xcode/macOS debugging. See docs/DAILY_LOG.md.
+      # interactive Xcode/macOS debugging.
       - name: Build for simulator (no code signing)
         run: flutter build ios --simulator --no-codesign
