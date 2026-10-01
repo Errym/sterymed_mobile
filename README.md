@@ -6,12 +6,9 @@ tracking stock and purchase orders, and working offline with a sync queue
 for when the clinic's connection drops.
 
 > The prosthetic module is real and live in this app (case tracking,
-> laboratory workflow, payment, waiting-for-placement). It was briefly
-> deferred per [`docs/adr/0010-prosthetic-deferred.md`](docs/adr/0010-prosthetic-deferred.md)
-> after finding no backend domain for it, then rebuilt for real once a
-> concrete backend contract existed — see
+> laboratory workflow, payment, waiting-for-placement) — see
 > [`docs/adr/0011-prosthetic-module-adopted.md`](docs/adr/0011-prosthetic-module-adopted.md)
-> (supersedes 0010) and [`docs/PROSTHETIC_MODULE.md`](docs/PROSTHETIC_MODULE.md).
+> and [`docs/PROSTHETIC_MODULE.md`](docs/PROSTHETIC_MODULE.md).
 
 ## Prerequisites
 
@@ -85,7 +82,7 @@ and on PRs touching relevant paths:
 
 Dependency updates: `.github/dependabot.yml` (weekly, `pub`/`github-actions`/`gradle`).
 
-Run the same checks locally before pushing: `./scripts/ci-local.sh`.
+Run the same checks locally before pushing: `flutter analyze --fatal-infos` and `flutter test`.
 
 ## Architecture
 
@@ -114,6 +111,6 @@ Run the same checks locally before pushing: `./scripts/ci-local.sh`.
   config (`android/app/build.gradle.kts`) — no real keystore exists yet.
 - No real staging deployment exists (`docker-compose.staging.yml` in
   `steriqore` is a local-only skeleton — see that repo's open questions).
-- `docs/USER_GUIDE.md`, `docs/PRIVACY.md`, `docs/RUNBOOK.md`,
-  `docs/MIGRATION.md` are placeholders pending input only the product
+- `docs/USER_GUIDE.md`, `docs/PRIVACY.md` and `docs/RUNBOOK.md`
+  are placeholders pending input only the product
   owner can give (screenshots, legal specifics, on-call contacts).

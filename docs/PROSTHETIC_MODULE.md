@@ -1,10 +1,7 @@
 # Prosthetic Module
 
 **Real and live, as of 2026-09-26.** Superseded by
-[ADR 0011](adr/0011-prosthetic-module-adopted.md), which supersedes
-[ADR 0010](adr/0010-prosthetic-deferred.md) (the original "removed,
-do not re-add" decision — kept for the historical record, no longer the
-current status).
+[ADR 0011](adr/0011-prosthetic-module-adopted.md).
 
 ## What exists
 

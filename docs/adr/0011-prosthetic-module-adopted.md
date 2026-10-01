@@ -1,7 +1,7 @@
 # ADR 0011 — Prosthetic module adopted, supersedes ADR 0010
 
 ## Status
-Accepted — 2026-09-26. Supersedes [ADR 0010](./0010-prosthetic-deferred.md).
+Accepted — 2026-09-26. Supersedes ADR 0010 (the earlier "deferred" decision, removed from the repo; see git history).
 
 ## Context
 ADR 0010 deferred the prosthetic module after finding the original mobile

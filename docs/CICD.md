@@ -21,12 +21,11 @@ build's Gradle step.
 
 ## Pre-commit hook (local, not CI)
 
-`.git/hooks/pre-commit` runs the same two checks CI does
-(`flutter analyze --fatal-infos` then `flutter test`) before every local
-commit — so a CI failure on `analyze`/`test` should be rare; if it happens
-despite a clean local commit, suspect an environment difference
-(Flutter/Dart version drift between local and the pinned CI version)
-before assuming flakiness. Not tracked by git (`.git/hooks/` is local-only
+`.git/hooks/pre-commit` runs `flutter analyze` only (a fast lint gate; the
+full `flutter test` suite runs in CI and in the phase scripts). A CI test
+failure after a clean local commit is therefore possible: run
+`flutter test` before pushing, and suspect Flutter/Dart version drift
+against the pinned CI version before assuming flakiness. Not tracked by git (`.git/hooks/` is local-only
 per clone) — there is no committed setup script that installs it for a
 fresh clone; a new contributor's machine won't have it until someone
 copies it in or a tracked install step is added.
@@ -37,15 +36,6 @@ copies it in or a tracked install step is added.
 `pubspec.yaml`), `github-actions` (workflow action versions), and
 `gradle` (`android/`). No `npm`/`bundler`/etc. ecosystems — this is a
 Flutter-only mobile repo.
-
-## Local CI
-
-`scripts/ci-local.sh` runs the same steps as the workflows above
-(analyze, test, Android debug build, iOS simulator build if on macOS,
-gitleaks if Docker is available) so a failure surfaces before pushing,
-not after. It's a convenience mirror, not authoritative — if a
-workflow's command changes, this script needs updating too, and CI's
-result is always the one that counts, not this script's.
 
 ## Secrets
 

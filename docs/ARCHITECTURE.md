@@ -46,10 +46,9 @@ features/<name>/
 Current features: `alerts`, `auth`, `catalog`, `compliance`, `cycles`,
 `dashboard`, `devices`, `dlu`, `history`, `identity`, `labels`,
 `patients`, `prosthetic`, `purchases`, `reporting`, `scanner`, `settings`,
-`shell`, `sites`, `stock`, `suppliers`, `sync`. `prosthetic/` was briefly
-removed per `docs/adr/0010-prosthetic-deferred.md`, then rebuilt for real
-per `docs/adr/0011-prosthetic-module-adopted.md` (which supersedes 0010)
-— see `docs/PROSTHETIC_MODULE.md`.
+`shell`, `sites`, `stock`, `suppliers`, `sync`. See
+`docs/PROSTHETIC_MODULE.md` and `docs/adr/0011-prosthetic-module-adopted.md`
+for the prosthetic module.
 
 ## The offline-fallback pattern
 

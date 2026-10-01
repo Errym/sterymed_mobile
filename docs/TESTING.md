@@ -1,6 +1,10 @@
 # Testing
 
-**Honest inventory, 2026-09-26.** 51 files matching `*_test.dart` exist;
+**Updated 2026-10-01.** 76 `*_test.dart` files exist under `test/`. A fresh
+`flutter test` on the working tree gave 488 passed / 13 failed (mid-refactor of
+session/storage code); the last measured line coverage was 34.5%. The
+per-directory table below is from 2026-09-26 and is approximate. Older text
+that follows: 51 files matching `*_test.dart` existed;
 **all 51 compile and have a real `main()`** — the CI/pre-commit
 compile-crash workaround this doc used to describe (a grep filter for
 files with `void main(`) is gone as of Task 2's completion; CI and the
@@ -109,7 +113,8 @@ yourself the rediscovery:
 
 ## Integration tests
 
-`integration_test/` has 16 files. **4 have real content**:
+`integration_test/` has 18 files, 12 of them 0 bytes (checked 2026-10-01). Older
+breakdown, 2026-09-26: 16 files, **4 had real content**:
 `journeys/auth_journey_test.dart`, `journeys/cycle_lifecycle_journey_test.dart`,
 `support/test_user.dart`, and the new `support/live_backend_guard.dart`
 (plus the tiny `drivers/integration_test_driver.dart` boilerplate). Both

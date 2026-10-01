@@ -47,7 +47,7 @@ not covered here:
 16. DLU Rules
 17. Reporting
 18. Team Invitations
-19. Prosthetic — real and live, not N/A; see `docs/PROSTHETIC_MODULE.md` (ADR 0010 was superseded by ADR 0011)
+19. Prosthetic — real and live, not N/A; see `docs/PROSTHETIC_MODULE.md` (ADR 0011)
 
 ---
 

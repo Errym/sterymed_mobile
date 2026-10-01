@@ -41,7 +41,7 @@ A **read** operation (GET) queues only if it's already been fetched once and we 
 | Product create / delete | Write | ⚠️ NOT QUEUED — throws offline |
 | Supplier create | Write | ⚠️ NOT QUEUED — throws offline |
 | Purchase order create | Write | ⚠️ NOT QUEUED — throws offline (only *receiving* an existing PO queues) |
-| Prosthetic case create / status change / payment save | Write | ⚠️ NOT QUEUED — throws offline. The module was briefly deleted (ADR-0010), then rebuilt for real (ADR-0011, supersedes 0010) — see `docs/PROSTHETIC_MODULE.md`. This is a real, open gap now, not N/A. |
+| Prosthetic case create / status change / payment save | Write | ⚠️ NOT QUEUED — throws offline. See `docs/PROSTHETIC_MODULE.md`. This is a real, open gap now, not N/A. |
 | Search / filter | Read | NEVER |
 | List fetch (first page) | Read | Cache 30-120s |
 | List fetch (paginated) | Read | NEVER |
@@ -75,7 +75,7 @@ so far:
   — a genuine anomaly that should never happen with per-item UUID v4
   keys, and treating it as "already synced" would silently drop data.
   (Was implemented the wrong way — auto-discarding on 409 — until this
-  was found and fixed; see `docs/DAILY_LOG.md`'s Phase 5 entry and
+  was found and fixed; see
   `test/unit/storage/sync_engine_test.dart`.)
 - 422/403 → move to manual review
 - 5xx/network → retry with backoff

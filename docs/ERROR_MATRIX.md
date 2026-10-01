@@ -24,15 +24,6 @@ Every error code the mobile app must handle, with the exact message from the ser
 | `timeout` | "Le délai de connexion a expiré." | Timeout |
 | `unknown` | "Une erreur est survenue." | Fallback |
 
-## Real captures
-
-- 401 wrong password: `docs/captures/errors/401_wrong_password.json`
-- 401 no token: `docs/captures/errors/401_no_token.json`
-- 404 unknown route: `docs/captures/errors/404_unknown_route.json`
-- 404 unknown resource: `docs/captures/errors/404_unknown_resource.json`
-- 422 missing reason: `docs/captures/errors/422_missing_reason.json`
-- 422 invalid login: `docs/captures/errors/422_invalid_login.json`
-
 ## Known issues
 
 - Some 422 `details` are in English (e.g., "The selected batch id is invalid."). Tracked in `BACKEND_BUGS.md #009`.

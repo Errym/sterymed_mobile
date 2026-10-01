@@ -87,5 +87,4 @@ patients have no editable fields by design, not a missing endpoint), the
 entire Prosthetic domain (real and live now — `docs/PROSTHETIC_MODULE.md`,
 ADR 0011).
 
-All tracked in `docs/BACKEND_BUGS.md` and summarized in
-`docs/MISSING_FEATURES.md`.
+All tracked in `docs/BACKEND_BUGS.md`.

@@ -9,10 +9,8 @@ who-to-call sections are not.
 - [ ] Primary on-call contact / rotation — not yet defined.
 - [ ] Escalation path (who's called if the primary is unreachable) —
   not yet defined.
-- [ ] SLA for pilot clinics (response time, resolution time) — this was
-  also a pre-flight deliverable (P10, `docs/SUPPORT.md`) that's still
-  empty; fill both together, they're the same information from two
-  angles.
+- [ ] SLA for pilot clinics (response time, resolution time) — not yet
+  defined; owned by the support-owner decision in the roadmap (D05).
 
 ## Known operational facts (what exists today)
 

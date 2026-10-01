@@ -195,7 +195,7 @@ needed updating for the new shapes
 `test/unit/storage/label_usage_draft_store_test.dart`).
 
 **✅ Verified live, 2026-09-25**, once the backend environment was
-recovered (see DAILY_LOG): `POST /v1/patients` with no body → real
+recovered (see git history): `POST /v1/patients` with no body → real
 `{id, reference}`; `GET /v1/patients?filter[reference]=PAT` correctly
 matches. Full label-usage round trip — created a cycle, item, DLU rule,
 generated and printed a label, scanned it (`created → printed → used`),
@@ -692,7 +692,7 @@ roles into a generic "Personnel" — now shows the real specific role).
 **Verification status:** ✅ all six roles now live-verified via real
 invite→accept round trips (owner/practitioner/stock_manager earlier
 during the BUG-012 fix; admin/releaser/viewer completed once the
-backend environment was recovered — see DAILY_LOG). Each role's
+backend environment was recovered — see git history). Each role's
 `permissions` array is distinct and matches what its name implies (e.g.
 `viewer` has zero `.manage` permissions anywhere; `releaser` has
 `cycles.release` + `non_conformities.manage` but no inventory/purchasing

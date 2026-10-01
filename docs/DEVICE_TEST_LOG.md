@@ -2,9 +2,8 @@
 
 Real, physical-device test runs only — not simulator/emulator, not
 `flutter test` (that's `docs/TESTING.md`). Referenced from
-`docs/OFFLINE_MATRIX.md` ("log every offline-queue test here") and
-`docs/DAILY_LOG.md`'s Gate audits, which flag scenarios as **NEEDS USER**
-until a real entry exists here.
+`docs/OFFLINE_MATRIX.md` ("log every offline-queue test here"). Scenarios
+stay unverified until a real entry exists here.
 
 ## Setup
 
@@ -69,6 +68,5 @@ Each entry: date, tester, build/commit, scenario, steps, result.
 ## Entries
 
 *(none yet — every offline-queue scenario in `docs/OFFLINE_MATRIX.md` and
-the app-kill-and-relaunch scenario in `docs/DAILY_LOG.md`'s Gate audit
-remain unverified on a real device; this is real, tracked debt, not
+the app-kill-and-relaunch scenario remain unverified on a real device; this is real, tracked debt, not
 fabricated as done)*

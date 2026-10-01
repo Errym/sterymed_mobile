@@ -1,29 +1,38 @@
-# Docs
+﻿# Docs
 
-This folder mixes two things: the nine docs the master plan's Day 55
-("Handoff") calls for by name, and a longer tail of working documents
-this project accumulated along the way. The Day 55 split, per the plan,
-is **six user-facing** (`README.md` — repo root, not here —
-`API_CONTRACT.md`, `OFFLINE_MATRIX.md`, `RUNBOOK.md`, `BACKUP_RESTORE.md`,
-`USER_GUIDE.md`) and **three internal** (`SECURITY.md`, `PRIVACY.md`,
-`MIGRATION.md`). All nine were reviewed for staleness 2026-09-26 — several
-had gone actively wrong (the prosthetic module marked deleted after it
-was rebuilt for real, a privacy doc overstating what patient data the app
-collects) and were fixed; see [`HANDOFF.md`](HANDOFF.md) for the current
-entry point and [`PILOT_READINESS.md`](PILOT_READINESS.md) for the
-current go/no-go read.
+Start with [ULTIMATE_ROADMAP.md](ULTIMATE_ROADMAP.md): the honest rating, requirement
+coverage, milestones M1-M3 and the phase schedule. It is built on
+[CLINIC_READY_MASTER_PLAN.md](CLINIC_READY_MASTER_PLAN.md) (task catalogue, six-role matrix,
+release blockers F01-F18).
 
-A later, separate deliverable — the final pilot-readiness check — added
-three more: [`PILOT_READINESS.md`](PILOT_READINESS.md),
-`DEMO_SCRIPT.md`, and [`HANDOFF.md`](HANDOFF.md) (this file's sibling,
-not to be confused with this `docs/README.md` itself).
+## Planning and audit evidence
 
-Everything else here — `ARCHITECTURE.md`, `CICD.md`,
-`TESTING.md`, `ROLE_MATRIX.md`, `ERROR_MATRIX.md`, `DAILY_LOG.md`,
-`BACKEND_BUGS.md`, `MISSING_FEATURES.md`, `UI_MAPPING.md`,
-`LOCALIZATION.md`, `SUPPORT.md`, `PERFORMANCE.md`, `RELEASE.md`,
-`PROSTHETIC_MODULE.md`, `DEVICE_TEST_LOG.md`, `adr/` — is working
-documentation for whoever's building this, not part of that formal
-handoff list. Check each file's own header for its actual status — the
-individual docs are the source of truth for their own completeness, not
-this index.
+| File | What it is |
+|---|---|
+| [ULTIMATE_ROADMAP.md](ULTIMATE_ROADMAP.md) | Rating, coverage vs the two briefs, phased schedule, risks, definition of done |
+| [CLINIC_READY_MASTER_PLAN.md](CLINIC_READY_MASTER_PLAN.md) | Task IDs (S/O/R/C/I/P/A/V/D/H), phases, offline policy, completion ledger |
+| [SOURCE_AUDIT_FINDINGS.md](SOURCE_AUDIT_FINDINGS.md) | File/line evidence behind every finding |
+| [SOURCE_REVIEW_SCOPE.md](SOURCE_REVIEW_SCOPE.md), `SOURCE_REVIEW_INVENTORY.csv` | What the 2026-10-01 review covered |
+| [phase0/](phase0/CONTRACT_MATRIX.md) | Contract matrix, backend dependency register, build baseline |
+| [BACKEND_BUGS.md](BACKEND_BUGS.md) | Backend gaps with curl reproductions (cited from code comments) |
+
+## How the app works
+
+| File | What it is |
+|---|---|
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Layering, feature structure, DI, routing |
+| [API_CONTRACT.md](API_CONTRACT.md), [ERROR_MATRIX.md](ERROR_MATRIX.md) | Envelope, error codes, handling |
+| [OFFLINE_MATRIX.md](OFFLINE_MATRIX.md) | What queues offline and the sync rules |
+| [ROLE_MATRIX.md](ROLE_MATRIX.md), [UI_MAPPING.md](UI_MAPPING.md) | Permissions by role; screen to endpoint map |
+| [PROSTHETIC_MODULE.md](PROSTHETIC_MODULE.md), [adr/0011-prosthetic-module-adopted.md](adr/0011-prosthetic-module-adopted.md) | Prosthetic module |
+| [LOCALIZATION.md](LOCALIZATION.md) | French-only string handling |
+
+## Operating it
+
+| File | What it is |
+|---|---|
+| [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md) | Implemented controls and open legal questions |
+| [TESTING.md](TESTING.md), [CICD.md](CICD.md) | Test inventory and pipelines |
+| [BACKUP_RESTORE.md](BACKUP_RESTORE.md), [RUNBOOK.md](RUNBOOK.md) | Local data, recovery, triage |
+| [DEVICE_TEST_LOG.md](DEVICE_TEST_LOG.md) | Physical-device setup, gotchas and run log (no runs yet) |
+| [USER_GUIDE.md](USER_GUIDE.md) | French user guide skeleton (screenshots missing) |

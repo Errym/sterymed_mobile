@@ -14,7 +14,7 @@ not a claim.
 | Lost/stolen unlocked device — session/token theft | Partial | Bearer token lives in `SecureStorage` (Keychain/`encryptedSharedPreferences`, see [Credential storage](#credential-storage)), not plaintext prefs. **No app-level PIN/biometric re-lock** — anyone with the unlocked OS session can open the app and act as the logged-in user until they explicitly log out. See [Known gaps](#known-gaps). |
 | Network eavesdropping / on-path attacker (public wifi, compromised router) | Partial | Standard TLS only when the backend is actually reachable over `https://`; **no certificate pinning** (see [Certificate pinning](#certificate-pinning) below) — a device with a trusted-store-injected MITM proxy (e.g. a compromised/managed device, some corporate MDM setups) could intercept traffic undetected. |
 | Compromised or malicious backend tenant escalating a low-privilege account | Mitigated server-side | RBAC is enforced by the real backend `spatie/permission` grants on every request; the app's own gating is a UX convenience only — see [Access control](#access-control-rbac). A compromised backend is out of this app's threat model (that's `steriqore`'s own security posture). |
-| Reverse-engineering the shipped APK/IPA (extracting logic, strings, endpoint list) | **Not mitigated** | No `--obfuscate`/`--split-debug-info` in any build workflow (`.github/workflows/mobile-build-android.yml`, `mobile-release-android.yml` stub) and no ProGuard/R8 minification configured in `android/app/build.gradle.kts`. Low actual exposure today (no secrets are hardcoded — see [Secrets](#secrets) — and the real access boundary is server-side), but the binary is not hardened against inspection. |
+| Reverse-engineering the shipped APK/IPA (extracting logic, strings, endpoint list) | Partial | Android release builds enable R8 minification and resource shrinking (`isMinifyEnabled`/`isShrinkResources` in `android/app/build.gradle.kts`), but there is no Dart `--obfuscate`/`--split-debug-info` in any build workflow. Low actual exposure today (no secrets are hardcoded — see [Secrets](#secrets) — and the real access boundary is server-side), but the binary is not hardened against inspection. |
 | Rooted/jailbroken device running a tampered app | **Not mitigated** | No root/jailbreak detection exists in `lib/`. Accepted risk for a pilot; would need `flutter build`-time integrity checks (Play Integrity API / DeviceCheck) before a wider rollout. |
 | Malicious/typo'd deep link or QR-scanned label code | Partial | Label codes are looked up server-side by exact match (`LabelRepository.getByCode`) — an invalid/malicious code returns a real 404, not a client-parsed/executed value. Not a significant attack surface today since there's no client-side deep-link scheme registered beyond `go_router`'s own in-app routes. |
 
@@ -184,8 +184,8 @@ something derivable from the code.
 - **Biometric/PIN app-lock**: not implemented. Session persists via
   `SecureStorage` with no additional local-unlock gate — see the threat
   model's lost/stolen-device row.
-- **No binary hardening.** No `--obfuscate`/minification in any build
-  workflow, no root/jailbreak detection — see the threat model.
+- **Limited binary hardening.** R8 is on for Android release, but no Dart
+  `--obfuscate` in any build workflow, and no root/jailbreak detection — see the threat model.
 - **RBAC coverage isn't exhaustive.** Extended significantly this
   session (route-level + several in-screen action gates), but wasn't a
   screen-by-screen audit of every mutating button in the app — treat the
