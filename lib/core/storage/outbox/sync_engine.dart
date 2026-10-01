@@ -175,7 +175,7 @@ class SyncEngine {
       return OperationAttempt(item);
     }
     if (item.firstAttemptAt != null &&
-        _now().difference(item.firstAttemptAt!) >= const Duration(hours: 23)) {
+        _now().difference(item.firstAttemptAt!) >= kReplayWindow) {
       final expired = item.copyWith(
         status: OutboxStatus.unknownOutcome,
         lastError:
@@ -264,6 +264,42 @@ class SyncEngine {
       // can commit before its cache records a key; blind retries are unsafe.
       return OperationAttempt(updated, error: api);
     }
+  }
+
+  /// Deliberate, user-confirmed re-send of an unknown-outcome item. It reuses
+  /// the original Idempotency-Key and body, so a server that already recorded
+  /// the key replays its answer instead of repeating the business effect.
+  /// Refused once the replay window has passed: the outcome must then be
+  /// checked on the record itself, never resent.
+  Future<SyncResult> resendUnknown(String id) => _serialized(() async {
+    final item = _store.find(id);
+    if (item == null || !canSend) return SyncResult.error;
+    if (!item.canResend(_now())) return SyncResult.manualReview;
+    final ready = item.copyWith(
+      status: OutboxStatus.pending,
+      clearError: true,
+      clearNextAttempt: true,
+      requiresReviewBeforeReplay: false,
+    );
+    await _store.update(ready);
+    final result = await _send(ready, generation: _session?.generation);
+    return result.confirmed ? SyncResult.success : SyncResult.manualReview;
+  });
+
+  /// Removes an unresolved item after the user has accepted the loss. An
+  /// in-flight (`syncing`) item cannot be abandoned; the worker resolves it.
+  Future<bool> abandon(String id) {
+    // Refuse at once: queueing behind the in-flight send would make the
+    // caller wait for a request it is not allowed to cancel.
+    if (_store.find(id)?.status == OutboxStatus.syncing) {
+      return Future<bool>.value(false);
+    }
+    return _serialized(() async {
+      final item = _store.find(id);
+      if (item == null || item.status == OutboxStatus.syncing) return false;
+      await _store.remove(id);
+      return true;
+    });
   }
 
   Future<SyncResult> retryOne(String id) => _serialized(() async {

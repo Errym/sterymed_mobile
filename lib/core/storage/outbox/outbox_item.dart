@@ -2,6 +2,10 @@ import 'dart:convert';
 import 'outbox_operation.dart';
 import 'outbox_status.dart';
 
+/// The server remembers an Idempotency-Key for 24 h. Replays stop one hour
+/// earlier so a retry never races the key's expiry.
+const Duration kReplayWindow = Duration(hours: 23);
+
 class OutboxItem {
   final String? ownerScope;
   final int schemaVersion;
@@ -50,6 +54,7 @@ class OutboxItem {
     int? retryCount,
     OutboxStatus? status,
     String? lastError,
+    bool? requiresReviewBeforeReplay,
   }) {
     return OutboxItem(
       ownerScope: ownerScope,
@@ -60,7 +65,8 @@ class OutboxItem {
       nextAttemptAt: clearNextAttempt
           ? null
           : nextAttemptAt ?? this.nextAttemptAt,
-      requiresReviewBeforeReplay: requiresReviewBeforeReplay,
+      requiresReviewBeforeReplay:
+          requiresReviewBeforeReplay ?? this.requiresReviewBeforeReplay,
       id: id,
       operation: operation,
       endpoint: endpoint,
@@ -73,6 +79,13 @@ class OutboxItem {
       lastError: clearError ? null : lastError ?? this.lastError,
     );
   }
+
+  /// A user may deliberately re-send an unknown-outcome item with its
+  /// original key, but only while the server can still recognise that key.
+  bool canResend(DateTime now) =>
+      status == OutboxStatus.unknownOutcome &&
+      firstAttemptAt != null &&
+      now.difference(firstAttemptAt!) < kReplayWindow;
 
   Map<String, dynamic> toJson() => {
     'ownerScope': ownerScope,

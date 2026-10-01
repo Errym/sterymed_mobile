@@ -11,6 +11,9 @@ import '../../../../core/storage/outbox/sync_engine.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/badges/status_badge.dart';
+import '../../../../core/storage/outbox/sync_result.dart';
+import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
@@ -54,6 +57,53 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
     await getIt<SyncEngine>().retryOne(id);
     await getIt<SyncStatusCubit>().refreshNow();
     await _load();
+  }
+
+  Future<void> _resend(OutboxItem item) async {
+    final ok = await ConfirmationDialog.show(
+      context,
+      title: 'Renvoyer cette action ?',
+      message:
+          'Cette action a peut-être déjà été enregistrée. Le renvoi utilise la même référence : si le serveur l’a déjà reçue, rien ne sera dupliqué. Si possible, vérifiez d’abord le dossier concerné.',
+      confirmLabel: 'Renvoyer',
+    );
+    if (!ok || !mounted) return;
+    final result = await getIt<SyncEngine>().resendUnknown(item.id);
+    await getIt<SyncStatusCubit>().refreshNow();
+    await _load();
+    if (!mounted) return;
+    AppSnackbar.show(
+      context,
+      result == SyncResult.success
+          ? 'Action enregistrée.'
+          : 'Résultat toujours à vérifier.',
+      kind: result == SyncResult.success ? SnackKind.success : SnackKind.error,
+    );
+  }
+
+  Future<void> _abandon(OutboxItem item) async {
+    final unknown = item.status == OutboxStatus.unknownOutcome;
+    final ok = await ConfirmationDialog.show(
+      context,
+      title: 'Abandonner cette action ?',
+      message: unknown
+          ? 'Si elle a déjà été enregistrée sur le serveur, rien n’est perdu. Sinon, elle ne sera jamais enregistrée et il faudra la ressaisir. Vérifiez le dossier concerné avant de confirmer.'
+          : 'Cette action ne sera pas enregistrée sur le serveur. Après correction, vous pourrez la ressaisir.',
+      confirmLabel: 'Abandonner',
+      isDestructive: true,
+    );
+    if (!ok || !mounted) return;
+    final removed = await getIt<SyncEngine>().abandon(item.id);
+    await getIt<SyncStatusCubit>().refreshNow();
+    await _load();
+    if (!mounted) return;
+    AppSnackbar.show(
+      context,
+      removed
+          ? 'Action abandonnée.'
+          : 'Envoi en cours : réessayez dans un instant.',
+      kind: removed ? SnackKind.success : SnackKind.error,
+    );
   }
 
   @override
@@ -115,6 +165,8 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
                           child: _QueueTile(
                             item: _items[i],
                             onRetry: () => _retryOne(_items[i].id),
+                            onResend: () => _resend(_items[i]),
+                            onAbandon: () => _abandon(_items[i]),
                           ),
                         );
                       },
@@ -127,8 +179,15 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
 class _QueueTile extends StatelessWidget {
   final OutboxItem item;
   final VoidCallback onRetry;
+  final VoidCallback onResend;
+  final VoidCallback onAbandon;
 
-  const _QueueTile({required this.item, required this.onRetry});
+  const _QueueTile({
+    required this.item,
+    required this.onRetry,
+    required this.onResend,
+    required this.onAbandon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -183,6 +242,35 @@ class _QueueTile extends StatelessWidget {
                 'Cette action peut déjà être enregistrée. Vérifiez le dossier avec le responsable avant de la ressaisir.',
               ),
             ),
+          if (_isStuck(item.status)) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: [
+                if (item.canResend(DateTime.now()))
+                  OutlinedButton.icon(
+                    onPressed: onResend,
+                    icon: const Icon(Icons.send_outlined, size: 16),
+                    label: const Text('Renvoyer'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.brandPrimary,
+                      side: const BorderSide(color: AppColors.brandPrimary),
+                    ),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: onAbandon,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: const Text('Abandonner'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    side: const BorderSide(color: AppColors.danger),
+                  ),
+                ),
+              ],
+            ),
+          ],
           if (item.status == OutboxStatus.pending ||
               item.status == OutboxStatus.authBlocked) ...[
             const SizedBox(height: AppSpacing.sm),
@@ -203,6 +291,15 @@ class _QueueTile extends StatelessWidget {
       ),
     );
   }
+
+  /// States the worker will never move on its own: the user must decide.
+  static bool _isStuck(OutboxStatus status) =>
+      status == OutboxStatus.unknownOutcome ||
+      status == OutboxStatus.conflict ||
+      status == OutboxStatus.validationFailed ||
+      status == OutboxStatus.permissionDenied ||
+      status == OutboxStatus.failed ||
+      status == OutboxStatus.manualReview;
 
   Widget _statusBadge(OutboxStatus status) {
     switch (status) {

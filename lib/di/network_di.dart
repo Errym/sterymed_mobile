@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 
+import '../core/cache/cache.dart';
 import '../core/network/dio_client.dart';
 import '../core/network/network_info.dart';
 import '../core/storage/outbox/outbox_store.dart';
@@ -31,6 +32,14 @@ Future<void> registerNetwork(GetIt getIt) async {
   );
 
   getIt.registerLazySingleton<SyncEngine>(
-    () => SyncEngine(getIt<OutboxStore>(), getIt<DioClient>().dio),
+    () => SyncEngine(
+      getIt<OutboxStore>(),
+      getIt<DioClient>().dio,
+      // Without the session the engine cannot fence late results or refuse to
+      // send while permissions are stale.
+      session: getIt<SessionStore>(),
+      // A confirmed write changes server state: drop stale list caches.
+      onConfirmed: () => getIt<AppCache>().invalidateAll(),
+    ),
   );
 }

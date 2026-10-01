@@ -10,11 +10,7 @@ class OutboxStore {
   final String? Function()? _ownerScope;
   final bool recoveryRequired;
 
-  OutboxStore(
-    this._box, {
-    this._ownerScope,
-    this.recoveryRequired = false,
-  });
+  OutboxStore(this._box, {this._ownerScope, this.recoveryRequired = false});
   String? get currentOwner => _ownerScope?.call();
   bool get isScoped => _ownerScope != null;
   bool get available => _box != null && (!isScoped || currentOwner != null);

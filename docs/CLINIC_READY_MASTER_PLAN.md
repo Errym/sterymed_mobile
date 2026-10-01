@@ -391,7 +391,7 @@ Remaining dependency or accepted limitation:
 Reviewer/clinic acceptance, where required:
 ```
 
-**Current ledger (updated 1 October 2026).** Evidence: `flutter analyze --fatal-infos` clean; `flutter test` 505 passed, 0 failed; Python tooling tests 9/9. No physical-device or live-backend run is claimed.
+**Current ledger (updated 1 October 2026).** Evidence: `flutter analyze --fatal-infos` clean; Python tooling tests 9/9; Flutter suite result recorded in the latest commit message. No physical-device or live-backend run is claimed.
 
 | Task | Status | Evidence / remaining |
 |---|---|---|
@@ -405,7 +405,12 @@ Reviewer/clinic acceptance, where required:
 | S04 | IN_PROGRESS | Owner-scoped, type-checked cache and device key collision fixed (tested); BLoC state reset by session generation in `app.dart` has no dedicated test |
 | S05 | IN_PROGRESS | HTTP diagnostics allow-listed and tested against token/URL/id leakage; Sentry scrub tested; "normalize errors once" not verified |
 | S06 | IN_PROGRESS | Connectivity re-verified before flush, lifecycle resume check, subscriptions closed; failed-revocation messaging not verified |
-| O01-O03 | IN_PROGRESS (built early) | Durable operation, serialized worker, unknown-outcome state exist with tests; not yet assessed against the Phase 2 acceptance list |
+| O01 | VERIFIED (unit) | Owner, key and exact body persisted before the first send; online and replay share one record; duplicate taps share one request (`sync_engine_test.dart`). Not yet proven against server-side counts (needs G03 live fixture and BD-08) |
+| O02 | VERIFIED (unit) | One serialized worker; startup recovery of `syncing` as unknown; persisted `Retry-After` backoff; per-resource blocking. **Fixed 2026-10-01:** production DI built the engine without the session, so its session fencing and `canSend` checks were inactive; now wired and covered by `sync_engine_session_and_resolution_test.dart` |
+| O03 | VERIFIED (unit + widget) | Ten distinct states. **Added 2026-10-01:** every stuck state had no action and blocked the record; now Renvoyer (same key, only inside the 23 h window) and Abandonner (loss warning, never while sending), tested in the engine and on the queue screen |
+| O04 | OPEN (backend) | BD-08 concurrency-safe idempotency: backend work, not started |
+| O05 | IN_PROGRESS | `used_at` is captured at the clinical event and replayed unchanged. Pending state is shown in the queue and as a local-save snackbar; a per-record "pending" marker on the affected screen is not built |
+| O06 | IN_PROGRESS | `OFFLINE_MATRIX.md` rewritten to the engine's real behavior; truthful counts in the status pill. Non-queued creates still use a fresh key per submission (documented limitation) |
 | Others | OPEN | Not started |
 
 Historical passing tests do not close tasks introduced by this audit.

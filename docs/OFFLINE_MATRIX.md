@@ -62,23 +62,45 @@ so far:
   product create, purchase order create) don't have this yet — an
   unstarted gap, not a doc error, but don't assume they're covered.
 
-## Sync engine behavior
+## Sync engine behavior (updated 2026-10-01)
 
-- Triggered on: app start (if online), connectivity restore
-- One item at a time, in creation order
-- A **benign replay** (same Idempotency-Key, same payload) never reaches
-  an error branch at all — the backend's `EnsureIdempotency` middleware
-  returns the *original* response verbatim at its original 2xx status,
-  which the sync engine treats as a normal success.
-- 409 (`IDEMPOTENCY_KEY_REUSED`) → **manual review, not auto-removed**.
-  This only fires when the same key is reused with a *different* payload
-  — a genuine anomaly that should never happen with per-item UUID v4
-  keys, and treating it as "already synced" would silently drop data.
-  (Was implemented the wrong way — auto-discarding on 409 — until this
-  was found and fixed; see
-  `test/unit/storage/sync_engine_test.dart`.)
-- 422/403 → move to manual review
-- 5xx/network → retry with backoff
+Every queueable write is a **durable operation**: owner, Idempotency-Key and
+the exact JSON body are saved *before* the first network byte, and the online
+send and any later replay use that same record (`SyncEngine.submit`). One
+serialized worker handles automatic flush, reconnect, resume and manual retry,
+so two senders can never run at once. Duplicate taps share one operation, and a
+second *different* action on a record that still has an unresolved operation is
+refused (`operation_unresolved`).
+
+| Outcome of a send | Item state | What happens next |
+|---|---|---|
+| 2xx with a record id | removed (confirmed), caches invalidated | none |
+| 2xx but unreadable body | `unknownOutcome` | user checks the record |
+| 401, or session not validated | `authBlocked` | resumes automatically after re-validation |
+| 403 | `permissionDenied` | user can only **abandon** |
+| 409 (key reused with different body, state conflict) | `conflict` | user can only **abandon** |
+| 400/404/422 | `validationFailed` | user can only **abandon**, then re-enter corrected data |
+| 429 (up to 5 tries) | `pending` with `Retry-After` | retried automatically, same key |
+| timeout, dropped connection, 5xx, killed mid-send | `unknownOutcome` | never auto-resent; user chooses below |
+| app restarted while `syncing` | `unknownOutcome` | same as above |
+| older than 23 h after first attempt | `unknownOutcome` | **cannot be resent**; check the record, then abandon |
+
+**Resolving a stuck item** (Sync queue screen). `unknownOutcome` inside the
+23 h replay window offers **Renvoyer**: it re-sends with the *same key and
+body*, so a server that already recorded the key replays its answer instead of
+repeating the effect (residual risk: backend BD-08, a commit that failed to
+record its key). Every stuck state offers **Abandonner**, which warns about the
+loss and removes the item (never while it is being sent). Unresolved items stay
+visible and block further actions on the same record until resolved.
+
+The engine only runs for a validated session: nothing is queued or sent while
+permissions are stale or the session is being replaced, and a response that
+arrives after the session changed is never recorded against the new user.
+
+Not covered: a normal online `POST` that is not queued (create product,
+supplier, patient, prosthetic case...) gets a fresh key per submission and is
+not retried automatically. If its response is lost, a manual second submit can
+duplicate it unless the server enforces uniqueness.
 
 ## Verification
 
