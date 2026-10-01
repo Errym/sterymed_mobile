@@ -236,22 +236,41 @@ class SyncEngine {
               message: 'Résultat de l’envoi à vérifier.',
             );
       final statusCode = api.statusCode;
+      // The server is still running the first copy of this very key: not a
+      // conflict. Wait, then replay the same operation.
+      final inProgress = api.code.toUpperCase() == 'IDEMPOTENCY_IN_PROGRESS';
+      // Any other 4xx is the server's definitive "no": the action did not
+      // happen, so offering a resend would only repeat the rejection. Only
+      // transport failures, timeouts and 5xx leave the outcome unknown.
+      final definitiveRejection =
+          statusCode != null &&
+          statusCode >= 400 &&
+          statusCode < 500 &&
+          statusCode != 408 &&
+          statusCode != 429;
       final status =
           api.isUnauthenticated || api.code == 'session_validation_required'
           ? OutboxStatus.authBlocked
           : api.isForbidden
           ? OutboxStatus.permissionDenied
-          : api.isConflict
+          : inProgress && sending.retryCount < 5
+          ? OutboxStatus.pending
+          : api.isConflict || statusCode == 409
           ? OutboxStatus.conflict
-          : api.isValidation || statusCode == 400 || statusCode == 404
-          ? OutboxStatus.validationFailed
           : api.isRateLimited && sending.retryCount < 5
           ? OutboxStatus.pending
+          : api.isValidation || definitiveRejection
+          ? OutboxStatus.validationFailed
           : OutboxStatus.unknownOutcome;
       final retryAfter = error is DioException
           ? int.tryParse(error.response?.headers.value('retry-after') ?? '')
           : null;
-      final delay = (retryAfter ?? 30 * sending.retryCount).clamp(1, 3600);
+      final hinted = api.details['retry_after'];
+      final delay =
+          (retryAfter ??
+                  (hinted is num ? hinted.toInt() : null) ??
+                  30 * sending.retryCount)
+              .clamp(1, 3600);
       final updated = sending.copyWith(
         status: status,
         lastError: api.message,

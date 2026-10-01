@@ -132,3 +132,20 @@ The other 11 — `app_test.dart` and 8 more journey files (`alert_resolve`,
 including 4 of the 6 journeys the original plan named. This is the
 largest remaining testing gap in the repo — see `test/COVERAGE.md` for
 why they weren't written blind here.
+
+## Backend (`steriqore`) tests and live proofs
+
+- `scripts/backend_tests.sh` runs the backend Pest suite in an **isolated runner
+  container against a separate `steriqore_test` database** (`setup`, `sync`,
+  `run`, `teardown`). Never run the suite with `docker exec steriqore-app ...`:
+  that container exports the dev `DB_DATABASE`, the real environment wins over
+  `phpunit.xml`, and `RefreshDatabase` would wipe your dev data.
+- Known runner baseline (identical before and after the idempotency change, so
+  environmental, not code bugs): the `Web/*` UI tests need a Vite build, and a
+  few RLS/OpenAPI tests need grants only present in the full CI database.
+- `scripts/verify_idempotency_concurrency.py [N]` fires N identical requests with
+  one key and counts real database rows (dev stack only). Expected: 1.
+- `test/live/queue_lost_response_live_test.dart` runs the real mobile queue
+  against the real backend with a lost-answer fault and counts rows. Skipped
+  unless `RUN_LIVE_BACKEND_TESTS=true` plus `TEST_ADMIN_EMAIL`,
+  `TEST_ADMIN_PASSWORD`, `TEST_ADMIN_TENANT`.

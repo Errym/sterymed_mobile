@@ -70,6 +70,8 @@ No endpoint name is reserved by a proposal in this register. New methods/paths, 
 
 ### BD-08 — Durable, scoped, concurrent command deduplication
 
+> **Status 2026-10-01: implemented in `steriqore` for POST routes** (atomic lock per key, tenant+user scope, no caching of 5xx/429/408, `IDEMPOTENCY_IN_PROGRESS`, replay header). 8 Pest tests; live: 8 concurrent requests created 1 row (8 before). Still open: the 24 h retention limit is unchanged, PATCH/DELETE routes have no idempotency middleware, and multipart uploads are intentionally not covered.
+
 - **Owner/task:** B/J, **O01, O04–O06, V03, D04**; all replayable writes. Duplicate-write blocker.
 - **Confirmed:** middleware cache TTL86400; raw method/path/body hash; cache key user/key without tenant; get→execute→put is not atomic; multipart bypasses cache; stored result omits response headers and includes errors (`app/Http/Middleware/Api/EnsureIdempotency.php:31`, `:49`, `:54`, `:60`, `:74`, `:85`). Route coverage excludes PATCH/DELETE and prosthetic uploads. Existing stock-ledger uniqueness is useful but does not guarantee all domain commands.
 - **Proposed scope:** define a durable command receipt/claim strategy with tenant/actor/operation scoping, exact body identity, atomic business commit/result association, replayable response, explicit retryable-failure treatment, retention and unknown-outcome reconciliation. Define upload dedup separately. Mobile persists immutable command/key/bytes before first send. Do not blindly resend uncertain commands beyond retention.

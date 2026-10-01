@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/feedback/pending_changes_banner.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
@@ -151,6 +152,7 @@ class _CycleDetailView extends StatelessWidget {
               child: ListView(
                 padding: const EdgeInsets.all(AppSpacing.md),
                 children: [
+                  PendingChangesBanner(resourceKey: 'cycle:$cycleId'),
                   // ── Header + info card ──
                   AnimatedListItem(
                     index: 0,

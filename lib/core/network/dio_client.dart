@@ -29,7 +29,7 @@ class DioClient {
        ) {
     dio.interceptors.addAll([
       AuthInterceptor(tokenStorage, session: session),
-      IdempotencyInterceptor(),
+      IdempotencyInterceptor(owner: () => session?.scopeKey),
       RetryInterceptor(dio),
       ErrorInterceptor(onUnauthenticated: onUnauthenticated),
       LoggingInterceptor(),

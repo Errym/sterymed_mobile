@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:steriymed_mobile/core/storage/outbox/outbox_item.dart';
 import 'package:steriymed_mobile/core/storage/outbox/outbox_operation.dart';
 import 'package:steriymed_mobile/core/storage/outbox/outbox_status.dart';
+import 'package:steriymed_mobile/core/storage/outbox/sync_engine.dart';
 import 'package:steriymed_mobile/core/storage/outbox/sync_result.dart';
 import 'package:steriymed_mobile/core/storage/secure_storage.dart';
 import 'package:steriymed_mobile/core/storage/session_store.dart';
@@ -151,6 +152,155 @@ void main() {
         expect(generation, greaterThan(0));
         expect(await q.engine.flush(), 0);
         expect(q.adapter.requests, isEmpty);
+      },
+    );
+  });
+
+  group('fault injection', () {
+    Future<dynamic> submitFor(String batch, {bool online = true}) =>
+        q.engine.submit(
+          operation: OutboxOperation.stockIssue,
+          endpoint: '/v1/stock-movements/issue',
+          payload: {'batch_id': batch, 'qty': 1},
+          resourceKey: 'stock:$batch',
+          online: online,
+        );
+
+    test('killed after persisting, before sending: a fresh engine sends the '
+        'same key and body exactly once', () async {
+      final queued =
+          (await submitFor('batch-A', online: false)).item as OutboxItem;
+      expect(q.adapter.requests, isEmpty);
+
+      // "Restart": a brand-new engine over the same durable store.
+      final reborn = SyncEngine(q.store, q.dio, session: session);
+      expect(await reborn.flush(), 1);
+
+      expect(q.adapter.requests, hasLength(1));
+      expect(
+        q.adapter.requests.single.headers['Idempotency-Key'],
+        queued.idempotencyKey,
+      );
+      expect(q.adapter.requests.single.data, queued.encodedPayload);
+      expect(q.store.all(), isEmpty);
+      // A second restart finds nothing to send: no duplicate.
+      expect(await SyncEngine(q.store, q.dio, session: session).flush(), 0);
+      expect(q.adapter.requests, hasLength(1));
+    });
+
+    test('queued events replay in creation order', () async {
+      await submitFor('batch-A', online: false);
+      clock = clock.add(const Duration(seconds: 1));
+      await submitFor('batch-B', online: false);
+      clock = clock.add(const Duration(seconds: 1));
+      await submitFor('batch-C', online: false);
+
+      expect(await q.engine.flush(), 3);
+
+      final order = q.adapter.requests
+          .map((r) => (r.data as String))
+          .map((body) => RegExp(r'batch-[ABC]').firstMatch(body)!.group(0))
+          .toList();
+      expect(order, ['batch-A', 'batch-B', 'batch-C']);
+    });
+
+    test('a failing record blocks only its own later events', () async {
+      await submitFor('batch-A', online: false);
+      clock = clock.add(const Duration(seconds: 1));
+      await submitFor('batch-B', online: false);
+
+      // First request (batch-A) hits a server error; batch-B must still go.
+      var call = 0;
+      q.adapter.beforeReply = (_) async {
+        call++;
+        if (call == 1) q.adapter.failure = DioExceptionType.receiveTimeout;
+        if (call == 2) q.adapter.failure = null;
+      };
+      expect(await q.engine.flush(), 1);
+
+      final left = q.store.all();
+      expect(left, hasLength(1));
+      expect(left.single.resourceKey, 'stock:batch-A');
+      expect(left.single.status, OutboxStatus.unknownOutcome);
+    });
+
+    test('permission removed while offline: replay is denied, not forced, '
+        'and other records continue', () async {
+      await submitFor('batch-A', online: false);
+      clock = clock.add(const Duration(seconds: 1));
+      await submitFor('batch-B', online: false);
+
+      var call = 0;
+      q.adapter.beforeReply = (_) async {
+        call++;
+        q.adapter
+          ..status = call == 1 ? 403 : 200
+          ..data = call == 1
+              ? {
+                  'error': {'code': 'FORBIDDEN', 'message': 'non'},
+                }
+              : {'id': 'confirmed-record'};
+      };
+      expect(await q.engine.flush(), 1);
+
+      final left = q.store.all().single;
+      expect(left.resourceKey, 'stock:batch-A');
+      expect(left.status, OutboxStatus.permissionDenied);
+      // Not retried automatically, never silently dropped.
+      expect(await q.engine.flush(), 0);
+      expect(q.store.find(left.id), isNotNull);
+    });
+
+    test('state conflict from another device is surfaced and kept', () async {
+      q.adapter
+        ..status = 409
+        ..data = {
+          'error': {'code': 'INSUFFICIENT_STOCK', 'message': 'stock épuisé'},
+        };
+      await submitFor('batch-A');
+
+      final item = q.store.all().single;
+      expect(item.status, OutboxStatus.conflict);
+      expect(item.lastError, contains('stock'));
+      expect(await q.engine.flush(), 0);
+      expect(q.adapter.requests, hasLength(1));
+    });
+  });
+
+  group('server says the same key is still running', () {
+    test(
+      'stays pending, then replays the same key after the hinted delay',
+      () async {
+        q.adapter
+          ..status = 409
+          ..data = {
+            'error': {
+              'code': 'IDEMPOTENCY_IN_PROGRESS',
+              'message': 'still running',
+              'details': {'retry_after': 2},
+            },
+          };
+        await submit();
+        final waiting = q.store.all().single;
+        expect(waiting.status, OutboxStatus.pending);
+        expect(waiting.nextAttemptAt, clock.add(const Duration(seconds: 2)));
+
+        // Too early: nothing is sent.
+        expect(await q.engine.flush(), 0);
+        expect(q.adapter.requests, hasLength(1));
+
+        // After the delay the first request has finished; the same key replays.
+        clock = clock.add(const Duration(seconds: 3));
+        q.adapter
+          ..status = 200
+          ..data = {'id': 'confirmed-record'};
+        expect(await q.engine.flush(), 1);
+        expect(q.adapter.requests, hasLength(2));
+        expect(
+          q.adapter.requests.last.headers['Idempotency-Key'],
+          waiting.idempotencyKey,
+        );
+        expect(q.store.all(), isEmpty);
       },
     );
   });

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/feedback/pending_changes_banner.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -61,6 +62,7 @@ class _LabelDetailView extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              PendingChangesBanner(resourceKey: 'label:${result.labelId}'),
               AnimatedListItem(
                   index: i++, child: _StatusHeader(result: result)),
               const SizedBox(height: AppSpacing.md),

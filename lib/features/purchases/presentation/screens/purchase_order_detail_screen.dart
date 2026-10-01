@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/feedback/pending_changes_banner.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
@@ -128,6 +129,7 @@ class _PurchaseOrderDetailScreenState extends State<PurchaseOrderDetailScreen> {
           return ListView(
             padding: const EdgeInsets.all(AppSpacing.md),
             children: [
+              PendingChangesBanner(resourceKey: 'purchase:${widget.poId}'),
               AnimatedListItem(
                 index: i++,
                 child: Container(

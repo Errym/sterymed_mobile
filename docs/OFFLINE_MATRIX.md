@@ -78,8 +78,9 @@ refused (`operation_unresolved`).
 | 2xx but unreadable body | `unknownOutcome` | user checks the record |
 | 401, or session not validated | `authBlocked` | resumes automatically after re-validation |
 | 403 | `permissionDenied` | user can only **abandon** |
-| 409 (key reused with different body, state conflict) | `conflict` | user can only **abandon** |
-| 400/404/422 | `validationFailed` | user can only **abandon**, then re-enter corrected data |
+| 409 (state conflict such as `INSUFFICIENT_STOCK`, or key reused with a different body) | `conflict` | user can only **abandon** |
+| 409 `IDEMPOTENCY_IN_PROGRESS` (the server is still running the first copy) | `pending`, delay from `details.retry_after` | replayed automatically with the same key |
+| any other 4xx (400, 404, 410, 422...) | `validationFailed` | a definitive "no": user can only **abandon**, then re-enter corrected data |
 | 429 (up to 5 tries) | `pending` with `Retry-After` | retried automatically, same key |
 | timeout, dropped connection, 5xx, killed mid-send | `unknownOutcome` | never auto-resent; user chooses below |
 | app restarted while `syncing` | `unknownOutcome` | same as above |
@@ -97,10 +98,32 @@ The engine only runs for a validated session: nothing is queued or sent while
 permissions are stale or the session is being replaced, and a response that
 arrives after the session changed is never recorded against the new user.
 
-Not covered: a normal online `POST` that is not queued (create product,
-supplier, patient, prosthetic case...) gets a fresh key per submission and is
-not retried automatically. If its response is lost, a manual second submit can
-duplicate it unless the server enforces uniqueness.
+**Online-only creates** (product, supplier, patient, prosthetic case...) are not
+queued and are not retried automatically. Each gets its own key, with one
+exception: if an identical submit (same user, path and body) ended with an
+unknown outcome (timeout, dropped connection, 5xx, 429), the next identical
+submit reuses that key, so a server that already committed replays its answer
+instead of creating a duplicate. A definitive answer forgets the key, so a
+deliberate second creation is never swallowed. This memory lasts for the app
+run (30 minutes at most); after a restart a re-tap gets a new key.
+
+**Pending marker.** A record screen (cycle, label, purchase order, stock list)
+shows a banner when this user has an unconfirmed change for it: "waiting to be
+sent" (the data shown does not include it yet) or "could not be confirmed".
+
+**Prosthetic cases** do not queue. The create form autosaves a user-scoped draft
+and clears it only after the server confirms; every status, payment and edit
+needs the network.
+
+## Server contract the client relies on (`steriqore` `EnsureIdempotency`)
+
+Per tenant + user + key, atomic: concurrent identical requests execute once and
+the others replay (`Idempotency-Replayed: true`) or get `IDEMPOTENCY_IN_PROGRESS`.
+Same key with another body or path: `409 IDEMPOTENCY_KEY_REUSED`. Responses with
+5xx, 429 or 408 are never remembered, so a key whose first attempt failed
+transiently can still succeed. Proven live: 8 simultaneous requests with one
+key created 1 row (8 on the previous version); see
+`scripts/verify_idempotency_concurrency.py`.
 
 ## Verification
 
