@@ -5,7 +5,15 @@ import 'analytics_events.dart';
 class AnalyticsService {
   void track(String event, [Map<String, Object?>? props]) {
     if (kDebugMode) {
-      debugPrint('analytics: $event $props');
+      const allowed = {
+        AnalyticsEvents.login,
+        AnalyticsEvents.logout,
+        AnalyticsEvents.scanSuccess,
+        AnalyticsEvents.scanBlocked,
+        AnalyticsEvents.usageRecorded,
+        AnalyticsEvents.cycleTransition,
+      };
+      if (allowed.contains(event)) debugPrint('analytics: $event');
     }
     // Wire to your analytics provider later.
   }

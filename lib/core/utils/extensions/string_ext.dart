@@ -1,6 +1,7 @@
 extension StringX on String {
   bool get isNullOrEmpty => isEmpty;
   String get initials {
+    if (trim().isEmpty) return '';
     final parts = trim().split(RegExp(r'\s+'));
     if (parts.isEmpty) return '';
     if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();

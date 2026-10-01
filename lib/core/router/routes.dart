@@ -16,7 +16,8 @@ abstract final class Routes {
   static const cyclesCreate = '/app/cycles/create';
   static String cyclesDetail(String id) => '/app/cycles/$id';
   static String cyclesItems(String id) => '/app/cycles/$id/items';
-  static String cyclesControlTests(String id) => '/app/cycles/$id/control-tests';
+  static String cyclesControlTests(String id) =>
+      '/app/cycles/$id/control-tests';
   static String cyclesAttachments(String id) => '/app/cycles/$id/attachments';
   static String cyclesRelease(String id) => '/app/cycles/$id/release';
 
@@ -65,8 +66,7 @@ abstract final class Routes {
 
   // Suppliers
   static const suppliers = '/app/purchases/suppliers';
-  static String supplierDetail(String id) =>
-      '/app/purchases/suppliers/$id';
+  static String supplierDetail(String id) => '/app/purchases/suppliers/$id';
 
   // Purchases
   static const purchases = '/app/purchases';

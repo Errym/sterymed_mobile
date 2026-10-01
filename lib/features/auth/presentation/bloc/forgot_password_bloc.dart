@@ -10,8 +10,7 @@ class ForgotPasswordBloc
     extends Bloc<ForgotPasswordEvent, ForgotPasswordState> {
   final AuthRepository _repository;
 
-  ForgotPasswordBloc(this._repository)
-      : super(const ForgotPasswordIdle()) {
+  ForgotPasswordBloc(this._repository) : super(const ForgotPasswordIdle()) {
     on<SubmitForgotPassword>(_onSubmit);
   }
 

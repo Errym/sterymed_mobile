@@ -19,6 +19,8 @@ import 'package:steriymed_mobile/features/stock/presentation/screens/stock_adjus
 import 'package:steriymed_mobile/features/stock/presentation/screens/stock_issue_screen.dart';
 import 'package:steriymed_mobile/features/stock/presentation/screens/stock_transfer_screen.dart';
 
+import '../helpers/pump_app.dart';
+
 class MockStockRepository extends Mock implements StockRepository {}
 
 const _queuedMessage = 'Enregistré localement. Synchronisation en attente.';
@@ -76,12 +78,13 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await pumpAppWidget(tester, MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
   }
 
   group('StockIssueScreen', () {
-    testWidgets('online result shows the plain success message', (tester) async {
+    testWidgets('online result shows the plain success message',
+        (tester) async {
       when(() => repo.issue(
             batchId: any(named: 'batchId'),
             locationId: any(named: 'locationId'),
@@ -135,7 +138,8 @@ void main() {
       expect(find.text('Voir la file'), findsOneWidget);
     });
 
-    testWidgets('online result shows the plain success message', (tester) async {
+    testWidgets('online result shows the plain success message',
+        (tester) async {
       when(() => repo.adjust(
             batchId: any(named: 'batchId'),
             locationId: any(named: 'locationId'),

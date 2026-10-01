@@ -76,7 +76,8 @@ import '../../features/devices/presentation/screens/device_detail_screen.dart';
 import 'route_names.dart';
 import 'routes.dart';
 
-Page<void> _fade(GoRouterState state, Widget child) => CustomTransitionPage<void>(
+Page<void> _fade(GoRouterState state, Widget child) =>
+    CustomTransitionPage<void>(
       key: state.pageKey,
       child: child,
       transitionsBuilder: (_, animation, __, c) =>
@@ -99,18 +100,18 @@ class AppRouter {
     refreshListenable: refreshListenable,
     redirect: (context, state) async {
       final loc = state.matchedLocation;
-      final isPublic = loc == Routes.splash ||
+      final isPublic =
+          loc == Routes.splash ||
           loc == Routes.login ||
           loc == Routes.register ||
           loc == Routes.forgotPassword ||
           loc == Routes.cameraPermission;
       if (isPublic) return null;
-      final authed = isAuthenticated() || await hasStoredToken();
+      final authed = isAuthenticated();
       if (!authed) return Routes.login;
 
       final required = RoleGuard.requiredPermissionFor(loc);
-      if (required != null &&
-          !getIt<SessionStore>().hasPermission(required)) {
+      if (required != null && !getIt<SessionStore>().hasPermission(required)) {
         return Routes.dashboard;
       }
       return null;
@@ -202,10 +203,8 @@ class AppRouter {
           GoRoute(
             path: '/app/cycles/:id',
             name: RouteNames.cyclesDetail,
-            pageBuilder: (_, s) => _fade(
-              s,
-              CycleDetailScreen(cycleId: s.pathParameters['id']!),
-            ),
+            pageBuilder: (_, s) =>
+                _fade(s, CycleDetailScreen(cycleId: s.pathParameters['id']!)),
           ),
           GoRoute(
             path: '/app/cycles/:id/attachments',
@@ -217,18 +216,14 @@ class AppRouter {
           GoRoute(
             path: '/app/labels/:code',
             name: RouteNames.labelsDetail,
-            pageBuilder: (_, s) => _fade(
-              s,
-              LabelDetailScreen(code: s.pathParameters['code']!),
-            ),
+            pageBuilder: (_, s) =>
+                _fade(s, LabelDetailScreen(code: s.pathParameters['code']!)),
           ),
           GoRoute(
             path: '/app/labels/:code/blocked',
             name: RouteNames.labelsBlocked,
-            pageBuilder: (_, s) => _fade(
-              s,
-              LabelBlockedScreen(code: s.pathParameters['code']!),
-            ),
+            pageBuilder: (_, s) =>
+                _fade(s, LabelBlockedScreen(code: s.pathParameters['code']!)),
           ),
           GoRoute(
             path: '/app/labels/:labelId/usage',
@@ -319,10 +314,8 @@ class AppRouter {
           ),
           GoRoute(
             path: '/app/purchases/:id/receive',
-            pageBuilder: (_, s) => _fade(
-              s,
-              GoodsReceiptScreen(poId: s.pathParameters['id']!),
-            ),
+            pageBuilder: (_, s) =>
+                _fade(s, GoodsReceiptScreen(poId: s.pathParameters['id']!)),
           ),
           GoRoute(
             path: Routes.dluRules,
@@ -343,7 +336,8 @@ class AppRouter {
           ),
           GoRoute(
             path: Routes.prostheticLaboratories,
-            pageBuilder: (_, s) => _fade(s, const ProstheticLaboratoriesScreen()),
+            pageBuilder: (_, s) =>
+                _fade(s, const ProstheticLaboratoriesScreen()),
           ),
           GoRoute(
             path: Routes.prosthetic,

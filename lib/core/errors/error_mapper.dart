@@ -5,6 +5,13 @@ import 'error_codes.dart';
 
 abstract final class ErrorMapper {
   static ApiException fromDio(DioException e) {
+    if (e.error is ApiException) return e.error as ApiException;
+    if (e.type == DioExceptionType.cancel) {
+      return const ApiException(
+        code: 'cancelled',
+        message: 'Opération annulée.',
+      );
+    }
     // No response → network / timeout
     if (e.response == null) {
       switch (e.type) {
@@ -13,7 +20,8 @@ abstract final class ErrorMapper {
         case DioExceptionType.receiveTimeout:
           return const ApiException(
             code: ErrorCodes.timeout,
-            message: 'Le délai de connexion a expiré. Vérifiez votre réseau et réessayez.',
+            message:
+                'Le délai de connexion a expiré. Vérifiez votre réseau et réessayez.',
           );
         case DioExceptionType.connectionError:
           return const ApiException(

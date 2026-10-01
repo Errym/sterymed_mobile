@@ -10,11 +10,11 @@ class DeviceDetailRepository {
 
   Future<List<DeviceDetail>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
-      final cached = _cache.get<List<DeviceDetail>>('devices');
+      final cached = _cache.get<List<DeviceDetail>>('device_details');
       if (cached != null) return cached;
     }
     final fresh = await _remote.list();
-    _cache.put('devices', fresh);
+    _cache.put('device_details', fresh);
     return fresh;
   }
 

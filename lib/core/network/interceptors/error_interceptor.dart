@@ -14,7 +14,8 @@ class ErrorInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
     final apiException = ErrorMapper.fromDio(err);
-    if (apiException.isUnauthenticated) {
+    if (apiException.isUnauthenticated &&
+        err.requestOptions.extra['skipAuthExpiry'] != true) {
       onUnauthenticated?.call();
     }
     handler.reject(

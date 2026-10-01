@@ -11,10 +11,7 @@ class SubmitForgotPassword extends ForgotPasswordEvent {
   final String tenantSlug;
   final String email;
 
-  const SubmitForgotPassword({
-    required this.tenantSlug,
-    required this.email,
-  });
+  const SubmitForgotPassword({required this.tenantSlug, required this.email});
 
   @override
   List<Object?> get props => [tenantSlug, email];

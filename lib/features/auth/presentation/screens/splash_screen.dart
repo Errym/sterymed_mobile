@@ -68,27 +68,61 @@ class _SplashScreenState extends State<SplashScreen> {
           _pendingState = state;
         }
       },
-      child: const Scaffold(
-        backgroundColor: AppColors.backgroundApp,
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AppLogo(height: 56),
-              SizedBox(height: AppSpacing.xxl),
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    AppColors.brandPrimary,
+      child: BlocBuilder<AuthBloc, AuthState>(
+        builder: (context, state) {
+          if (state is AuthRestoreUnavailable) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text(
+                        'Votre session n’a pas pu être vérifiée. Vos données locales sont conservées.',
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () => context.read<AuthBloc>().add(
+                          const AuthSessionChecked(),
+                        ),
+                        child: const Text('Réessayer'),
+                      ),
+                      TextButton(
+                        onPressed: () => context.read<AuthBloc>().add(
+                          const AuthLogoutRequested(),
+                        ),
+                        child: const Text('Se déconnecter de cet appareil'),
+                      ),
+                    ],
                   ),
                 ),
               ),
-            ],
-          ),
-        ),
+            );
+          }
+          return const Scaffold(
+            backgroundColor: AppColors.backgroundApp,
+            body: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppLogo(height: 56),
+                  SizedBox(height: AppSpacing.xxl),
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.4,
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        AppColors.brandPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

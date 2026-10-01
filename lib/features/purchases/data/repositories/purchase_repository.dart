@@ -1,13 +1,10 @@
 import '../../../../core/cache/cache.dart';
 import '../../../../core/config/api_endpoints.dart';
-import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/cursor_page.dart';
-import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
 import '../../../../core/sync/connectivity_service.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
-import '../../../../core/utils/idempotency_key.dart';
 import '../datasources/purchase_remote_datasource.dart';
 import '../models/goods_receipt_data.dart';
 import '../models/purchase_order_data.dart';
@@ -16,7 +13,6 @@ import '../models/supplier_data.dart';
 class PurchaseRepository {
   final PurchaseRemoteDatasource _remote;
   final AppCache _cache;
-  final OutboxStore _outbox;
   final ConnectivityService _connectivity;
   final SyncStatusCubit _syncStatus;
 
@@ -24,15 +20,17 @@ class PurchaseRepository {
     this._remote,
     this._cache, {
     required OutboxStore outbox,
-    required ConnectivityService connectivity,
-    required SyncStatusCubit syncStatus,
-  })  : _outbox = outbox,
-        _connectivity = connectivity,
-        _syncStatus = syncStatus;
+    required this._connectivity,
+    required this._syncStatus,
+  });
 
-  Future<CursorPage<PurchaseOrderData>> list({bool forceRefresh = false}) async {
+  Future<CursorPage<PurchaseOrderData>> list({
+    bool forceRefresh = false,
+  }) async {
     if (!forceRefresh) {
-      final cached = _cache.get<CursorPage<PurchaseOrderData>>('purchase_orders');
+      final cached = _cache.get<CursorPage<PurchaseOrderData>>(
+        'purchase_orders',
+      );
       if (cached != null) return cached;
     }
     final fresh = await _remote.listOrders();
@@ -77,33 +75,21 @@ class PurchaseRepository {
     required String locationId,
     required List<Map<String, dynamic>> lines,
   }) async {
-    final isOnline = await _connectivity.isConnected;
-    if (isOnline) {
-      try {
-        final r = await _remote.receive(
-          poId: poId,
-          locationId: locationId,
-          lines: lines,
-        );
-        _cache.invalidateAll();
-        return r;
-      } on ApiException catch (e) {
-        if (!e.isNetwork && !e.isTimeout) rethrow;
-      }
-    }
-
-    final itemId = generateIdempotencyKey();
-    await _outbox.enqueue(OutboxItem(
-      id: itemId,
+    final attempt = await _syncStatus.submit(
       operation: OutboxOperation.goodsReceipt,
       endpoint: ApiEndpoints.purchaseOrderReceipts(poId),
-      method: 'POST',
       payload: {'location_id': locationId, 'lines': lines},
-      idempotencyKey: generateIdempotencyKey(),
-      createdAt: DateTime.now(),
-    ));
-    _syncStatus.refreshNow();
-
+      resourceKey: 'purchase:$poId',
+      online: await _connectivity.isConnected,
+    );
+    if (attempt.error != null) throw attempt.error!;
+    if (attempt.confirmed) {
+      _cache.invalidateAll();
+      return GoodsReceiptData.fromJson(
+        (attempt.data as Map).cast<String, dynamic>(),
+      );
+    }
+    final itemId = attempt.item.id;
     return GoodsReceiptData(
       id: itemId,
       purchaseOrderId: poId,

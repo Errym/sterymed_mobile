@@ -35,12 +35,16 @@ class AuthLogoutRequested extends AuthEvent {
 /// server-side, so unlike [AuthLogoutRequested] this does not call the
 /// logout endpoint (that would just be a second, pointless 401).
 class AuthSessionExpired extends AuthEvent {
-  const AuthSessionExpired();
+  final int? generation;
+  const AuthSessionExpired({this.generation});
+  @override
+  List<Object?> get props => [generation];
 }
 
 class AuthLogoutEverywhereRequested extends AuthEvent {
   const AuthLogoutEverywhereRequested();
 }
+
 class AuthRegisterSubmitted extends AuthEvent {
   final String tenantName;
   final String tenantSlug;
@@ -58,10 +62,10 @@ class AuthRegisterSubmitted extends AuthEvent {
 
   @override
   List<Object?> get props => [
-        tenantName,
-        tenantSlug,
-        ownerName,
-        ownerEmail,
-        password,
-      ];
+    tenantName,
+    tenantSlug,
+    ownerName,
+    ownerEmail,
+    password,
+  ];
 }

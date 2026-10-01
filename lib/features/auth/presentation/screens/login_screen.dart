@@ -64,19 +64,20 @@ class LoginScreen extends StatelessWidget {
                             final isLoading = state is AuthLoading;
                             return LoginForm(
                               isLoading: isLoading,
-                              onSubmit: ({
-                                required String tenantSlug,
-                                required String email,
-                                required String password,
-                              }) {
-                                context.read<AuthBloc>().add(
+                              onSubmit:
+                                  ({
+                                    required String tenantSlug,
+                                    required String email,
+                                    required String password,
+                                  }) {
+                                    context.read<AuthBloc>().add(
                                       AuthLoginSubmitted(
                                         tenantSlug: tenantSlug,
                                         email: email,
                                         password: password,
                                       ),
                                     );
-                              },
+                                  },
                             );
                           },
                         ),

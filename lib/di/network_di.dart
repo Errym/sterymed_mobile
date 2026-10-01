@@ -5,6 +5,7 @@ import '../core/network/network_info.dart';
 import '../core/storage/outbox/outbox_store.dart';
 import '../core/storage/outbox/sync_engine.dart';
 import '../core/storage/token_storage.dart';
+import '../core/storage/session_store.dart';
 import '../core/sync/connectivity_service.dart';
 import '../features/auth/presentation/bloc/auth_bloc.dart';
 import '../features/auth/presentation/bloc/auth_event.dart';
@@ -18,8 +19,10 @@ Future<void> registerNetwork(GetIt getIt) async {
     // point every registerXxx() has already run.
     () => DioClient(
       getIt<TokenStorage>(),
-      onUnauthenticated: () =>
-          getIt<AuthBloc>().add(const AuthSessionExpired()),
+      session: getIt<SessionStore>(),
+      onUnauthenticated: () => getIt<AuthBloc>().add(
+        AuthSessionExpired(generation: getIt<SessionStore>().generation),
+      ),
     ),
   );
 
@@ -28,9 +31,6 @@ Future<void> registerNetwork(GetIt getIt) async {
   );
 
   getIt.registerLazySingleton<SyncEngine>(
-    () => SyncEngine(
-      getIt<OutboxStore>(),
-      getIt<DioClient>().dio,
-    ),
+    () => SyncEngine(getIt<OutboxStore>(), getIt<DioClient>().dio),
   );
 }

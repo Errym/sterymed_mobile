@@ -1,3 +1,4 @@
+import '../errors/error_mapper.dart';
 import 'package:dio/dio.dart';
 
 import '../errors/api_exception.dart';
@@ -8,7 +9,7 @@ import '../errors/api_exception.dart';
 abstract final class ErrorMessage {
   static String from(Object error) {
     if (error is DioException) {
-      return 'Une erreur réseau est survenue. Réessayez.';
+      return from(ErrorMapper.fromDio(error));
     }
     if (error is ApiException) {
       // If the API gave us a real French message, use it.
@@ -41,6 +42,6 @@ abstract final class ErrorMessage {
     final s = error.toString();
     final m = RegExp(r'message:\s*([^,)]+)').firstMatch(s);
     if (m != null) return m.group(1)!.trim();
-    return s;
+    return 'Une erreur est survenue. Réessayez.';
   }
 }

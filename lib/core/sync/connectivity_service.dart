@@ -5,12 +5,18 @@ import '../network/network_info.dart';
 class ConnectivityService {
   final NetworkInfo _networkInfo;
   final _controller = StreamController<bool>.broadcast();
+  late final StreamSubscription<bool> _subscription;
 
   ConnectivityService(this._networkInfo) {
-    _networkInfo.onStatusChange.listen(_controller.add);
+    _subscription = _networkInfo.onStatusChange.distinct().listen(
+      _controller.add,
+    );
   }
 
   Stream<bool> get onStatusChange => _controller.stream;
   Future<bool> get isConnected => _networkInfo.isConnected;
-  void dispose() => _controller.close();
+  Future<void> dispose() async {
+    await _subscription.cancel();
+    await _controller.close();
+  }
 }

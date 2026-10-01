@@ -1,6 +1,6 @@
 // =============================================================================
 // SteryMed — Feature DI Registration
-// Rebuilt against actual backend endpoints (see docs/backend_routes.json).
+// Rebuilt against actual backend endpoints (see lib/core/config/api_endpoints.dart).
 //
 // NOTE:
 //   - Sites:   GET only (no POST /v1/sites)
@@ -16,6 +16,7 @@ import '../core/cache/cache.dart';
 import '../core/network/dio_client.dart';
 import '../core/network/dio_factory.dart';
 import '../core/storage/session_store.dart';
+import '../core/storage/secure_storage.dart';
 import '../core/storage/token_storage.dart';
 import '../core/storage/outbox/outbox_store.dart';
 import '../core/sync/connectivity_service.dart';
@@ -144,18 +145,22 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<AuthRemoteDatasource>(
     () => AuthRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<AuthRepository>(() => AuthRepository(
-        remote: getIt<AuthRemoteDatasource>(),
-        tokenStorage: getIt<TokenStorage>(),
-        sessionStore: getIt<SessionStore>(),
-      ));
+  getIt.registerLazySingleton<AuthRepository>(
+    () => AuthRepository(
+      remote: getIt<AuthRemoteDatasource>(),
+      tokenStorage: getIt<TokenStorage>(),
+      sessionStore: getIt<SessionStore>(),
+    ),
+  );
   // Singleton, not a factory: AuthAuthenticated/AuthUnauthenticated is
   // inherently one app-wide state, not one per screen that reads it — a
   // factory here would mean the network layer's AuthSessionExpired event
   // (fired from DioClient's onUnauthenticated callback) lands on a
   // throwaway instance nothing is listening to. See network_di.dart and
   // core/router/app_router.dart's refreshListenable.
-  getIt.registerLazySingleton<AuthBloc>(() => AuthBloc(getIt<AuthRepository>()));
+  getIt.registerLazySingleton<AuthBloc>(
+    () => AuthBloc(getIt<AuthRepository>()),
+  );
   getIt.registerFactory<ForgotPasswordBloc>(
     () => ForgotPasswordBloc(getIt<AuthRepository>()),
   );
@@ -166,10 +171,12 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<DashboardRemoteDatasource>(
     () => DashboardRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<DashboardRepository>(() => DashboardRepository(
-        getIt<DashboardRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<DashboardRepository>(
+    () => DashboardRepository(
+      getIt<DashboardRemoteDatasource>(),
+      getIt<AppCache>(),
+    ),
+  );
   getIt.registerFactory<DashboardCubit>(
     () => DashboardCubit(getIt<DashboardRepository>(), getIt<SessionStore>()),
   );
@@ -204,10 +211,10 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<PatientRemoteDatasource>(
     () => PatientRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<PatientRepository>(() => PatientRepository(
-        getIt<PatientRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<PatientRepository>(
+    () =>
+        PatientRepository(getIt<PatientRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<PatientListBloc>(
     () => PatientListBloc(getIt<PatientRepository>()),
   );
@@ -221,10 +228,10 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<ProductRemoteDatasource>(
     () => ProductRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<ProductRepository>(() => ProductRepository(
-        getIt<ProductRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<ProductRepository>(
+    () =>
+        ProductRepository(getIt<ProductRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<ProductListBloc>(
     () => ProductListBloc(getIt<ProductRepository>()),
   );
@@ -244,10 +251,12 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<SupplierRemoteDatasource>(
     () => SupplierRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<SupplierRepository>(() => SupplierRepository(
-        getIt<SupplierRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<SupplierRepository>(
+    () => SupplierRepository(
+      getIt<SupplierRemoteDatasource>(),
+      getIt<AppCache>(),
+    ),
+  );
   getIt.registerFactory<SupplierListBloc>(
     () => SupplierListBloc(getIt<SupplierRepository>()),
   );
@@ -258,7 +267,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<CycleRemoteDatasource>(
     () => CycleRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<CycleNotesCache>(() => CycleNotesCache());
+  getIt.registerLazySingleton<CycleNotesCache>(
+    () => CycleNotesCache(getIt<SecureStorage>(), getIt<SessionStore>()),
+  );
   getIt.registerFactory<CycleListBloc>(
     () => CycleListBloc(getIt<CycleRepository>()),
   );
@@ -290,10 +301,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<DeviceRemoteDatasource>(
     () => DeviceRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<DeviceRepository>(() => DeviceRepository(
-        getIt<DeviceRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<DeviceRepository>(
+    () => DeviceRepository(getIt<DeviceRemoteDatasource>(), getIt<AppCache>()),
+  );
 
   getIt.registerLazySingleton<DeviceProgramRemoteDatasource>(
     () => DeviceProgramRemoteDatasource(getIt<DioClient>().dio),
@@ -305,15 +315,17 @@ Future<void> registerFeatures(GetIt getIt) async {
     ),
   );
 
-  getIt.registerLazySingleton<CycleRepository>(() => CycleRepository(
-        getIt<CycleRemoteDatasource>(),
-        getIt<AppCache>(),
-        getIt<DeviceRepository>(),
-        getIt<DeviceProgramRepository>(),
-        outbox: getIt<OutboxStore>(),
-        connectivity: getIt<ConnectivityService>(),
-        syncStatus: getIt<SyncStatusCubit>(),
-      ));
+  getIt.registerLazySingleton<CycleRepository>(
+    () => CycleRepository(
+      getIt<CycleRemoteDatasource>(),
+      getIt<AppCache>(),
+      getIt<DeviceRepository>(),
+      getIt<DeviceProgramRepository>(),
+      outbox: getIt<OutboxStore>(),
+      connectivity: getIt<ConnectivityService>(),
+      syncStatus: getIt<SyncStatusCubit>(),
+    ),
+  );
   getIt.registerLazySingleton<DeviceDetailDatasource>(
     () => DeviceDetailDatasource(getIt<DioClient>().dio),
   );
@@ -347,10 +359,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<AlertRemoteDatasource>(
     () => AlertRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<AlertRepository>(() => AlertRepository(
-        getIt<AlertRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<AlertRepository>(
+    () => AlertRepository(getIt<AlertRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<AlertListBloc>(
     () => AlertListBloc(getIt<AlertRepository>()),
   );
@@ -361,10 +372,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<AuditRemoteDatasource>(
     () => AuditRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<AuditRepository>(() => AuditRepository(
-        getIt<AuditRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<AuditRepository>(
+    () => AuditRepository(getIt<AuditRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<AuditListBloc>(
     () => AuditListBloc(getIt<AuditRepository>()),
   );
@@ -391,10 +401,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<TeamRemoteDatasource>(
     () => TeamRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<TeamRepository>(() => TeamRepository(
-        getIt<TeamRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<TeamRepository>(
+    () => TeamRepository(getIt<TeamRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<TeamListBloc>(
     () => TeamListBloc(getIt<TeamRepository>()),
   );
@@ -405,10 +414,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<SiteRemoteDatasource>(
     () => SiteRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<SiteRepository>(() => SiteRepository(
-        getIt<SiteRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<SiteRepository>(
+    () => SiteRepository(getIt<SiteRemoteDatasource>(), getIt<AppCache>()),
+  );
   getIt.registerFactory<SiteListBloc>(
     () => SiteListBloc(getIt<SiteRepository>()),
   );
@@ -419,10 +427,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<DluRemoteDatasource>(
     () => DluRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<DluRepository>(() => DluRepository(
-        getIt<DluRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<DluRepository>(
+    () => DluRepository(getIt<DluRemoteDatasource>(), getIt<AppCache>()),
+  );
 
   // ─────────────────────────────────────────────────────────────────────────
   // Purchases
@@ -430,13 +437,15 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<PurchaseRemoteDatasource>(
     () => PurchaseRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<PurchaseRepository>(() => PurchaseRepository(
-        getIt<PurchaseRemoteDatasource>(),
-        getIt<AppCache>(),
-        outbox: getIt<OutboxStore>(),
-        connectivity: getIt<ConnectivityService>(),
-        syncStatus: getIt<SyncStatusCubit>(),
-      ));
+  getIt.registerLazySingleton<PurchaseRepository>(
+    () => PurchaseRepository(
+      getIt<PurchaseRemoteDatasource>(),
+      getIt<AppCache>(),
+      outbox: getIt<OutboxStore>(),
+      connectivity: getIt<ConnectivityService>(),
+      syncStatus: getIt<SyncStatusCubit>(),
+    ),
+  );
   getIt.registerFactory<PurchaseOrderListBloc>(
     () => PurchaseOrderListBloc(getIt<PurchaseRepository>()),
   );
@@ -447,10 +456,9 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<ExportRemoteDatasource>(
     () => ExportRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<ExportRepository>(() => ExportRepository(
-        getIt<ExportRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<ExportRepository>(
+    () => ExportRepository(getIt<ExportRemoteDatasource>(), getIt<AppCache>()),
+  );
   // Bare Dio on purpose: the download URL is a presigned object-storage link,
   // not a `/v1` API route — it must not carry the bearer token or be rewritten
   // against the API base URL.
@@ -470,10 +478,12 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<ProstheticRemoteDatasource>(
     () => ProstheticRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<ProstheticRepository>(() => ProstheticRepository(
-        getIt<ProstheticRemoteDatasource>(),
-        getIt<AppCache>(),
-      ));
+  getIt.registerLazySingleton<ProstheticRepository>(
+    () => ProstheticRepository(
+      getIt<ProstheticRemoteDatasource>(),
+      getIt<AppCache>(),
+    ),
+  );
   getIt.registerLazySingleton<ProstheticCaseDraftStore>(
     () => ProstheticCaseDraftStore(getIt<KeyValueStore>()),
   );
@@ -484,13 +494,15 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<StockRemoteDatasource>(
     () => StockRemoteDatasource(getIt<DioClient>().dio),
   );
-  getIt.registerLazySingleton<StockRepository>(() => StockRepository(
-        getIt<StockRemoteDatasource>(),
-        getIt<AppCache>(),
-        outbox: getIt<OutboxStore>(),
-        connectivity: getIt<ConnectivityService>(),
-        syncStatus: getIt<SyncStatusCubit>(),
-      ));
+  getIt.registerLazySingleton<StockRepository>(
+    () => StockRepository(
+      getIt<StockRemoteDatasource>(),
+      getIt<AppCache>(),
+      outbox: getIt<OutboxStore>(),
+      connectivity: getIt<ConnectivityService>(),
+      syncStatus: getIt<SyncStatusCubit>(),
+    ),
+  );
   getIt.registerFactory<StockLevelListBloc>(
     () => StockLevelListBloc(getIt<StockRepository>()),
   );

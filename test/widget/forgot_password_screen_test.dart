@@ -17,6 +17,8 @@ import 'package:steriymed_mobile/features/auth/data/repositories/auth_repository
 import 'package:steriymed_mobile/features/auth/presentation/bloc/forgot_password_bloc.dart';
 import 'package:steriymed_mobile/features/auth/presentation/screens/forgot_password_screen.dart';
 
+import '../helpers/pump_app.dart';
+
 class MockAuthRepository extends Mock implements AuthRepository {}
 
 void main() {
@@ -50,7 +52,7 @@ void main() {
         ),
       ],
     );
-    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await pumpAppWidget(tester, MaterialApp.router(routerConfig: router));
     await tester.pumpAndSettle();
   }
 

@@ -21,7 +21,7 @@ class SyncStatusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Nothing pending → hide entirely.
-    if (online && pendingCount == 0 && manualReviewCount == 0) {
+    if (online && pendingCount == 0 && manualReviewCount == 0 && !isSyncing) {
       return const SizedBox.shrink();
     }
 

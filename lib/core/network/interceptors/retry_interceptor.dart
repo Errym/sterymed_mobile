@@ -14,7 +14,12 @@ class RetryInterceptor extends Interceptor {
         err.type == DioExceptionType.receiveTimeout ||
         (err.response?.statusCode ?? 0) >= 500;
 
-    if (isRetryable && attempt < maxRetries) {
+    final safeRead = {
+      'GET',
+      'HEAD',
+      'OPTIONS',
+    }.contains(err.requestOptions.method);
+    if (safeRead && isRetryable && attempt < maxRetries) {
       final nextAttempt = attempt + 1;
       err.requestOptions.extra['retry_attempt'] = nextAttempt;
       await Future<void>.delayed(Duration(milliseconds: 300 * nextAttempt));

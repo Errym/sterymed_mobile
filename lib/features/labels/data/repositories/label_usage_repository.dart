@@ -1,28 +1,22 @@
 import '../../../../core/config/api_endpoints.dart';
-import '../../../../core/errors/api_exception.dart';
-import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
 import '../../../../core/sync/connectivity_service.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
-import '../../../../core/utils/idempotency_key.dart';
 import '../datasources/label_usage_remote_datasource.dart';
 import '../models/label_usage_data.dart';
 
 class LabelUsageRepository {
   final LabelUsageRemoteDatasource _remote;
-  final OutboxStore _outbox;
   final ConnectivityService _connectivity;
   final SyncStatusCubit _syncStatus;
 
   LabelUsageRepository(
     this._remote, {
     required OutboxStore outbox,
-    required ConnectivityService connectivity,
-    required SyncStatusCubit syncStatus,
-  })  : _outbox = outbox,
-        _connectivity = connectivity,
-        _syncStatus = syncStatus;
+    required this._connectivity,
+    required this._syncStatus,
+  });
 
   /// Online-first with an offline outbox fallback — same pattern as
   /// StockRepository. This is the single most important write in the
@@ -39,40 +33,30 @@ class LabelUsageRepository {
     String? notes,
     DateTime? usedAt,
   }) async {
+    final occurredAt = usedAt ?? DateTime.now().toUtc();
     final payload = {
       'patient_id': patientId,
       'practitioner_id': practitionerId,
       'procedure': procedure,
       if (notes != null) 'notes': notes,
-      if (usedAt != null) 'used_at': usedAt.toIso8601String(),
+      'used_at': occurredAt.toUtc().toIso8601String(),
     };
 
-    final isOnline = await _connectivity.isConnected;
-    if (isOnline) {
-      try {
-        return await _remote.recordUsage(labelId: labelId, payload: payload);
-      } on ApiException catch (e) {
-        // Network or timeout → fall through to the outbox.
-        // Any other error (400, 403, 404, 409, 422) → rethrow, the
-        // caller (the form) needs to show it, not silently queue it.
-        if (!e.isNetwork && !e.isTimeout) rethrow;
-      }
-    }
-
-    final itemId = generateIdempotencyKey();
-    final item = OutboxItem(
-      id: itemId,
+    final attempt = await _syncStatus.submit(
       operation: OutboxOperation.labelUsage,
       endpoint: ApiEndpoints.labelUsage(labelId),
-      method: 'POST',
       payload: payload,
-      idempotencyKey: generateIdempotencyKey(),
-      createdAt: DateTime.now(),
+      resourceKey: 'label:$labelId',
+      online: await _connectivity.isConnected,
     );
-    await _outbox.enqueue(item);
-    _syncStatus.refreshNow();
-
-    final now = usedAt ?? DateTime.now();
+    if (attempt.error != null) throw attempt.error!;
+    if (attempt.confirmed) {
+      return LabelUsageData.fromJson(
+        (attempt.data as Map).cast<String, dynamic>(),
+      );
+    }
+    final itemId = attempt.item.id;
+    final now = occurredAt;
     return LabelUsageData(
       id: itemId,
       labelId: labelId,

@@ -234,8 +234,7 @@ class CycleRemoteDatasource {
         : 'application/octet-stream';
 
     if (kDebugMode) {
-      debugPrint('-> UPLOAD kIsWeb=$kIsWeb cycleId=$cycleId '
-          'fileName=$fileName bytes=${bytes.length} mime=$effectiveMime');
+      debugPrint('attachment upload started');
     }
 
     if (kIsWeb) {
@@ -307,7 +306,7 @@ class CycleRemoteDatasource {
     ));
 
     if (kDebugMode) {
-      debugPrint('-> HTTP-UPLOAD uri=$uri file=$fileName bytes=${bytes.length}');
+      debugPrint('attachment upload started');
     }
 
     final streamed = await req.send();
@@ -315,7 +314,6 @@ class CycleRemoteDatasource {
 
     if (kDebugMode) {
       debugPrint('<- HTTP-UPLOAD status=${streamed.statusCode}');
-      debugPrint('<- HTTP-UPLOAD body=$body');
     }
 
     if (streamed.statusCode >= 400) {

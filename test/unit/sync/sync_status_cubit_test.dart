@@ -22,7 +22,7 @@ void main() {
     when(() => store.manualReview()).thenReturn([]);
     when(() => engine.flush()).thenAnswer((_) async => 0);
     when(() => engine.isFlushing).thenReturn(false);
-    when(() => connectivity.dispose()).thenReturn(null);
+    when(() => connectivity.dispose()).thenAnswer((_) async {});
   });
 
   SyncStatusCubit buildCubit() => SyncStatusCubit(
@@ -77,8 +77,8 @@ void main() {
   );
 
   test(
-    'still flushes when connectivity transitions from offline to online '
-    '(existing reconnect behavior unchanged)',
+    'flushes when connectivity transitions from offline to online '
+    '(after re-verifying real connectivity)',
     () async {
       final controller = StreamController<bool>();
       when(() => connectivity.isConnected).thenAnswer((_) async => false);
@@ -90,6 +90,8 @@ void main() {
       await cubit.start();
       verifyNever(() => engine.flush());
 
+      // The cubit re-verifies real connectivity before flushing.
+      when(() => connectivity.isConnected).thenAnswer((_) async => true);
       controller.add(true);
       await untilCalled(() => engine.flush());
 

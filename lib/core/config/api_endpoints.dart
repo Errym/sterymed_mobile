@@ -35,9 +35,12 @@ abstract final class ApiEndpoints {
   // Purchase orders
   static const purchaseOrders = '$_v1/purchase-orders';
   static String purchaseOrder(String id) => '$_v1/purchase-orders/$id';
-  static String purchaseOrderOrder(String id) => '$_v1/purchase-orders/$id/order';
-  static String purchaseOrderCancel(String id) => '$_v1/purchase-orders/$id/cancel';
-  static String purchaseOrderReceipts(String id) => '$_v1/purchase-orders/$id/receipts';
+  static String purchaseOrderOrder(String id) =>
+      '$_v1/purchase-orders/$id/order';
+  static String purchaseOrderCancel(String id) =>
+      '$_v1/purchase-orders/$id/cancel';
+  static String purchaseOrderReceipts(String id) =>
+      '$_v1/purchase-orders/$id/receipts';
 
   // Sites
   static const sites = '$_v1/sites';
@@ -60,10 +63,12 @@ abstract final class ApiEndpoints {
   static String cycleSubmit(String id) => '$_v1/cycles/$id/submit-for-release';
   static String cycleRelease(String id) => '$_v1/cycles/$id/release';
   static String cycleItems(String id) => '$_v1/cycles/$id/items';
-  static String cycleItem(String id, String itemId) => '$_v1/cycles/$id/items/$itemId';
+  static String cycleItem(String id, String itemId) =>
+      '$_v1/cycles/$id/items/$itemId';
   static String cycleControlTests(String id) => '$_v1/cycles/$id/control-tests';
   static String cycleAttachments(String id) => '$_v1/cycles/$id/attachments';
-  static String cycleAttachment(String id, String attachmentId) => '$_v1/cycles/$id/attachments/$attachmentId';
+  static String cycleAttachment(String id, String attachmentId) =>
+      '$_v1/cycles/$id/attachments/$attachmentId';
   static String cycleLabels(String id) => '$_v1/cycles/$id/labels';
 
   // Stock
@@ -78,7 +83,8 @@ abstract final class ApiEndpoints {
   // Compliance
   static const nonConformities = '$_v1/non-conformities';
   static String nonConformity(String id) => '$_v1/non-conformities/$id';
-  static String nonConformityResolve(String id) => '$_v1/non-conformities/$id/resolve';
+  static String nonConformityResolve(String id) =>
+      '$_v1/non-conformities/$id/resolve';
 
   // DLU
   static const dluRules = '$_v1/dlu-rules';
@@ -97,17 +103,23 @@ abstract final class ApiEndpoints {
   // Reporting
   static const dataExports = '$_v1/data-export-requests';
   static String dataExport(String id) => '$_v1/data-export-requests/$id';
-  static String dataExportDownload(String id) => '$_v1/data-export-requests/$id/download';
+  static String dataExportDownload(String id) =>
+      '$_v1/data-export-requests/$id/download';
 
   // Prosthetic
   static const prostheticDashboard = '$_v1/prosthetic-dashboard';
-  static const prostheticWaitingPlacement = '$_v1/prosthetic-cases/waiting-placement';
+  static const prostheticWaitingPlacement =
+      '$_v1/prosthetic-cases/waiting-placement';
   static const prostheticCases = '$_v1/prosthetic-cases';
   static String prostheticCase(String id) => '$_v1/prosthetic-cases/$id';
-  static String prostheticCaseStatus(String id) => '$_v1/prosthetic-cases/$id/status';
-  static String prostheticCaseStatusHistory(String id) => '$_v1/prosthetic-cases/$id/status-history';
-  static String prostheticCaseAttachments(String id) => '$_v1/prosthetic-cases/$id/attachments';
-  static String prostheticCaseAttachment(String id, String attachmentId) => '$_v1/prosthetic-cases/$id/attachments/$attachmentId';
+  static String prostheticCaseStatus(String id) =>
+      '$_v1/prosthetic-cases/$id/status';
+  static String prostheticCaseStatusHistory(String id) =>
+      '$_v1/prosthetic-cases/$id/status-history';
+  static String prostheticCaseAttachments(String id) =>
+      '$_v1/prosthetic-cases/$id/attachments';
+  static String prostheticCaseAttachment(String id, String attachmentId) =>
+      '$_v1/prosthetic-cases/$id/attachments/$attachmentId';
   static const laboratories = '$_v1/laboratories';
   static String laboratory(String id) => '$_v1/laboratories/$id';
 }

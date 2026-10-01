@@ -25,8 +25,8 @@ class AuthRemoteDatasource {
     );
   }
 
-  Future<void> logout() async {
-    await _dio.delete(ApiEndpoints.logout);
+  Future<void> logout({String? token}) async {
+    await _dio.delete(ApiEndpoints.logout, options: _revocationOptions(token));
   }
 
   Future<void> forgotPassword({
@@ -43,9 +43,17 @@ class AuthRemoteDatasource {
     }
   }
 
-  Future<void> logoutEverywhere() async {
-    await _dio.delete(ApiEndpoints.logoutEverywhere);
+  Future<void> logoutEverywhere({String? token}) async {
+    await _dio.delete(
+      ApiEndpoints.logoutEverywhere,
+      options: _revocationOptions(token),
+    );
   }
+
+  Options _revocationOptions(String? token) => Options(
+    headers: {if (token != null) 'Authorization': 'Bearer $token'},
+    extra: {'detachedRevocation': true},
+  );
 
   Future<({UserData user, TenantData tenant})> me() async {
     final response = await _dio.get(ApiEndpoints.me);
@@ -57,6 +65,7 @@ class AuthRemoteDatasource {
       ),
     );
   }
+
   Future<LoginResponse> register({
     required String tenantName,
     required String tenantSlug,

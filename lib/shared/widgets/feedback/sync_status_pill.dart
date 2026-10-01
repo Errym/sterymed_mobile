@@ -17,10 +17,13 @@ class SyncStatusPill extends StatelessWidget {
     return BlocBuilder<SyncStatusCubit, SyncStatus>(
       builder: (context, state) {
         final pending = state.pendingCount;
-        final review = state.manualReviewCount;
+        final review =
+            state.manualReviewCount +
+            state.quarantinedCount +
+            (state.localRecoveryRequired ? 1 : 0);
         final online = state.online;
 
-        if (online && pending == 0 && review == 0) {
+        if (online && pending == 0 && review == 0 && !state.isSyncing) {
           return IconButton(
             tooltip: 'Synchronisé',
             icon: const Icon(
@@ -35,9 +38,12 @@ class SyncStatusPill extends StatelessWidget {
         final (IconData icon, Color color, String label) = review > 0
             ? (Icons.error_outline, AppColors.danger, '$review')
             : !online
-                ? (Icons.cloud_off_outlined, AppColors.warning,
-                    pending > 0 ? '$pending' : '')
-                : (Icons.cloud_upload_outlined, AppColors.info, '$pending');
+            ? (
+                Icons.cloud_off_outlined,
+                AppColors.warning,
+                pending > 0 ? '$pending' : '',
+              )
+            : (Icons.cloud_upload_outlined, AppColors.info, '$pending');
 
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),

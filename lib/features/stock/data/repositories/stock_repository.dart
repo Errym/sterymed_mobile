@@ -1,11 +1,8 @@
 import '../../../../core/cache/cache.dart';
-import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
 import '../../../../core/sync/connectivity_service.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
-import '../../../../core/utils/idempotency_key.dart';
-import '../../../../core/errors/api_exception.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../datasources/stock_remote_datasource.dart';
 import '../models/stock_level_data.dart';
@@ -15,7 +12,6 @@ import '../models/stock_option.dart';
 class StockRepository {
   final StockRemoteDatasource _remote;
   final AppCache _cache;
-  final OutboxStore _outbox;
   final ConnectivityService _connectivity;
   final SyncStatusCubit _syncStatus;
 
@@ -23,11 +19,9 @@ class StockRepository {
     this._remote,
     this._cache, {
     required OutboxStore outbox,
-    required ConnectivityService connectivity,
-    required SyncStatusCubit syncStatus,
-  })  : _outbox = outbox,
-        _connectivity = connectivity,
-        _syncStatus = syncStatus;
+    required this._connectivity,
+    required this._syncStatus,
+  });
 
   // ─────────────────────────────────────────────────────────────
   // Reads (always try network, fall back to cache)
@@ -49,12 +43,11 @@ class StockRepository {
   }
 
   Future<({List<StockOption> batches, List<StockOption> locations})>
-      listOptions({bool forceRefresh = false}) async {
+  listOptions({bool forceRefresh = false}) async {
     const key = 'stock_options';
     if (!forceRefresh) {
       final cached = _cache
-          .get<({List<StockOption> batches, List<StockOption> locations})>(
-              key);
+          .get<({List<StockOption> batches, List<StockOption> locations})>(key);
       if (cached != null) return cached;
     }
     final fresh = await _remote.listOptions();
@@ -81,12 +74,6 @@ class StockRepository {
         'qty': qty,
         if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
       },
-      online: () => _remote.issue(
-        batchId: batchId,
-        locationId: locationId,
-        qty: qty,
-        reason: reason,
-      ),
       synthetic: (id) => StockMovementData(
         id: id,
         kind: 'issue',
@@ -115,12 +102,6 @@ class StockRepository {
         'qty': qty,
         'reason': reason.trim(),
       },
-      online: () => _remote.adjust(
-        batchId: batchId,
-        locationId: locationId,
-        qty: qty,
-        reason: reason,
-      ),
       synthetic: (id) => StockMovementData(
         id: id,
         kind: 'adjust',
@@ -151,13 +132,6 @@ class StockRepository {
         'qty': qty,
         if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
       },
-      online: () => _remote.transfer(
-        batchId: batchId,
-        fromLocationId: fromLocationId,
-        toLocationId: toLocationId,
-        qty: qty,
-        reason: reason,
-      ),
       synthetic: (id) => StockMovementData(
         id: id,
         kind: 'transfer',
@@ -179,40 +153,22 @@ class StockRepository {
     required OutboxOperation operation,
     required String endpoint,
     required Map<String, dynamic> payload,
-    required Future<StockMovementData> Function() online,
     required StockMovementData Function(String id) synthetic,
   }) async {
-    // 1. Try online
-    final isOnline = await _connectivity.isConnected;
-    if (isOnline) {
-      try {
-        final result = await online();
-        _invalidateStockCaches();
-        return result;
-      } on ApiException catch (e) {
-        // Network or timeout → fall through to offline
-        // Any other error (400, 403, 404, 409, 422) → rethrow
-        if (!e.isNetwork && !e.isTimeout) rethrow;
-        // Otherwise fall through to outbox
-      }
-    }
-
-    // 2. Offline path — queue and return synthetic success
-    final itemId = generateIdempotencyKey();
-    final item = OutboxItem(
-      id: itemId,
+    final attempt = await _syncStatus.submit(
       operation: operation,
       endpoint: endpoint,
-      method: 'POST',
       payload: payload,
-      idempotencyKey: generateIdempotencyKey(),
-      createdAt: DateTime.now(),
+      resourceKey: 'stock:${payload['batch_id']}',
+      online: await _connectivity.isConnected,
     );
-
-    await _outbox.enqueue(item);
-    _syncStatus.refreshNow();
-
-    return synthetic(itemId);
+    if (attempt.error != null) throw attempt.error!;
+    if (!attempt.confirmed) return synthetic(attempt.item.id);
+    _invalidateStockCaches();
+    final raw = operation == OutboxOperation.stockTransfer
+        ? (attempt.data as Map)['debit']
+        : attempt.data;
+    return StockMovementData.fromJson((raw as Map).cast<String, dynamic>());
   }
 
   void _invalidateStockCaches() {

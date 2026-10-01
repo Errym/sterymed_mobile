@@ -8,6 +8,7 @@ class NetworkInfo {
     return !result.contains(ConnectivityResult.none);
   }
 
-  Stream<bool> get onStatusChange => _connectivity.onConnectivityChanged
-      .map((results) => !results.contains(ConnectivityResult.none));
+  Stream<bool> get onStatusChange => _connectivity.onConnectivityChanged.map(
+    (results) => !results.contains(ConnectivityResult.none),
+  );
 }

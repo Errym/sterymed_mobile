@@ -4,12 +4,10 @@ import '../../../../core/cache/cache.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/network/cursor_page.dart';
-import '../../../../core/storage/outbox/outbox_item.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
 import '../../../../core/sync/connectivity_service.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
-import '../../../../core/utils/idempotency_key.dart';
 import '../../../../core/utils/logger.dart';
 import '../datasources/cycle_remote_datasource.dart';
 import '../models/control_test_data.dart';
@@ -25,7 +23,6 @@ class CycleRepository {
   final AppCache _cache;
   final DeviceRepository _devices;
   final DeviceProgramRepository _programs;
-  final OutboxStore _outbox;
   final ConnectivityService _connectivity;
   final SyncStatusCubit _syncStatus;
 
@@ -37,11 +34,9 @@ class CycleRepository {
     this._devices,
     this._programs, {
     required OutboxStore outbox,
-    required ConnectivityService connectivity,
-    required SyncStatusCubit syncStatus,
-  })  : _outbox = outbox,
-        _connectivity = connectivity,
-        _syncStatus = syncStatus;
+    required this._connectivity,
+    required this._syncStatus,
+  });
 
   Future<CursorPage<CycleData>> list({bool forceRefresh = false}) async {
     if (!forceRefresh) {
@@ -77,28 +72,25 @@ class CycleRepository {
   }
 
   Future<CycleData> start(String id) => _submitTransition(
-        operation: OutboxOperation.cycleTransition,
-        endpoint: ApiEndpoints.cycleStart(id),
-        cycleId: id,
-        status: 'in_progress',
-        online: () => _remote.start(id),
-      );
+    operation: OutboxOperation.cycleTransition,
+    endpoint: ApiEndpoints.cycleStart(id),
+    cycleId: id,
+    status: 'in_progress',
+  );
 
   Future<CycleData> complete(String id) => _submitTransition(
-        operation: OutboxOperation.cycleTransition,
-        endpoint: ApiEndpoints.cycleComplete(id),
-        cycleId: id,
-        status: 'completed',
-        online: () => _remote.complete(id),
-      );
+    operation: OutboxOperation.cycleTransition,
+    endpoint: ApiEndpoints.cycleComplete(id),
+    cycleId: id,
+    status: 'completed',
+  );
 
   Future<CycleData> submitForRelease(String id) => _submitTransition(
-        operation: OutboxOperation.cycleTransition,
-        endpoint: ApiEndpoints.cycleSubmit(id),
-        cycleId: id,
-        status: 'pending_release',
-        online: () => _remote.submitForRelease(id),
-      );
+    operation: OutboxOperation.cycleTransition,
+    endpoint: ApiEndpoints.cycleSubmit(id),
+    cycleId: id,
+    status: 'pending_release',
+  );
 
   /// Online-first with an offline outbox fallback, same pattern as
   /// StockRepository/LabelUsageRepository. The synthetic CycleData is
@@ -111,32 +103,22 @@ class CycleRepository {
     required String endpoint,
     required String cycleId,
     required String status,
-    required Future<CycleData> Function() online,
   }) async {
-    final isOnline = await _connectivity.isConnected;
-    if (isOnline) {
-      try {
-        final result = await online();
-        _cache.invalidate('cycles');
-        _cache.invalidate('dashboard');
-        return await _enrich(result);
-      } on ApiException catch (e) {
-        if (!e.isNetwork && !e.isTimeout) rethrow;
-      }
-    }
-
-    final itemId = generateIdempotencyKey();
-    await _outbox.enqueue(OutboxItem(
-      id: itemId,
+    final attempt = await _syncStatus.submit(
       operation: operation,
       endpoint: endpoint,
-      method: 'POST',
       payload: const {},
-      idempotencyKey: generateIdempotencyKey(),
-      createdAt: DateTime.now(),
-    ));
-    _syncStatus.refreshNow();
-
+      resourceKey: 'cycle:$cycleId',
+      online: await _connectivity.isConnected,
+    );
+    if (attempt.error != null) throw attempt.error!;
+    if (attempt.confirmed) {
+      _cache.invalidate('cycles');
+      _cache.invalidate('dashboard');
+      return _enrich(
+        CycleData.fromJson((attempt.data as Map).cast<String, dynamic>()),
+      );
+    }
     return CycleData(
       id: cycleId,
       number: '',
@@ -153,43 +135,29 @@ class CycleRepository {
     required String decision,
     String? reason,
   }) async {
-    final isOnline = await _connectivity.isConnected;
-    if (isOnline) {
-      try {
-        final r =
-            await _remote.release(id, decision: decision, reason: reason);
-        _cache.invalidate('cycles');
-        _cache.invalidate('dashboard');
-        return r;
-      } on ApiException catch (e) {
-        if (!e.isNetwork && !e.isTimeout) rethrow;
-      }
-    }
-
-    final itemId = generateIdempotencyKey();
-    await _outbox.enqueue(OutboxItem(
-      id: itemId,
+    final attempt = await _syncStatus.submit(
       operation: OutboxOperation.cycleTransition,
       endpoint: ApiEndpoints.cycleRelease(id),
-      method: 'POST',
       payload: {
         'decision': decision,
         if (reason != null && reason.trim().isNotEmpty) 'reason': reason.trim(),
       },
-      idempotencyKey: generateIdempotencyKey(),
-      createdAt: DateTime.now(),
-    ));
-    _syncStatus.refreshNow();
-
-    return CycleReleaseData(
-      id: itemId,
-      cycleId: id,
-      decision: decision == 'compliant'
-          ? CycleReleaseDecision.compliant
-          : CycleReleaseDecision.rejected,
-      reason: reason,
-      releasedAt: DateTime.now(),
-      isQueued: true,
+      resourceKey: 'cycle:$id',
+      online: await _connectivity.isConnected,
+      requireOnline: true,
+    );
+    if (attempt.error != null) throw attempt.error!;
+    if (!attempt.confirmed) {
+      throw const ApiException(
+        code: 'operation_unresolved',
+        message:
+            'La décision doit être confirmée en ligne. Vérifiez la file de synchronisation.',
+      );
+    }
+    _cache.invalidate('cycles');
+    _cache.invalidate('dashboard');
+    return CycleReleaseData.fromJson(
+      (attempt.data as Map).cast<String, dynamic>(),
     );
   }
 
@@ -208,8 +176,7 @@ class CycleRepository {
   Future<List<ControlTestData>> listControlTests(String id) =>
       _remote.listControlTests(id);
 
-  Future<ControlTestData> addControlTest(
-          String id, Map<String, dynamic> p) =>
+  Future<ControlTestData> addControlTest(String id, Map<String, dynamic> p) =>
       _remote.addControlTest(id, p);
 
   // ── Attachments ───────────────────────────────────────────────────────
@@ -222,13 +189,12 @@ class CycleRepository {
     required String fileName,
     required Uint8List bytes,
     String? mimeType,
-  }) =>
-      _remote.uploadAttachment(
-        cycleId: cycleId,
-        fileName: fileName,
-        bytes: bytes,
-        mimeType: mimeType,
-      );
+  }) => _remote.uploadAttachment(
+    cycleId: cycleId,
+    fileName: fileName,
+    bytes: bytes,
+    mimeType: mimeType,
+  );
 
   Future<void> deleteAttachment(String id, String attachmentId) =>
       _remote.deleteAttachment(id, attachmentId);
@@ -241,12 +207,11 @@ class CycleRepository {
     String id, {
     required String packagingType,
     required String storageCondition,
-  }) =>
-      _remote.generateLabels(
-        id,
-        packagingType: packagingType,
-        storageCondition: storageCondition,
-      );
+  }) => _remote.generateLabels(
+    id,
+    packagingType: packagingType,
+    storageCondition: storageCondition,
+  );
 
   // ── Enrichment ────────────────────────────────────────────────────────
 
@@ -276,10 +241,9 @@ class CycleRepository {
         programName = programCache[c.deviceId]![c.deviceProgramId];
       }
 
-      out.add(c.copyWithNames(
-        deviceName: deviceName,
-        programName: programName,
-      ));
+      out.add(
+        c.copyWithNames(deviceName: deviceName, programName: programName),
+      );
     }
     return out;
   }
@@ -292,9 +256,10 @@ class CycleRepository {
 
     if (deviceName.isEmpty && c.deviceId.isNotEmpty) {
       try {
-        final devices = await _devices
-            .list()
-            .timeout(_enrichTimeout, onTimeout: () => []);
+        final devices = await _devices.list().timeout(
+          _enrichTimeout,
+          onTimeout: () => [],
+        );
         final match = devices.where((d) => d.id == c.deviceId).toList();
         deviceName = match.isNotEmpty
             ? match.first.name
@@ -313,8 +278,7 @@ class CycleRepository {
         final programs = await _programs
             .list(c.deviceId)
             .timeout(_enrichTimeout, onTimeout: () => []);
-        final match =
-            programs.where((p) => p.id == c.deviceProgramId).toList();
+        final match = programs.where((p) => p.id == c.deviceProgramId).toList();
         if (match.isNotEmpty) {
           programName ??= match.first.name;
           programTemperatureCelsius = match.first.temperatureCelsius;
@@ -335,8 +299,10 @@ class CycleRepository {
 
   Future<Map<String, String>> _loadDeviceMap() async {
     try {
-      final devices =
-          await _devices.list().timeout(_enrichTimeout, onTimeout: () => []);
+      final devices = await _devices.list().timeout(
+        _enrichTimeout,
+        onTimeout: () => [],
+      );
       return {for (final d in devices) d.id: d.name};
     } catch (e) {
       AppLogger.d('CycleRepository._loadDeviceMap: $e');

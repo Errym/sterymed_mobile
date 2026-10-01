@@ -1,48 +1,35 @@
-// WORKAROUND: Backend has no PATCH /v1/cycles/{id}.
-// Notes cached in Hive only, never synced.
-// See docs/MISSING_FEATURES.md. Remove when BACKEND_BUGS.md#bug-007 is fixed.
+import '../../../../core/storage/key_value_store.dart';
+import '../../../../core/storage/secure_storage.dart';
+import '../../../../core/storage/session_store.dart';
 
-import 'dart:convert';
-
-import 'package:hive/hive.dart';
-
-/// The backend has no PATCH /v1/cycles/{id} endpoint, so cycle notes
-/// cannot be edited server-side. This local cache persists them by cycle id
-/// so the user can add/edit notes and see them across app restarts.
-///
-/// This is a display convenience — the server-side "notes" field set at
-/// creation time remains immutable. Any note typed here lives only on this
-/// device.
+/// Personal device drafts. They are not part of the server's clinical record.
 class CycleNotesCache {
-  static const _boxName = 'steriymed.cycle_notes';
-
-  Box<dynamic>? _box;
-
-  Future<void> _ensureBox() async {
-    _box ??= await Hive.openBox(_boxName);
-  }
+  final Future<KeyValueStore> _store;
+  final SessionStore _session;
+  CycleNotesCache(SecureStorage secure, this._session)
+    : _store = KeyValueStore.open(
+        'steriymed.cycle_notes',
+        secure: secure,
+        ownerScope: () => _session.scopeKey,
+      );
 
   Future<void> save(String cycleId, String notes) async {
-    await _ensureBox();
-    await _box!.put(cycleId, jsonEncode({'notes': notes}));
-    await _box!.flush();
+    final generation = _session.generation;
+    final store = await _store;
+    if (generation != _session.generation) return;
+    await store.set(cycleId, notes);
   }
 
   Future<String?> get(String cycleId) async {
-    await _ensureBox();
-    final raw = _box!.get(cycleId);
-    if (raw is! String) return null;
-    try {
-      final map = (jsonDecode(raw) as Map).cast<String, dynamic>();
-      return map['notes']?.toString();
-    } catch (_) {
-      return null;
-    }
+    final generation = _session.generation;
+    final store = await _store;
+    if (generation != _session.generation) return null;
+    return store.get(cycleId) as String?;
   }
 
   Future<void> remove(String cycleId) async {
-    await _ensureBox();
-    await _box!.delete(cycleId);
-    await _box!.flush();
+    final generation = _session.generation;
+    final store = await _store;
+    if (generation == _session.generation) await store.delete(cycleId);
   }
 }

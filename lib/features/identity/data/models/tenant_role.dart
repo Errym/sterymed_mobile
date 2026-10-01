@@ -4,7 +4,7 @@ import '../../../../shared/widgets/badges/type_badge.dart';
 /// — single source of truth for how they're labeled/colored across the
 /// Team feature, so a UI-only listing never drifts from the real enum
 /// again (a prior "4-role" planning doc invented a fictional `reception`
-/// role and dropped `admin`/`releaser`/`viewer` — see docs/DAILY_LOG.md).
+/// role and dropped `admin`/`releaser`/`viewer`).
 const List<(String value, String label)> kTenantRoles = [
   ('owner', 'Direction'),
   ('admin', 'Administrateur'),

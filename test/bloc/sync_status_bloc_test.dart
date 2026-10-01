@@ -37,7 +37,7 @@ void main() {
     when(() => store.manualReview()).thenReturn(<OutboxItem>[]);
     when(() => connectivity.onStatusChange)
         .thenAnswer((_) => statusChanges.stream);
-    when(() => connectivity.dispose()).thenReturn(null);
+    when(() => connectivity.dispose()).thenAnswer((_) async {});
     when(() => engine.flush()).thenAnswer((_) async => 0);
     when(() => engine.isFlushing).thenReturn(false);
   });
@@ -80,7 +80,7 @@ void main() {
     );
 
     blocTest<SyncStatusCubit, SyncStatus>(
-      'reflects isSyncing from the engine while a flush is in progress',
+      'reflects isSyncing from the engine and never starts a second flush',
       setUp: () {
         when(() => connectivity.isConnected).thenAnswer((_) async => true);
         when(() => store.pendingCount).thenReturn(1);
@@ -90,9 +90,10 @@ void main() {
       act: (c) => c.start(),
       expect: () => [
         isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
-        isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
-        isA<SyncStatus>().having((s) => s.isSyncing, 'isSyncing', true),
       ],
+      verify: (_) {
+        verifyNever(() => engine.flush());
+      },
     );
 
     blocTest<SyncStatusCubit, SyncStatus>(
@@ -113,50 +114,54 @@ void main() {
       },
     );
 
-    blocTest<SyncStatusCubit, SyncStatus>(
-      'reconnecting mid-session flushes and refreshes again',
-      setUp: () {
-        when(() => connectivity.isConnected).thenAnswer((_) async => false);
-      },
-      build: build,
-      act: (c) async {
-        await c.start();
-        statusChanges.add(true);
-        await Future<void>.delayed(Duration.zero);
-      },
-      skip: 1, // the initial offline emission from start()
-      expect: () => [
-        isA<SyncStatus>().having((s) => s.online, 'online', true),
-        isA<SyncStatus>().having((s) => s.online, 'online', true),
-        isA<SyncStatus>().having((s) => s.online, 'online', true),
-      ],
-      verify: (_) {
-        verify(() => engine.flush()).called(1);
-      },
-    );
+    test('reconnecting mid-session re-verifies connectivity, then flushes',
+        () async {
+      when(() => connectivity.isConnected).thenAnswer((_) async => false);
+      final cubit = build();
+      await cubit.start();
+      verifyNever(() => engine.flush());
+      expect(cubit.state.online, isFalse);
 
-    blocTest<SyncStatusCubit, SyncStatus>(
-      'going offline mid-session updates state without flushing',
-      setUp: () {
-        when(() => connectivity.isConnected).thenAnswer((_) async => true);
-      },
-      build: build,
-      act: (c) async {
-        await c.start();
-        statusChanges.add(false);
-        await Future<void>.delayed(Duration.zero);
-      },
-      skip: 3, // start()'s initial refresh + the two flush-related refreshes
-      // while online
-      expect: () => [
-        isA<SyncStatus>().having((s) => s.online, 'online', false),
-      ],
-      verify: (_) {
-        // Only the one flush from start()'s own online path — none from
-        // the transition to offline.
-        verify(() => engine.flush()).called(1);
-      },
-    );
+      // The cubit trusts the real connectivity check, not the event alone.
+      when(() => connectivity.isConnected).thenAnswer((_) async => true);
+      statusChanges.add(true);
+      await untilCalled(() => engine.flush());
+      await Future<void>.delayed(Duration.zero);
+
+      verify(() => engine.flush()).called(1);
+      expect(cubit.state.online, isTrue);
+      await cubit.close();
+    });
+
+    test('a connectivity event is ignored when the real check says offline',
+        () async {
+      when(() => connectivity.isConnected).thenAnswer((_) async => false);
+      final cubit = build();
+      await cubit.start();
+
+      statusChanges.add(true);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      verifyNever(() => engine.flush());
+      expect(cubit.state.online, isFalse);
+      await cubit.close();
+    });
+
+    test('going offline mid-session updates state without another flush',
+        () async {
+      when(() => connectivity.isConnected).thenAnswer((_) async => true);
+      final cubit = build();
+      await cubit.start();
+      verify(() => engine.flush()).called(1);
+
+      when(() => connectivity.isConnected).thenAnswer((_) async => false);
+      statusChanges.add(false);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(cubit.state.online, isFalse);
+      verifyNever(() => engine.flush());
+      await cubit.close();
+    });
 
     blocTest<SyncStatusCubit, SyncStatus>(
       'refreshNow() re-reads the outbox without touching connectivity',

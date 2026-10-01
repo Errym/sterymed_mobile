@@ -68,17 +68,18 @@ abstract final class RoleGuard {
   /// Parameterized routes (`/app/cycles/:id`, ...) can't be exact-matched.
   /// Checked in order, most specific first, after [_exactPermission] finds
   /// no hit — a suffix-specific rule must precede its prefix-only sibling.
-  static const _prefixRules = <(String prefix, String? suffix, String permission)>[
-    ('/app/cycles/', '/release', 'cycles.release'),
-    ('/app/cycles/', null, 'cycles.view'),
-    ('/app/purchases/', '/receive', 'purchasing.manage'),
-    ('/app/purchases/suppliers/', null, 'suppliers.view'),
-    ('/app/purchases/', null, 'purchasing.view'),
-    ('/app/labels/', '/usage', 'usages.manage'),
-    ('/app/labels/', null, 'labels.view'),
-    ('/app/devices/', null, 'devices.view'),
-    ('/app/prosthetic/', null, 'prosthetic_cases.view'),
-  ];
+  static const _prefixRules =
+      <(String prefix, String? suffix, String permission)>[
+        ('/app/cycles/', '/release', 'cycles.release'),
+        ('/app/cycles/', null, 'cycles.view'),
+        ('/app/purchases/', '/receive', 'purchasing.manage'),
+        ('/app/purchases/suppliers/', null, 'suppliers.view'),
+        ('/app/purchases/', null, 'purchasing.view'),
+        ('/app/labels/', '/usage', 'usages.manage'),
+        ('/app/labels/', null, 'labels.view'),
+        ('/app/devices/', null, 'devices.view'),
+        ('/app/prosthetic/', null, 'prosthetic_cases.view'),
+      ];
 
   static String? requiredPermissionFor(String route) {
     final exact = _exactPermission[route];

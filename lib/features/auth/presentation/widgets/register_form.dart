@@ -13,7 +13,8 @@ class RegisterForm extends StatefulWidget {
     required String ownerName,
     required String ownerEmail,
     required String password,
-  }) onSubmit;
+  })
+  onSubmit;
 
   const RegisterForm({
     super.key,

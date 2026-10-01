@@ -138,7 +138,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final ok = await ConfirmationDialog.show(
                       context,
                       title: 'Se déconnecter partout ?',
-                      message: 'Toutes les sessions actives seront révoquées.',
+                      message: 'Une demande de révocation sera envoyée. La déconnexion locale est immédiate.',
                       confirmLabel: 'Confirmer',
                       isDestructive: true,
                     );

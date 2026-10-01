@@ -24,6 +24,10 @@ class AuthUnauthenticated extends AuthState {
   const AuthUnauthenticated();
 }
 
+class AuthRestoreUnavailable extends AuthState {
+  const AuthRestoreUnavailable();
+}
+
 class AuthError extends AuthState {
   final ApiException exception;
 

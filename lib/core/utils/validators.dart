@@ -17,7 +17,7 @@ abstract final class Validators {
     return null;
   }
 
-static String? password(String? value) {
+  static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Le mot de passe est obligatoire.';
     }

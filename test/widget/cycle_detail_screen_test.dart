@@ -23,6 +23,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../mocks/fake_cycle_notes_cache.dart';
 import 'package:get_it/get_it.dart';
 import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
@@ -127,6 +128,7 @@ void main() {
     GetIt.instance.registerSingleton<SessionStore>(session);
     GetIt.instance.registerSingleton<CycleRepository>(repo);
     GetIt.instance.registerSingleton<DluRepository>(dluRepo);
+    registerFakeCycleNotesCache();
   });
 
   tearDown(() {

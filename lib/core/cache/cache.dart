@@ -5,6 +5,16 @@ class CacheEntry<T> {
 }
 
 class AppCache {
+  final String? Function()? _ownerScope;
+  String? _lastScope;
+  AppCache({this._ownerScope});
+  void _checkScope() {
+    if (_ownerScope == null) return;
+    final current = _ownerScope();
+    if (current != _lastScope) _store.clear();
+    _lastScope = current;
+  }
+
   final Map<String, CacheEntry<dynamic>> _store = {};
   final Map<String, Duration> _ttls = {
     'dashboard': const Duration(seconds: 30),
@@ -23,6 +33,7 @@ class AppCache {
   };
 
   T? get<T>(String key) {
+    _checkScope();
     final entry = _store[key];
     if (entry == null) return null;
     final ttl = _ttls[key] ?? const Duration(seconds: 30);
@@ -30,10 +41,12 @@ class AppCache {
       _store.remove(key);
       return null;
     }
-    return entry.value as T;
+    return entry.value is T ? entry.value as T : null;
   }
 
   void put(String key, dynamic value) {
+    _checkScope();
+    if (_ownerScope != null && _lastScope == null) return;
     _store[key] = CacheEntry(value);
   }
 

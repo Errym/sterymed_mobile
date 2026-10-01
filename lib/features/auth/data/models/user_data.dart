@@ -33,26 +33,25 @@ class UserData {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: resolvedRole,
-      permissions: (json['permissions'] as List?)
-              ?.map((e) => e.toString())
-              .toList() ??
+      permissions:
+          (json['permissions'] as List?)?.map((e) => e.toString()).toList() ??
           const [],
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'email': email,
-        if (role != null) 'role': role,
-        'permissions': permissions,
-      };
+    'id': id,
+    'name': name,
+    'email': email,
+    if (role != null) 'role': role,
+    'permissions': permissions,
+  };
 
   UserData copyWith({String? role, List<String>? permissions}) => UserData(
-        id: id,
-        name: name,
-        email: email,
-        role: role ?? this.role,
-        permissions: permissions ?? this.permissions,
-      );
+    id: id,
+    name: name,
+    email: email,
+    role: role ?? this.role,
+    permissions: permissions ?? this.permissions,
+  );
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../di/di.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -10,15 +11,18 @@ class CycleNotesSection extends StatefulWidget {
   final String cycleId;
   final String? initialNotes;
 
-  const CycleNotesSection(
-      {super.key, required this.cycleId, this.initialNotes});
+  const CycleNotesSection({
+    super.key,
+    required this.cycleId,
+    this.initialNotes,
+  });
 
   @override
   State<CycleNotesSection> createState() => _CycleNotesSectionState();
 }
 
 class _CycleNotesSectionState extends State<CycleNotesSection> {
-  final _cache = CycleNotesCache();
+  final _cache = getIt<CycleNotesCache>();
   final _notesCtrl = TextEditingController();
   bool _loading = true;
   bool _editing = false;
@@ -48,7 +52,18 @@ class _CycleNotesSectionState extends State<CycleNotesSection> {
 
   Future<void> _save() async {
     setState(() => _saving = true);
-    await _cache.save(widget.cycleId, _notesCtrl.text.trim());
+    try {
+      await _cache.save(widget.cycleId, _notesCtrl.text.trim());
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _saving = false);
+      AppSnackbar.show(
+        context,
+        'Enregistrement local impossible. Votre texte est conservé.',
+        kind: SnackKind.error,
+      );
+      return;
+    }
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -130,22 +145,26 @@ class _CycleNotesSectionState extends State<CycleNotesSection> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.edit_outlined,
-                    size: 18, color: AppColors.brandPrimary),
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: AppColors.brandPrimary,
+                ),
                 tooltip: hasNotes ? 'Modifier' : 'Ajouter',
                 onPressed: () => setState(() => _editing = true),
               ),
             ],
           ),
-const SizedBox(height: AppSpacing.sm),
+          const SizedBox(height: AppSpacing.sm),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
               color: AppColors.warningLight,
               borderRadius: BorderRadius.circular(AppRadius.sm),
-              border:
-                  Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+              border: Border.all(
+                color: AppColors.warning.withValues(alpha: 0.4),
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,

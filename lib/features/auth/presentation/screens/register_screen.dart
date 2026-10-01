@@ -70,14 +70,15 @@ class RegisterScreen extends StatelessWidget {
                     final isLoading = state is AuthLoading;
                     return RegisterForm(
                       isLoading: isLoading,
-                      onSubmit: ({
-                        required String tenantName,
-                        required String tenantSlug,
-                        required String ownerName,
-                        required String ownerEmail,
-                        required String password,
-                      }) {
-                        context.read<AuthBloc>().add(
+                      onSubmit:
+                          ({
+                            required String tenantName,
+                            required String tenantSlug,
+                            required String ownerName,
+                            required String ownerEmail,
+                            required String password,
+                          }) {
+                            context.read<AuthBloc>().add(
                               AuthRegisterSubmitted(
                                 tenantName: tenantName,
                                 tenantSlug: tenantSlug,
@@ -86,7 +87,7 @@ class RegisterScreen extends StatelessWidget {
                                 password: password,
                               ),
                             );
-                      },
+                          },
                     );
                   },
                 ),

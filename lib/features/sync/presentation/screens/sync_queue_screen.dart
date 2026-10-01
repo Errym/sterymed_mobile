@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/storage/outbox/outbox_item.dart';
+import '../../../../core/storage/key_value_store.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/storage/outbox/outbox_operation.dart';
 import '../../../../core/storage/outbox/outbox_status.dart';
 import '../../../../core/storage/outbox/outbox_store.dart';
@@ -56,6 +58,17 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final store = getIt<OutboxStore>();
+    final drafts = getIt<KeyValueStore>();
+    final recovery = store.recoveryRequired || drafts.recoveryRequired;
+    final quarantine = store.quarantineCount + drafts.quarantineCount;
+    final notice = (recovery || quarantine > 0)
+        ? Text(
+            recovery
+                ? 'Des données locales nécessitent une récupération. Les fichiers sont conservés. Contactez le responsable du cabinet avant de réinitialiser cet appareil.'
+                : 'Des données anciennes sont conservées à part car leur propriétaire n’a pas pu être vérifié. Elles ne seront pas envoyées avec votre compte. Contactez le responsable du cabinet.',
+          )
+        : null;
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
@@ -75,26 +88,36 @@ class _SyncQueueScreenState extends State<SyncQueueScreen> {
               onRefresh: _load,
               child: _items.isEmpty
                   ? ListView(
-                      children: const [
-                        EmptyView(
-                          title: 'Aucune donnée en attente',
-                          message: 'Tout est synchronisé.',
-                          icon: Icons.cloud_done_outlined,
-                        ),
+                      children: [
+                        if (notice != null)
+                          Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: notice,
+                          )
+                        else
+                          const EmptyView(
+                            title: 'Aucune donnée en attente',
+                            message: 'Tout est synchronisé.',
+                            icon: Icons.cloud_done_outlined,
+                          ),
                       ],
                     )
                   : ListView.separated(
                       padding: const EdgeInsets.all(AppSpacing.md),
-                      itemCount: _items.length,
+                      itemCount: _items.length + (notice == null ? 0 : 1),
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSpacing.sm),
-                      itemBuilder: (_, i) => AnimatedListItem(
-                        index: i,
-                        child: _QueueTile(
-                          item: _items[i],
-                          onRetry: () => _retryOne(_items[i].id),
-                        ),
-                      ),
+                      itemBuilder: (_, index) {
+                        if (notice != null && index == 0) return notice;
+                        final i = notice == null ? index : index - 1;
+                        return AnimatedListItem(
+                          index: i,
+                          child: _QueueTile(
+                            item: _items[i],
+                            onRetry: () => _retryOne(_items[i].id),
+                          ),
+                        );
+                      },
                     ),
             ),
     );
@@ -132,6 +155,10 @@ class _QueueTile extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
+            '${getIt<SessionStore>().userName ?? ''} — ${getIt<SessionStore>().tenantName ?? ''}',
+            style: AppTypography.caption,
+          ),
+          Text(
             DateFormat('dd/MM/yyyy HH:mm').format(item.createdAt),
             style: AppTypography.caption,
           ),
@@ -149,8 +176,15 @@ class _QueueTile extends StatelessWidget {
               style: AppTypography.caption.copyWith(color: AppColors.danger),
             ),
           ],
-          if (item.status == OutboxStatus.manualReview ||
-              item.status == OutboxStatus.failed) ...[
+          if (item.status == OutboxStatus.unknownOutcome)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text(
+                'Cette action peut déjà être enregistrée. Vérifiez le dossier avec le responsable avant de la ressaisir.',
+              ),
+            ),
+          if (item.status == OutboxStatus.pending ||
+              item.status == OutboxStatus.authBlocked) ...[
             const SizedBox(height: AppSpacing.sm),
             Align(
               alignment: Alignment.centerRight,
@@ -173,35 +207,40 @@ class _QueueTile extends StatelessWidget {
   Widget _statusBadge(OutboxStatus status) {
     switch (status) {
       case OutboxStatus.pending:
-        return const StatusBadge(
-          label: 'En attente',
-          tone: StatusTone.warning,
-        );
+        return const StatusBadge(label: 'En attente', tone: StatusTone.warning);
       case OutboxStatus.syncing:
-        return const StatusBadge(
-          label: 'En cours',
-          tone: StatusTone.info,
-        );
+        return const StatusBadge(label: 'En cours', tone: StatusTone.info);
       case OutboxStatus.synced:
         return const StatusBadge(
           label: 'Synchronisé',
           tone: StatusTone.success,
         );
       case OutboxStatus.conflict:
+        return const StatusBadge(label: 'Conflit', tone: StatusTone.warning);
+      case OutboxStatus.failed:
+        return const StatusBadge(label: 'Échec', tone: StatusTone.danger);
+      case OutboxStatus.authBlocked:
         return const StatusBadge(
-          label: 'Conflit',
+          label: 'Session à vérifier',
           tone: StatusTone.warning,
         );
-      case OutboxStatus.failed:
+      case OutboxStatus.permissionDenied:
         return const StatusBadge(
-          label: 'Échec',
+          label: 'Accès refusé',
+          tone: StatusTone.danger,
+        );
+      case OutboxStatus.validationFailed:
+        return const StatusBadge(
+          label: 'Données à corriger',
+          tone: StatusTone.danger,
+        );
+      case OutboxStatus.unknownOutcome:
+        return const StatusBadge(
+          label: 'Résultat à vérifier',
           tone: StatusTone.danger,
         );
       case OutboxStatus.manualReview:
-        return const StatusBadge(
-          label: 'À vérifier',
-          tone: StatusTone.danger,
-        );
+        return const StatusBadge(label: 'À vérifier', tone: StatusTone.danger);
     }
   }
 }

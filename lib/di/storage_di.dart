@@ -9,12 +9,20 @@ import '../core/storage/token_storage.dart';
 Future<void> registerStorage(GetIt getIt) async {
   final secure = SecureStorage();
   getIt.registerSingleton<SecureStorage>(secure);
-  getIt.registerSingleton<TokenStorage>(TokenStorage(secure));
-  getIt.registerSingleton<SessionStore>(SessionStore(secure));
+  final session = SessionStore(secure);
+  getIt.registerSingleton<TokenStorage>(TokenStorage(secure, session: session));
+  getIt.registerSingleton<SessionStore>(session, dispose: (s) => s.dispose());
 
-  final kv = await KeyValueStore.open('steriymed.kv');
+  final kv = await KeyValueStore.open(
+    'steriymed.kv',
+    secure: secure,
+    ownerScope: () => session.scopeKey,
+  );
   getIt.registerSingleton<KeyValueStore>(kv);
 
-  final outbox = await OutboxStore.open();
+  final outbox = await OutboxStore.open(
+    secure: secure,
+    ownerScope: () => session.scopeKey,
+  );
   getIt.registerSingleton<OutboxStore>(outbox);
 }

@@ -234,7 +234,7 @@ void main() {
           ),
         ],
       );
-      await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+      await pumpAppWidget(tester, MaterialApp.router(routerConfig: router));
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextFormField).first, '5');

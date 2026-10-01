@@ -1,36 +1,31 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-
 import '../../utils/pii_scrubber.dart';
 
 class LoggingInterceptor extends Interceptor {
+  void _log(RequestOptions request, int? status) {
+    if (kDebugMode) {
+      debugPrint(
+        'http: ${PiiScrubber.diagnostics({'method': request.method, 'status_code': status})}',
+      );
+    }
+  }
+
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    if (kDebugMode) {
-      debugPrint('→ ${options.method} ${options.uri}');
-    }
+    _log(options, null);
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    if (kDebugMode) {
-      debugPrint(
-        '← ${response.statusCode} ${response.requestOptions.uri}\n'
-        '${PiiScrubber.scrub(response.data.toString())}',
-      );
-    }
+    _log(response.requestOptions, response.statusCode);
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    if (kDebugMode) {
-      debugPrint(
-        '✗ ${err.response?.statusCode} ${err.requestOptions.uri}\n'
-        '${PiiScrubber.scrub(err.message ?? '')}',
-      );
-    }
+    _log(err.requestOptions, err.response?.statusCode);
     handler.next(err);
   }
 }

@@ -1,7 +1,16 @@
+import 'dart:convert';
 import 'outbox_operation.dart';
 import 'outbox_status.dart';
 
 class OutboxItem {
+  final String? ownerScope;
+  final int schemaVersion;
+  final String? resourceKey;
+  final String? body;
+  final DateTime? firstAttemptAt;
+  final DateTime? nextAttemptAt;
+  final bool requiresReviewBeforeReplay;
+  String get encodedPayload => body ?? jsonEncode(payload);
   final String id;
   final OutboxOperation operation;
   final String endpoint;
@@ -14,6 +23,13 @@ class OutboxItem {
   final String? lastError;
 
   const OutboxItem({
+    this.ownerScope,
+    this.schemaVersion = 2,
+    this.resourceKey,
+    this.body,
+    this.firstAttemptAt,
+    this.nextAttemptAt,
+    this.requiresReviewBeforeReplay = false,
     required this.id,
     required this.operation,
     required this.endpoint,
@@ -27,11 +43,24 @@ class OutboxItem {
   });
 
   OutboxItem copyWith({
+    DateTime? firstAttemptAt,
+    DateTime? nextAttemptAt,
+    bool clearNextAttempt = false,
+    bool clearError = false,
     int? retryCount,
     OutboxStatus? status,
     String? lastError,
   }) {
     return OutboxItem(
+      ownerScope: ownerScope,
+      schemaVersion: schemaVersion,
+      resourceKey: resourceKey,
+      body: encodedPayload,
+      firstAttemptAt: firstAttemptAt ?? this.firstAttemptAt,
+      nextAttemptAt: clearNextAttempt
+          ? null
+          : nextAttemptAt ?? this.nextAttemptAt,
+      requiresReviewBeforeReplay: requiresReviewBeforeReplay,
       id: id,
       operation: operation,
       endpoint: endpoint,
@@ -41,11 +70,18 @@ class OutboxItem {
       createdAt: createdAt,
       retryCount: retryCount ?? this.retryCount,
       status: status ?? this.status,
-      lastError: lastError ?? this.lastError,
+      lastError: clearError ? null : lastError ?? this.lastError,
     );
   }
 
   Map<String, dynamic> toJson() => {
+    'ownerScope': ownerScope,
+    'schemaVersion': schemaVersion,
+    'resourceKey': resourceKey,
+    'body': encodedPayload,
+    'firstAttemptAt': firstAttemptAt?.toIso8601String(),
+    'nextAttemptAt': nextAttemptAt?.toIso8601String(),
+    'requiresReviewBeforeReplay': requiresReviewBeforeReplay,
     'id': id,
     'operation': operation.name,
     'endpoint': endpoint,
@@ -59,6 +95,13 @@ class OutboxItem {
   };
 
   factory OutboxItem.fromJson(Map<String, dynamic> json) => OutboxItem(
+    ownerScope: json['ownerScope'] as String?,
+    schemaVersion: json['schemaVersion'] as int? ?? 1,
+    resourceKey: json['resourceKey'] as String?,
+    body: json['body'] as String?,
+    firstAttemptAt: DateTime.tryParse(json['firstAttemptAt']?.toString() ?? ''),
+    nextAttemptAt: DateTime.tryParse(json['nextAttemptAt']?.toString() ?? ''),
+    requiresReviewBeforeReplay: json['requiresReviewBeforeReplay'] == true,
     id: json['id'] as String,
     operation: OutboxOperation.values.firstWhere(
       (e) => e.name == json['operation'],

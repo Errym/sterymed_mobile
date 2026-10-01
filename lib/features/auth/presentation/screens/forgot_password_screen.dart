@@ -48,11 +48,11 @@ class _ForgotPasswordViewState extends State<_ForgotPasswordView> {
   void _submit() {
     if (!_formKey.currentState!.validate()) return;
     context.read<ForgotPasswordBloc>().add(
-          SubmitForgotPassword(
-            tenantSlug: _tenantCtrl.text.trim(),
-            email: _emailCtrl.text.trim(),
-          ),
-        );
+      SubmitForgotPassword(
+        tenantSlug: _tenantCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+      ),
+    );
   }
 
   @override
