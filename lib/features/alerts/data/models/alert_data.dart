@@ -1,3 +1,4 @@
+import 'alert_message.dart';
 import 'package:equatable/equatable.dart';
 import '../../../../core/utils/server_time.dart';
 
@@ -59,6 +60,9 @@ class AlertData extends Equatable {
   });
 
   bool get resolved => state == 'resolved';
+
+  /// The text to show: the server's English wording, in French.
+  String get displayMessage => localizeAlertMessage(type, message);
 
   factory AlertData.fromJson(Map<String, dynamic> json) {
     return AlertData(

@@ -585,7 +585,7 @@ class _AlertTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    Text(alert.message, style: AppTypography.bodyStrong),
+                    Text(alert.displayMessage, style: AppTypography.bodyStrong),
                     const SizedBox(height: 2),
                     Text(
                       'Détectée le ${fmt.format(alert.createdAt)}',
