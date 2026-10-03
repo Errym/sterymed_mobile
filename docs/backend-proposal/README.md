@@ -179,3 +179,33 @@ has been switched off".
 
 `routes/api.php` and `AppServiceProvider.php` also contain other work in the
 tree; stage those hunks with `git add -p`.
+
+---
+
+# Everything the backend lacks for the mobile app (for the web engineer)
+
+The mobile app works against the backend **exactly as it is**. These are the
+gaps found, in one place. None is applied by the mobile side. "Needs" says who
+must decide or build.
+
+| # | Gap | Effect today | Needs |
+|---|---|---|---|
+| P-1 | Login, registration, forgot-password and invitation-accept share 10 requests/minute **per IP** | A clinic behind one connection can lock colleagues out at opening time | Web engineer: a per-account login limit plus a higher per-IP ceiling |
+| P-2 | No push-notification support (no token registry, no sender) | The app's notification switch answers "ce serveur ne propose pas encore les notifications"; alerts stay in the Alertes tab | Web engineer + a Firebase project. The complete proposal is in `new-files.zip` |
+| P-3 | Data export writes attachments as `files/<original name>` | Two same-named files overwrite each other: evidence silently missing from the archive (Cahier §8) | Web engineer, **priority** |
+| P-4 | A cycle can be created with a switched-off device program | Wrong program recorded on a cycle | Web engineer |
+| P-5 | Public practice sign-up is open | Anyone who finds the server can create practices | Web engineer: a switch, off on the pilot server |
+| P-6 | Alert texts are English strings in a fixed shape (`Stock for "X" is below threshold (2/10).`) | The app translates the four known shapes and shows anything else unchanged; a new alert type would appear in English | Return a stable code + parameters (and ideally French text) |
+| P-7 | No API for alert thresholds (`AlertSettings` exists server-side, no route) | Thresholds can only be changed on the web | Optional: read/update route |
+| P-8 | No "overdue control" alert (A-05) | The Cahier's control logbook cannot warn on the phone | The clinic must state the control schedule first |
+| P-9 | `POST /v1/sites` and `POST /v1/locations` do not exist (A-06) | Sites and storage locations are created on the web only (as the Cahier assigns) | None for the pilot |
+| P-10 | No `PATCH /v1/cycles/{id}` (A-07) | Cycle notes live on the phone only | Optional |
+| P-11 | The server has six roles; the prosthetic brief speaks of a "reception" role | Payment edits are limited to owner/admin (`prosthetic_payments.manage`) | Decision: which role plays reception |
+| P-12 | No erasure-request flow, no stated retention period | Open RGPD question in `PRIVACY.md` | Client's DPO + web engineer |
+| P-13 | Prosthetic cases waiting too long raise no automatic alert (brief "post-MVP") | The waiting list shows aging colours, nothing is pushed | Later |
+| P-14 | `429` answers carry no `Retry-After` | The app can only say "réessayez dans un instant" | Optional header |
+| P-15 | Open items of `BACKEND_BUGS.md` | See that file | Web engineer to triage |
+
+Proof for P-1 to P-5 existed on the dev stack before the revert (tests and live
+scripts); they are described hunk by hunk above and the new files are in
+`new-files.zip`. The proof script for P-3 is `verify_export_files.py`.
