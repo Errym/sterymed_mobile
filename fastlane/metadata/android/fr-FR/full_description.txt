@@ -1,0 +1,10 @@
+SteryMed accompagne le cabinet dentaire au quotidien, depuis le téléphone :
+
+• Stérilisation : créer et suivre les cycles, saisir les tests de contrôle, libérer ou rejeter un cycle, avec les justificatifs.
+• Étiquettes et traçabilité : scanner une étiquette, enregistrer son utilisation pour un patient (référence pseudonymisée) et retrouver toute la chaîne pochette, cycle, appareil, praticien.
+• Stock et achats : sorties, ajustements justifiés, transferts, inventaires, réception de commandes avec lot, péremption et photo du bon de livraison.
+• Alertes : stock bas, péremption proche, cycle en échec.
+• Travaux prothétiques : suivi des dossiers, laboratoire, paiements, liste des poses en attente.
+• Fonctionne avec un réseau faible : les saisies sont conservées et envoyées dès que la connexion revient.
+
+Application réservée aux cabinets disposant d'un compte SteryMed.

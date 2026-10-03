@@ -1,0 +1,1 @@
+Première version pilote : stérilisation, étiquettes, stock, achats, alertes, travaux prothétiques, mode hors ligne.
