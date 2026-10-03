@@ -92,8 +92,8 @@ Plus → **Notifications** → *Alertes sur ce téléphone*. Le téléphone dema
 alors son autorisation. Le message est volontairement général (« 2 nouvelles
 alertes dont 1 critique ») : aucun nom de patient ni de produit n'apparaît
 sur un écran verrouillé. Toucher la notification ouvre l'onglet Alertes. Si
-l'interrupteur est absent, cette version de l'application n'a pas les
-notifications : les alertes restent toujours visibles dans l'onglet.
+l'interrupteur est absent, ou répond que le serveur ne propose pas encore les
+notifications, les alertes restent toujours visibles dans l'onglet Alertes.
 
 ## 5. Ce qui se fait sur le web, pas sur le téléphone
 

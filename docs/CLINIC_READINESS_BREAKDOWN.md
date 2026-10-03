@@ -49,7 +49,7 @@ These block a store release or change scope, and I must not guess them:
 3. **Staging host + domain** (the TLS stack exists but has never been deployed) and the **Sentry DSN** and **support channel**.
 4. **Patient identity.** The prosthetic brief asks for first/last name; the backend deliberately stores a pseudonymous reference (RGPD/HDS analysis is required before real patient data — Cahier §8). Decide: keep references, or add name fields with the legal analysis.
 5. **A reception role.** The brief talks about "reception" editing payments; the backend has six roles (owner, admin, stock_manager, releaser, practitioner, viewer). Decide which existing role plays reception, or add one.
-6. **Push notifications — built, needs your Firebase project to deliver.** Backend (token registry, digest, FCM sender) and the app (opt-in switch, tap-to-open) are done and tested; the live chain was proven up to the server's `push.sent`. To reach a real phone you create a Firebase project and give the 4 app values + a service-account key (steps in `docs/RELEASE.md`).
+6. **Push notifications — the app side is built; the server side does not exist.** The backend has no registration route or sender and is left as it is (its owner decides). Until then the switch is dormant and alerts stay in the Alertes tab. A written proposal is in `docs/backend-proposal/`.
 7. **Control schedule** (A-05): how often must a control be done? The server raises no "overdue control" alert until the clinic states the rule.
 8. **Label printer model** to test real printing; reprint stays web-only per the Cahier.
 

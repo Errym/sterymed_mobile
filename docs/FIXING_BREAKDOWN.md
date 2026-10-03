@@ -21,24 +21,24 @@ version. Nothing below is marked done unless a command or test proves it.
 | Layer | State | Evidence |
 |---|---|---|
 | Mobile code | ✅ proven | `dart analyze lib test` clean; **1033 tests pass, 0 fail** (run in chunks); debug APK builds with Firebase plugins |
-| Backend API | ✅ proven | 290 Pest API tests pass in the isolated runner; OpenAPI contract test green |
+| Backend API | ✅ proven | 272 Pest API tests pass in the isolated runner on the backend exactly as its owner left it; OpenAPI contract test green |
 | Six roles | ✅ proven | `verify_authorization_matrix.py` (6 roles × 29 probes + cross-practice wall); `verify_screen_calls_by_role.py` 0 mismatches |
 | Cahier journeys on the live API | ✅ proven | stock, sterilization, prosthetic, empty-clinic, invitation, two-practices, idempotency, export scripts all PASS |
 | Small screens / large text | ✅ proven | `layout_resilience_*` tests at 320×568 @130 %, 390×844, tablet |
-| Push notifications | ✅ built, live chain proven to the server log · 🧑 needs your Firebase project to reach a phone | `PushNotificationTest` (13), `push_service_test` (18), `docs/RELEASE.md` |
-| Git | ✅ mobile committed (10 checkpoints, tree clean) · 🧑 backend waits for your OK (165 files, mixes your work and mine) | `git log` |
+| Push notifications | ✅ app side built and tested (dormant) · 🧑 the **server has no push support** and is left untouched; needs the backend owner and a Firebase project | `push_service_test` (18), `push_remote_test`, `docs/backend-proposal/` |
+| Git | ✅ mobile committed, tree clean · the backend is **not touched** by the mobile work and is the web engineer's to commit | `git log` |
 | A real phone | 📱 never run | `DEVICE_TEST_LOG.md` is empty |
 | Staging, signed build, CI on a candidate commit | 🧑 not started | needs your host, keystore, Play account |
 
 ## 2. Corrections to the previous breakdown
 
-The previous version listed eight "P0 source defects". Re-checked today:
+The previous version listed eight "P0 source defects". Re-checked today (the backend is left exactly as its owner has it; backend findings are proposals, not applied changes):
 
 | P0 | Verdict |
 |---|---|
 | 1 double idempotency key · 2 stranded `syncing` items · 3 item edit deletes then recreates · 4 scan GET mutates · 5 foreign practitioner · 6 permission cache | ✅ **already fixed** before this review (durable outbox with one key per intent and startup recovery; `PATCH` item; read-only scan; `EligiblePractitioner`; `TenantPermissionRegistrar`) |
-| 7 export overwrites same-named files | ❌ **was real → ✅ fixed today**: files stored as `<media id>_<name>`, `files_manifest.json` with SHA-256, missing files recorded, a failed upload now fails the export. `verify_export_files.py` ALL PASS on the live stack (two same-named PNGs both in the archive, checksums match); naming unit-tested |
-| 8 cycle accepts another device's program | ⚠️ device match was fixed; **an inactive program was still accepted → ✅ fixed today** (`CycleCreationRulesTest`) |
+| 7 export overwrites same-named files | ❌ **real, in the backend, not applied by mobile**: the export writes `files/<original name>`, so same-named attachments overwrite each other (violates Cahier §8). A fix was written and proven, then reverted; it is a proposal for the backend owner (`docs/backend-proposal/`, item P-3) |
+| 8 cycle accepts another device's program | ⚠️ the device match is enforced; **a switched-off program is still accepted** (backend, proposal P-4) |
 
 Also stale in the old text: test counts, "no push", the medium list (dead
 screens, `dentistrack` image, Inter font registration, goldens platform pin,
@@ -55,7 +55,7 @@ Each step ends with analyzer clean + its tests + a commit.
 | 3 | **Data export** request screen + **patient creation** as a real form | preview + sections like the other forms; tests |
 | 4 | **User guide** (`USER_GUIDE.md`) written per role from the real screens | one page per role, French |
 | 5 | Final **full `flutter test`** run alone on a quiet machine, goldens regenerated if needed, coverage floor check | green log kept in `build/` |
-| 6 | Backend **commits** in 5 checkpoints | after your "yes" (section 6) |
+| 6 | Hand `docs/backend-proposal/` to the web engineer and record their decision per item | their call; the backend is not edited by the mobile side |
 
 ## 4. Needs your phone (📱) — the device matrix
 
@@ -89,7 +89,7 @@ I will not guess these. The right column is what I recommend.
 | 7 | Control schedule (how often a control is due) | server raises no "overdue control" alert (A-05) | the clinic states the rule, then one backend change |
 | 8 | Label printer model | real print test (reprint stays web-only) | order the clinic's model |
 | 9 | Final launcher icon artwork | the icon files changed; final art needs your approval | send the mark |
-| 10 | Backend commit split | 165 files, two authors | five checkpoints: prosthetic · inventory counts · identity/invitations · push · fixes/docs |
+| 10 | Which backend proposals (P-1…P-5, `ANOMALIES.md`) the web engineer accepts | the backend is theirs; mobile works against it unchanged | ask them item by item |
 
 ## 6. Staging and release sequence (after 5.2–5.4)
 

@@ -1,6 +1,27 @@
-# Backend changes made during the mobile completion work
+# Backend proposals from the mobile work — NOT APPLIED
 
-Repository: `steriqore` (branch `mvp/steriqore-web`). **None of this is committed yet.**
+**Status (3 October 2026): none of this is in the backend.** The web/backend
+engineer owns that code and asked that it not be touched. These changes were
+first made in the working tree, then **fully reverted** (files removed, edits
+reversed, migration rolled back, dev container restored, backend tests green at
+their original count). What is left is this proposal, for the backend owner to
+accept, adapt or refuse.
+
+* `new-files.zip` — the complete new files (push registry, digest job, FCM
+  sender, migration, tests), unchanged from when they passed.
+* `verify_export_files.py` — live proof for the export fix (needs it applied).
+* The small edits to existing files are described below, hunk by hunk.
+
+Only items 3 and 4 correspond to a written requirement being broken by the
+existing code (Cahier §8, "aucune suppression silencieuse d'une preuve"; cycle
+traceability). Push (2) is required by the Cahier's mobile stack but needs a
+backend sender. 1 and 5 are operational suggestions, not requirements.
+
+The text below keeps its original past-tense wording for the record.
+
+# (original description)
+
+Repository: `steriqore` (branch `mvp/steriqore-web`).
 Dates: 3 October 2026. Every change below has a test or a live proof; the
 evidence is named in each section.
 
@@ -147,13 +168,7 @@ has been switched off".
   captures, and code dumps (`BACKEND_DUMP.txt`, `all_code.txt`, `structure.txt`,
   `openapi.json`).
 
-## Deployed to the running dev stack
-
-All of the above is copied into `steriqore-app` (`/app`), the migration was run
-with `--database=pgsql_admin`, config cache cleared, Octane reloaded and Horizon
-restarted. A container rebuild must come from a commit of these files.
-
-## Suggested commit split (needs the owner's go-ahead)
+## If the backend owner accepts it, a suggested split
 
 1. `fix(auth): per-account login limiter` — `AppServiceProvider` (limiter only), `routes/api.php` (login line), `RateLimitTest` (first two tests).
 2. `feat(push): device tokens, alert digest, FCM sender` — section 2.

@@ -47,15 +47,10 @@ exists. **Low** = cosmetic or dead code.
 | C-13 | High | Presigned links used the internal storage host (A-01, `BUG-010`) | `PublicPresigner` signs against the public endpoint | `verify_media_links.py` ALL PASS, `PublicPresignerTest` |
 | C-14 | High | Staging had no TLS and its env template lacked the new settings | Caddy service with automatic HTTPS, `API_DOMAIN` / `STORAGE_DOMAIN` / `AWS_PUBLIC_ENDPOINT_*` / `MIN_APP_VERSION` in the template | `docker compose config` and `caddy validate` pass; not yet deployed (no host) |
 | C-15 | Medium | Backup and restore had never been performed and timed | Drill script | `verify_backup_restore.py` ALL PASS: dump 7 s, restore 20 s, counts equal, roles intact; media deleted then restored in 8 s |
-| C-16 | **High** | Login, registration, forgot-password and invitation-accept shared ONE limit of 10 requests/minute per IP. A clinic whose staff share one public IP (reception Wi-Fi, carrier NAT) would lock colleagues out at opening time; the 11th sign-in was refused | Login now has its own limiter: 10/min per account+IP (guessing stays blocked) and a 120/min per-IP flood ceiling; the other three keep the strict 10/min | `RateLimitTest` (20 colleagues from one IP all pass, one account hammered is refused after 10); 273 API tests pass; deployed to the dev stack |
-| C-17 | **High** | Push notifications (Cahier §7 "notifications") did not exist: no token registry, no sender, no client | Backend: `device_push_tokens` (tied to the login token, removed on sign-out), `POST/DELETE /v1/push-tokens`, alert observer → one delayed digest per practice, FCM HTTP v1 sender (+ log/none drivers). Mobile: opt-in switch in Profil, token registration, tap opens Alertes (allow-listed routes only), foreground banner. Generic text only | 13 backend tests, 24 mobile tests, live proof on the dev stack (register → alert → `push.sent`). **Delivery to a real phone needs the owner's Firebase project** (see RELEASE.md) |
-| C-18 | **High** | A data export wrote attachments under their original name, so two files with the same name (two photos both called IMG_0001.jpg) overwrote each other and one piece of evidence disappeared from a legal archive with no error | Files are stored as `<media id>_<name>` (path-safe), a `files_manifest.json` lists every file with size and SHA-256, files missing from storage are recorded as `missing`, and a failed upload now fails the export | `verify_export_files.py` ALL PASS on the live stack; `DataExportRequestTest` (naming rules) |
-| C-19 | Medium | A cycle could be created with a sterilization program that had been switched off (the device match was already enforced) | `CreateCycleRequest` requires the program to be active | `CycleCreationRulesTest` |
 | C-20 | **High** | Every server timestamp was displayed in UTC: a French clinic read cycle, usage, audit and receipt times 1-2 hours early; the control-test time was also SENT as local time without an offset | `parseServerTime` converts at the model edge (47 parse sites); the control-test time is sent in UTC; maintenance dates are sent as days | `server_time_test`; all 1033 app tests |
 | C-21 | **High** | Android cloud backup and device transfer were allowed, so encrypted clinical data could be copied off the phone | `allowBackup=false` + `data_extraction_rules.xml`; `verify_release_config.py` now fails if either is missing | `verify_release_config.py` |
 | C-22 | Medium | The dashboard stock health was computed from the first 200 stock rows and shown as exact, even for a larger stock | the figures are marked partial (`12+`, caption names the sample) when the server has more rows | `dashboard_insights_test` |
 | C-23 | Medium | Alert texts reached French staff in English (`Stock for "X" is below threshold (2/10).`) | the four server texts are translated in the app; unknown text is shown unchanged | `alert_message_test` |
-| C-24 | Medium | Public practice sign-up was open to anyone who finds the server | `STERIQORE_REGISTRATION_ENABLED` (default on for dev, **off in the staging template**); clean `REGISTRATION_DISABLED` 403 | `RateLimitTest` |
 
 ## Gate 8 status
 
@@ -63,3 +58,19 @@ exists. **Low** = cosmetic or dead code.
 - Journeys 1-6 recorded on a device with no hidden fake data: **not done** (A-02).
 - Zero open blocking or critical: **no blocking or critical item is open**; A-01 is High and must be closed on staging before acceptance.
 - CI green on the candidate commit: **not checked** (nothing is committed).
+
+## Proposed to the backend owner (NOT applied)
+
+The mobile engineer found these in the backend while testing, wrote and proved a
+fix, then **reverted it**: the backend belongs to the web engineer and is left
+exactly as it is. The proposal is in `docs/backend-proposal/`. Until the owner
+decides, treat these as **open backend items**:
+
+| ID | Severity | What | Effect on the pilot |
+|---|---|---|---|
+| P-1 | **High** | Login, registration, forgot-password and invitation-accept share one limit of 10 requests/minute per IP | A clinic whose staff share one public IP can lock colleagues out at opening time |
+| P-2 | Medium | No push-notification support on the server (no token registry, no sender) | The app's notification switch is dormant: it shows "ce serveur ne propose pas encore les notifications" |
+| P-3 | **High** | A data export writes attachments under their original name, so same-named files overwrite each other | Evidence can silently go missing from a legal archive (Cahier §8) |
+| P-4 | Medium | A cycle can be created with a switched-off program | Traceability of the program used |
+| P-5 | Medium | Public practice sign-up is open | Anyone who finds the server can create practices |
+

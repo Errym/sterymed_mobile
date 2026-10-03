@@ -98,6 +98,12 @@ in the repository (`secrets-scan.yml` runs gitleaks on every push).
 
 ## Push notifications — how to switch them on
 
+> **The backend currently has no push support** (the web engineer owns it; a
+> proposal is in `docs/backend-proposal/`). Until it is added, the app's
+> notification switch answers "ce serveur ne propose pas encore les
+> notifications" and the alerts stay in the Alertes tab. Steps 3 and 4 below only
+> apply once the server side exists.
+
 Nothing ships with Firebase keys. A build without the four `FIREBASE_*` values
 says "notifications not activated in this version" in Profil → Notifications,
 and the server with `PUSH_DRIVER=none` (default) sends nothing.
