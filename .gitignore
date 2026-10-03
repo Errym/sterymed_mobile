@@ -83,3 +83,6 @@ android/key.properties
 android/local.properties
 *.jks
 *.keystore
+
+# Golden-test failure diffs are generated on a failing run.
+test/golden/failures/
