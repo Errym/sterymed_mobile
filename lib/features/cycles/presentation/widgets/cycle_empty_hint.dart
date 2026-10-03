@@ -39,7 +39,7 @@ class CycleLoadFailedHint extends StatelessWidget {
           Expanded(
             child: Text(
               '$what : chargement impossible ($message).',
-              style: AppTypography.caption.copyWith(color: AppColors.warning),
+              style: AppTypography.caption.copyWith(color: AppColors.warningText),
             ),
           ),
           if (onRetry != null)

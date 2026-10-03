@@ -367,7 +367,7 @@ class _LineTile extends StatelessWidget {
                 child: Text(
                   'Reste ${line.qtyRemaining} à recevoir',
                   style: AppTypography.caption
-                      .copyWith(color: AppColors.warning),
+                      .copyWith(color: AppColors.warningText),
                 ),
               ),
           ],

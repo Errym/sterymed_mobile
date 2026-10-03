@@ -204,7 +204,7 @@ class _Pipeline extends StatelessWidget {
                             style: AppTypography.kpiNumber.copyWith(
                               color: stages[i].$2 == 0
                                   ? AppColors.textTertiary
-                                  : stages[i].$4,
+                                  : AppColors.text(stages[i].$4),
                               fontSize: 22,
                             ),
                           ),

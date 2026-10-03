@@ -371,7 +371,7 @@ class _Count extends StatelessWidget {
             Text(
               '$value',
               style: AppTypography.kpiNumber.copyWith(
-                color: value == 0 ? AppColors.textTertiary : color,
+                color: value == 0 ? AppColors.textTertiary : AppColors.text(color),
                 fontSize: 22,
               ),
             ),
@@ -418,7 +418,7 @@ class _Group extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 title,
-                style: AppTypography.sectionTitle.copyWith(color: color),
+                style: AppTypography.sectionTitle.copyWith(color: AppColors.text(color)),
               ),
               const SizedBox(width: AppSpacing.xs),
               Container(
@@ -430,7 +430,7 @@ class _Group extends StatelessWidget {
                 child: Text(
                   '${alerts.length}',
                   style: AppTypography.caption.copyWith(
-                    color: color,
+                    color: AppColors.text(color),
                     fontWeight: FontWeight.w700,
                   ),
                 ),

@@ -210,7 +210,7 @@ class _DluRuleFormSheetState extends State<DluRuleFormSheet> {
                         'date de péremption déjà calculée, seulement les '
                         'prochaines.',
                         style: AppTypography.caption
-                            .copyWith(color: AppColors.warning),
+                            .copyWith(color: AppColors.warningText),
                       ),
                     ),
                   ],

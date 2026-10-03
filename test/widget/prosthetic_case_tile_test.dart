@@ -46,7 +46,7 @@ void main() {
       ),
     );
 
-    expect(badgeTextColor(tester), AppColors.agingMedium);
+    expect(badgeTextColor(tester), AppColors.warningText);
   });
 
   testWidgets('20 days shows an AgingBadge in the urgent color', (

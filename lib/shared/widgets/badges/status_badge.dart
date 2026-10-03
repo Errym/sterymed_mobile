@@ -27,7 +27,7 @@ class StatusBadge extends StatelessWidget {
         break;
       case StatusTone.warning:
         bg = AppColors.warningLight;
-        fg = AppColors.warning;
+        fg = AppColors.warningText;
         break;
       case StatusTone.danger:
         bg = AppColors.dangerLight;

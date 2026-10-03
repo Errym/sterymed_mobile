@@ -387,7 +387,7 @@ class _ProductFormSheetState extends State<ProductFormSheet> {
                           'Les listes (familles, emplacements) n\'ont pas pu '
                           'être chargées. Les valeurs actuelles sont conservées.',
                           style: AppTypography.caption
-                              .copyWith(color: AppColors.warning),
+                              .copyWith(color: AppColors.warningText),
                         ),
                       AppDropdown<String?>(
                         label: 'Famille',

@@ -337,7 +337,7 @@ class _Kpi extends StatelessWidget {
             Icon(icon, color: accent, size: 20),
             const Spacer(),
             Text('$value',
-                style: AppTypography.pageTitle.copyWith(color: accent)),
+                style: AppTypography.pageTitle.copyWith(color: AppColors.text(accent))),
             Text(label,
                 style: AppTypography.caption
                     .copyWith(color: AppColors.textSecondary),

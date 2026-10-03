@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 class AnimatedListItem extends StatefulWidget {
@@ -19,6 +21,7 @@ class _AnimatedListItemState extends State<AnimatedListItem>
   late final AnimationController _controller;
   late final Animation<double> _fade;
   late final Animation<Offset> _slide;
+  Timer? _timer;
 
   @override
   void initState() {
@@ -33,14 +36,24 @@ class _AnimatedListItemState extends State<AnimatedListItem>
       end: Offset.zero,
     ).animate(_fade);
 
+    // People who turned animations off in the phone's accessibility settings
+    // (motion sickness, vestibular disorders) get the content straight away.
+    final reduceMotion = WidgetsBinding
+        .instance.platformDispatcher.accessibilityFeatures.disableAnimations;
+    if (reduceMotion) {
+      _controller.value = 1;
+      return;
+    }
+
     final delay = (widget.index * 40).clamp(0, 400);
-    Future.delayed(Duration(milliseconds: delay), () {
+    _timer = Timer(Duration(milliseconds: delay), () {
       if (mounted) _controller.forward();
     });
   }
 
   @override
   void dispose() {
+    _timer?.cancel();
     _controller.dispose();
     super.dispose();
   }

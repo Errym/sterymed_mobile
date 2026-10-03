@@ -197,7 +197,7 @@ void main() {
         );
         expect(
           badgeTextColor(tester, 'PAT-MEDIUM'),
-          AppColors.agingMedium,
+          AppColors.warningText,
           reason: '10 days is within the 8-14 day "medium" band',
         );
         expect(

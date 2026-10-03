@@ -24,7 +24,7 @@ class OfflineBanner extends StatelessWidget {
             child: Text(
               message ??
                   'Mode hors ligne — les modifications seront synchronisées',
-              style: AppTypography.caption.copyWith(color: AppColors.warning),
+              style: AppTypography.caption.copyWith(color: AppColors.warningText),
             ),
           ),
         ],

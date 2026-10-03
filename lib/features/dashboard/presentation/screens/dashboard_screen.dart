@@ -882,7 +882,7 @@ class _KpiTile extends StatelessWidget {
                   shown,
                   style: AppTypography.kpiNumber.copyWith(
                     fontSize: 24,
-                    color: warm ? AppColors.warning : AppColors.textPrimary,
+                    color: warm ? AppColors.warningText : AppColors.textPrimary,
                   ),
                 ),
               ),
@@ -1714,7 +1714,7 @@ class _StockSection extends StatelessWidget {
                   children: [
                     Text(
                       pct == null ? '—' : '$pct %',
-                      style: AppTypography.kpiNumber.copyWith(color: color),
+                      style: AppTypography.kpiNumber.copyWith(color: AppColors.text(color)),
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Padding(

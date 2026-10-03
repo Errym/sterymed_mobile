@@ -27,7 +27,7 @@ class AgingBadge extends StatelessWidget {
       icon = Icons.access_time;
     } else if (daysElapsed <= 14) {
       bg = AppColors.agingMedium.withValues(alpha: 0.15);
-      fg = AppColors.agingMedium;
+      fg = AppColors.warningText;
       icon = Icons.warning_amber_outlined;
     } else {
       bg = AppColors.agingUrgent.withValues(alpha: 0.12);

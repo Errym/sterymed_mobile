@@ -166,7 +166,7 @@ class _RowSummary extends StatelessWidget {
                 ? '$delta en attente d\'envoi (non inclus dans ${row.qty})'
                 : '+$delta en attente d\'envoi (non inclus dans ${row.qty})',
             key: const ValueKey('pending_delta'),
-            style: AppTypography.caption.copyWith(color: AppColors.warning),
+            style: AppTypography.caption.copyWith(color: AppColors.warningText),
           ),
         ],
         _StatusBadges(row: row),

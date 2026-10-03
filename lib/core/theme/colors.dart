@@ -20,8 +20,8 @@ abstract final class AppColors {
 
   // ── Neutrals ───────────────────────────────────────────────────
   static const textPrimary = Color(0xFF1A2332);
-  static const textSecondary = Color(0xFF6B7280);
-  static const textTertiary = Color(0xFF9CA3AF);
+  static const textSecondary = Color(0xFF525C6B);
+  static const textTertiary = Color(0xFF5F6B7A);
   static const textOnBrand = Color(0xFFFFFFFF);
 
   static const borderLight = Color(0xFFE5E9F0);
@@ -40,22 +40,35 @@ abstract final class AppColors {
   static const backgroundMuted = Color(0xFFF1F4F9);
 
   // ── Status ─────────────────────────────────────────────────────
-  static const success = Color(0xFF22A06B);
+  static const success = Color(0xFF167A3E);
   static const successLight = Color(0xFFE6F4ED);
 
   static const warning = Color(0xFFE8A020);
+  /// Amber as TEXT or as an icon that carries meaning: 5.6:1 on white and on
+  /// the amber tint. [warning] itself is for fills and accent bars only.
+  static const warningText = Color(0xFF9A4A0A);
+
+  /// The colour to use when [c] is the colour of TEXT: amber (a fill colour)
+  /// becomes its readable twin; every other colour is already readable.
+  static Color text(Color c) => c == warning ? warningText : c;
   static const warningLight = Color(0xFFFDF3E1);
 
-  static const danger = Color(0xFFD9544F);
+  static const danger = Color(0xFFC0392B);
   static const dangerLight = Color(0xFFFBE9E8);
 
-  static const info = Color(0xFF3B82F6);
+  static const info = Color(0xFF1D63D1);
   static const infoLight = Color(0xFFE8F0FE);
 
   // ── Aging badges ───────────────────────────────────────────────
-  static const agingFresh = Color(0xFF22A06B); // 0-7 days
+  // Tag colours (text on its own light tint), both above 4.5:1.
+  static const tagPurple = Color(0xFF6D28D9);
+  static const tagPurpleLight = Color(0xFFEDE9FE);
+  static const tagOrange = Color(0xFFC2410C);
+  static const tagOrangeLight = Color(0xFFFFEDD5);
+
+  static const agingFresh = Color(0xFF167A3E); // 0-7 days
   static const agingMedium = Color(0xFFE8A020); // 8-14 days
-  static const agingUrgent = Color(0xFFD9544F); // 15+ days
+  static const agingUrgent = Color(0xFFC0392B); // 15+ days
 
   // ── Overlays ───────────────────────────────────────────────────
   static const overlayScrim = Color(0x66000000);
