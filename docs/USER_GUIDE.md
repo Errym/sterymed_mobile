@@ -1,153 +1,113 @@
 # Guide utilisateur — SteryMed Mobile
 
-**Statut : squelette — captures d'écran manquantes.** Ce document liste
-les parcours réels de l'application (vérifiés dans le code) avec un
-emplacement réservé pour chaque capture d'écran. Il faut faire tourner
-l'application sur un appareil réel ou un simulateur pour les produire —
-hors de portée de cette session. La structure et le texte descriptif
-sont prêts à être complétés.
+Ce guide est écrit à partir des écrans et des droits réels de l'application
+(`docs/ROLE_MATRIX.md`). Les captures d'écran seront ajoutées après les essais
+sur téléphone (`docs/DEVICE_TEST_LOG.md`) ; chaque section indique l'écran à
+photographier.
 
-## Sommaire
+## 1. Pour commencer
 
-1. Connexion
-2. Tableau de bord
-3. Scanner une étiquette
-4. Enregistrer une utilisation
-5. Cycles de stérilisation
-6. Stock
-7. Commandes fournisseurs
-8. Patients
-9. Non-conformités
-10. Prothèses
-11. Paramètres et gestion d'équipe
+**Se connecter.** Saisissez l'identifiant du cabinet, votre e-mail et votre mot
+de passe. La session reste ouverte sur le téléphone ; après quelques minutes en
+arrière-plan, l'application demande votre empreinte ou votre code pour
+reprendre. Les données du cabinet sont chiffrées sur le téléphone.
 
----
+**Les six onglets du bas.**
 
-## 1. Connexion
+| Onglet | À quoi il sert |
+|---|---|
+| Accueil | La situation du cabinet en un coup d'œil, adaptée à votre rôle, et l'accès à tous les modules |
+| Scanner | Lire une étiquette (QR ou DataMatrix) ou un produit, et enregistrer son utilisation |
+| Cycles | Les cycles de stérilisation : préparer, démarrer, contrôler, libérer |
+| Stock | Niveaux, lots, mouvements, inventaires |
+| Alertes | Stock bas, péremption proche, périmé, cycle en échec |
+| Plus | Votre profil, les écrans du cabinet auxquels vous avez accès, l'état de synchronisation, les notifications |
 
-`Routes.login` — email + mot de passe, sélection du tenant si
-applicable.
+**Retour.** La flèche en haut à gauche et le bouton retour du téléphone ramènent
+à l'écran précédent ; depuis un onglet, ils ramènent à l'Accueil.
 
-`[Capture d'écran : écran de connexion]`
+**Sans réseau.** Les mouvements de stock, les utilisations d'étiquettes, les
+réceptions et les changements de cycle sont mis en file et envoyés dès que le
+réseau revient (bandeau « en attente » en haut ; détail dans Plus → Synchronisation).
+Rien n'est envoyé deux fois. Un élément qui échoue reste visible pour être
+renvoyé ou abandonné : rien ne disparaît en silence.
 
-### Première connexion (invitation)
+## 2. Ce que fait chaque rôle
 
-1. Le responsable du cabinet vous invite : vous recevez un e-mail « Invitation à
-   rejoindre … sur SteryMed ».
-2. Touchez **Accepter l'invitation** : une page s'ouvre dans votre navigateur.
-   Indiquez votre nom et choisissez un mot de passe (si vous avez déjà un compte
-   SteryMed avec cette adresse, saisissez votre mot de passe actuel).
-3. La page affiche l'**identifiant du cabinet** (repris aussi dans l'e-mail).
-4. Ouvrez l'application SteryMed et connectez-vous avec cet identifiant, votre
-   adresse e-mail et votre mot de passe.
+| Rôle | Peut faire | Ne peut pas faire |
+|---|---|---|
+| **Propriétaire / Administrateur** | tout : équipe, sites, appareils, stock, commandes, cycles, libération, patients, prothèses et paiements, audit, exports | — (seul le propriétaire modifie les règles de DLU) |
+| **Responsable de stock** | produits, fournisseurs, commandes, réceptions, mouvements, lots, inventaires, alertes, préparation des cycles | libérer un cycle, créer un patient, modifier les paiements prothèses |
+| **Responsable de libération** | consulter ; **libérer ou rejeter** un cycle ; gérer les non-conformités | modifier le stock, les commandes |
+| **Praticien** | scanner et enregistrer une utilisation, créer un dossier patient, créer et suivre les dossiers prothétiques | libérer un cycle, modifier le stock, les paiements |
+| **Lecture seule** | tout consulter | rien modifier |
 
-Un lien expiré, annulé ou déjà utilisé affiche une page qui l'explique ;
-demandez alors une nouvelle invitation au responsable du cabinet.
+L'application n'affiche jamais un bouton que votre rôle ne peut pas utiliser :
+si une action manque, c'est que votre rôle ne l'a pas.
 
-### Mot de passe oublié
+## 3. Parcours courants
 
-Sur l'écran de connexion, touchez **Mot de passe oublié**, saisissez votre
-adresse e-mail puis suivez les trois étapes affichées : ouvrez l'e-mail, choisissez
-un nouveau mot de passe dans le navigateur, puis revenez vous connecter.
-L'application ne dit jamais si une adresse correspond à un compte.
+### Scanner une étiquette et enregistrer une utilisation (praticien)
+1. Onglet **Scanner**, visez le code de l'étiquette.
+2. L'écran montre le cycle, l'appareil, la date limite d'utilisation. Une
+   étiquette **bloquée** (rappelée, périmée) est refusée avec la raison.
+3. **Enregistrer l'utilisation** : choisissez le patient (référence), le
+   praticien et l'acte. Un double scan n'enregistre qu'une seule utilisation.
 
-## 2. Tableau de bord
+### Sortir ou ajuster du stock (responsable de stock)
+Onglet **Stock** → *Nouveau mouvement* : sortie, ajustement (motif obligatoire)
+ou transfert. Choisissez le lot ; l'écran affiche le stock restant avant
+validation. Vous pouvez aussi scanner le produit pour le retrouver.
 
-`Routes.dashboard` — contenu et indicateurs différents selon le rôle
-(voir `lib/core/router/guards/role_guard.dart` et
-`lib/features/dashboard/`).
+### Réceptionner une commande (responsable de stock)
+Accueil → **Commandes** → la commande → **Réceptionner** : saisissez le
+numéro de lot et la date limite pour chaque ligne, une raison en cas d'écart,
+et prenez une photo du bon de réception. La réception peut être partielle.
 
-`[Capture d'écran : tableau de bord]`
+### Faire un cycle de stérilisation
+1. **Cycles** → *Nouveau cycle* : appareil et programme (l'aperçu montre ce qui
+   sera créé), puis ajoutez les instruments du chargement.
+2. **Démarrer**, puis **Terminer** quand l'autoclave a fini.
+3. Saisissez les **tests de contrôle** (un test échoué est signalé en rouge en
+   haut du cycle), ajoutez les photos ou rapports.
+4. Le responsable de libération ouvre le cycle et **libère** ou **rejette**,
+   avec une raison. Le bandeau en haut du cycle dit toujours « prochaine étape ».
 
-## 3. Scanner une étiquette
+### Traiter une alerte
+Onglet **Alertes** : les plus graves en premier, avec l'ancienneté et un bouton
+pour ouvrir le stock, les lots ou le cycle concerné. **Marquer comme résolu**
+(rôles de gestion) demande confirmation.
 
-`Routes.scanner` → `Routes.labelsDetail` — nécessite la permission
-`labels.view`.
+### Suivre un travail prothétique (praticien, administrateur)
+Accueil → **Prothèses**. La première ligne dit ce qui est à traiter en priorité ;
+chaque carte ouvre la liste correspondante. *Nouveau dossier* : patient, type de
+travail, praticien, laboratoire, priorité. Dans le dossier, la frise montre
+l'avancement ; changez le statut en un geste. Avant la pose, un avertissement
+(jamais bloquant) signale un solde ou un acompte à vérifier. Le suivi des
+paiements est réservé aux administrateurs.
 
-`[Capture d'écran : scanner]`
-`[Capture d'écran : détail d'une étiquette]`
+## 4. Alertes sur le téléphone
 
-## 4. Enregistrer une utilisation
+Plus → **Notifications** → *Alertes sur ce téléphone*. Le téléphone demande
+alors son autorisation. Le message est volontairement général (« 2 nouvelles
+alertes dont 1 critique ») : aucun nom de patient ni de produit n'apparaît
+sur un écran verrouillé. Toucher la notification ouvre l'onglet Alertes. Si
+l'interrupteur est absent, cette version de l'application n'a pas les
+notifications : les alertes restent toujours visibles dans l'onglet.
 
-`Routes.labelsUsage` — nécessite `usages.manage`. Le brouillon est
-conservé automatiquement si l'application est fermée en cours de
-saisie (seul formulaire de l'application à avoir cette protection
-aujourd'hui).
+## 5. Ce qui se fait sur le web, pas sur le téléphone
 
-`[Capture d'écran : formulaire d'utilisation]`
+Création des sites et emplacements, impression et réimpression des étiquettes,
+réglages des seuils d'alerte, gestion fine de l'équipe. L'application l'indique
+plutôt que de le simuler.
 
-## 5. Cycles de stérilisation
+## 6. En cas de problème
 
-`Routes.cycles` → `Routes.cyclesDetail` — création (`cycles.manage`),
-démarrage/fin/soumission (`cycles.manage`), décision de libération
-(`cycles.release`, action distincte).
-
-`[Capture d'écran : liste des cycles]`
-`[Capture d'écran : détail d'un cycle]`
-`[Capture d'écran : décision de libération]`
-
-## 6. Stock
-
-`Routes.stock` (lecture : `inventory.view`) →
-sortie/ajustement/transfert (`inventory.manage`).
-
-`[Capture d'écran : niveaux de stock]`
-
-## 7. Commandes fournisseurs
-
-`Routes.purchases` (`purchasing.view`) → réception
-(`purchasing.manage`).
-
-`[Capture d'écran : liste des commandes]`
-`[Capture d'écran : réception de marchandise]`
-
-## 8. Patients
-
-`Routes.patients` (`patients.view` / `patients.manage` pour créer ou
-modifier).
-
-`[Capture d'écran : recherche patient]`
-
-## 9. Non-conformités
-
-`Routes.nonConformities` (`non_conformities.view` /
-`non_conformities.manage` pour créer/résoudre).
-
-`[Capture d'écran : liste des non-conformités]`
-
-## 10. Prothèses
-
-`Routes.prosthetic` (`prosthetic_cases.view`) → création
-(`Routes.prostheticCreate`, `prosthetic_cases.manage`), détail
-(`Routes.prostheticDetail`) avec modification rapide, changement de
-statut et suivi du paiement (`prosthetic_cases.manage` /
-`prosthetic_payments.manage` séparément — un praticien sans ce dernier
-droit voit l'état du paiement en lecture seule), liste "en attente de
-pose" (`Routes.prostheticWaitingPlacement`) et gestion des laboratoires
-(`Routes.prostheticLaboratories`). Voir `docs/PROSTHETIC_MODULE.md` pour
-le détail technique complet.
-
-`[Capture d'écran : liste des dossiers prothétiques]`
-`[Capture d'écran : création d'un dossier]`
-`[Capture d'écran : détail d'un dossier — statut et paiement]`
-`[Capture d'écran : en attente de pose]`
-
-## 11. Paramètres et gestion d'équipe
-
-`Routes.settings`, `Routes.team` (invitation : `invitations.create`).
-
-`[Capture d'écran : paramètres]`
-`[Capture d'écran : équipe]`
-
----
-
-## Ce qui manque pour compléter ce guide
-
-- [ ] Captures d'écran réelles (19 emplacements dans ce document, dont 4
-  ajoutés pour le module prothétique le 2026-09-26 — le plan initial,
-  P12, en prévoyait 14 avant que ce module existe) — nécessite un
-  appareil ou un simulateur.
-- [ ] Relecture par le porteur de produit pour le ton et la
-  terminologie métier.
-- [ ] Un parcours par rôle (administrateur, praticien, gestionnaire de
-  stock, etc.) — ce guide couvre les écrans, pas encore qui voit quoi.
+| Je vois… | Que faire |
+|---|---|
+| « Hors ligne » / « en attente d'envoi » | Rien : l'envoi reprend seul au retour du réseau. Plus → Synchronisation pour le détail |
+| « Mise à jour requise » | Installer la dernière version de l'application |
+| Écran de déverrouillage | Empreinte ou code du téléphone ; sans verrouillage d'écran, l'application se déconnecte (rien n'est perdu) |
+| Une action manque | Votre rôle ne l'a pas : demander à l'administrateur du cabinet |
+| Un élément « à vérifier » dans la synchronisation | L'ouvrir, puis **Renvoyer** ou **Abandonner** |
+| Autre | Le canal d'assistance du cabinet (à renseigner : voir `docs/RELEASE.md`) |
