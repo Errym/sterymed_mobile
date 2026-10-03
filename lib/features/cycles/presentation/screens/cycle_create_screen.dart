@@ -10,6 +10,7 @@ import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
@@ -202,6 +203,8 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             const AnimatedListItem(index: 0, child: CycleCreateBannerCard()),
+            const SizedBox(height: AppSpacing.md),
+            _preview(operatorName),
             const SizedBox(height: AppSpacing.lg),
 
             // ── Device ──
@@ -285,6 +288,35 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// What will be created, as it will read in the cycle list.
+  Widget _preview(String operatorName) {
+    DeviceProgramData? program;
+    for (final p in _programs) {
+      if (p.id == _programId) program = p;
+    }
+    String? deviceName;
+    for (final d in _devices) {
+      if (d.id == _deviceId) deviceName = d.name;
+    }
+    return PreviewCard(
+      key: const Key('cycle-preview'),
+      mark: const EntityMark.icon(Icons.autorenew),
+      eyebrow: 'NOUVEAU CYCLE · BROUILLON',
+      title: deviceName ?? 'Choisissez un appareil',
+      titleIsPlaceholder: deviceName == null,
+      tags: [
+        if (program != null) ...[
+          InfoTag(program.name, icon: Icons.tune),
+          InfoTag(
+            '${program.temperatureCelsius} °C · ${program.plateauMinutes} min',
+            icon: Icons.thermostat_outlined,
+          ),
+        ],
+        InfoTag(operatorName, icon: Icons.person_outline),
+      ],
     );
   }
 

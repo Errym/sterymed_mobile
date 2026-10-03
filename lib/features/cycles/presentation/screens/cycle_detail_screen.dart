@@ -34,10 +34,10 @@ import '../widgets/cycle_empty_hint.dart';
 import 'attachment_viewer_screen.dart';
 import '../widgets/cycle_info_banner.dart';
 import '../widgets/cycle_info_card.dart';
+import '../widgets/cycle_header_card.dart';
 import '../widgets/cycle_labels_section.dart';
 import '../widgets/cycle_notes_section.dart';
 import '../widgets/cycle_read_only_banner.dart';
-import '../widgets/cycle_status_badge.dart';
 import '../widgets/cycle_timeline.dart';
 import '../widgets/item_editor_dialog.dart';
 import '../widgets/release_decision_sheet.dart';
@@ -165,14 +165,13 @@ class _CycleDetailView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text('Cycle ${c.number}',
-                                  style: AppTypography.pageTitle),
-                            ),
-                            CycleStatusBadge(status: c.status),
-                          ],
+                        CycleHeaderCard(
+                          cycle: c,
+                          canManage: canManage,
+                          canRelease: canRelease,
+                          failedTests: state.controlTests
+                              .where((t) => t.result == ControlTestResult.fail)
+                              .length,
                         ),
                         const SizedBox(height: AppSpacing.md),
                         CycleInfoCard(cycle: c),

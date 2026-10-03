@@ -132,4 +132,34 @@ void main() {
     expect(sent['device_id'], 'd-active');
     expect(sent['device_program_id'], 'p-live');
   });
+
+  testWidgets('the preview shows exactly what will be created', (tester) async {
+    tester.view.physicalSize = const Size(900, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpApp(
+      tester,
+      RepositoryProvider<CycleRepository>.value(
+        value: cycles,
+        child: const CycleCreateScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final preview = find.byKey(const Key('cycle-preview'));
+    expect(preview, findsOneWidget);
+    // Device, the active program with its parameters, and the operator.
+    for (final text in ['Autoclave A', 'Universel', '134 °C · 18 min', 'Dr Test']) {
+      expect(
+        find.descendant(of: preview, matching: find.text(text)),
+        findsOneWidget,
+        reason: text,
+      );
+    }
+    // Never the retired program or the device in maintenance.
+    expect(
+      find.descendant(of: preview, matching: find.textContaining('Ancien')),
+      findsNothing,
+    );
+  });
 }

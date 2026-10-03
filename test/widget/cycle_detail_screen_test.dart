@@ -47,6 +47,11 @@ Future<void> _pumpScreen(
   CycleRepository repo, {
   String cycleId = 'cycle-1',
 }) {
+  // The header card is taller than the old title row, so a short test screen
+  // would not even build the actions further down the list.
+  tester.view.physicalSize = const Size(900, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
   return pumpApp(
     tester,
     RepositoryProvider<CycleRepository>.value(
