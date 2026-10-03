@@ -28,6 +28,9 @@ jobs:
       - name: Run tests
         run: flutter test --coverage
 
+      - name: Coverage floors (lib/core >= 60%, overall >= 50%)
+        run: python scripts/coverage_summary.py --enforce
+
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:

@@ -1,0 +1,133 @@
+name: Mobile — Release Android (signed AAB)
+
+# Builds the signed Play bundle from a version tag (v1.2.3) or by hand.
+# Nothing here ships to the store: the bundle is a build artifact that the
+# release owner uploads to the Play internal-testing track (docs/RELEASE.md).
+#
+# Needs, in the repository settings:
+#   secrets   ANDROID_KEYSTORE_BASE64  base64 of the upload keystore (.jks)
+#             ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+#             SENTRY_DSN               (optional, empty disables reporting)
+#             FIREBASE_API_KEY / FIREBASE_APP_ID / FIREBASE_MESSAGING_SENDER_ID /
+#             FIREBASE_PROJECT_ID      (optional, all four enable push notifications)
+#   variables PROD_API_BASE_URL        e.g. https://api.clinic.example/api (HTTPS, ends at /api)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version name, e.g. 1.0.0 (defaults to the tag)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.2"
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # A release must never be cut from a tree that fails its own checks.
+      - name: Analyze
+        run: flutter analyze --fatal-infos
+
+      - name: Test
+        run: flutter test
+
+      - name: Resolve version
+        id: version
+        run: |
+          NAME="${{ github.event.inputs.version }}"
+          if [ -z "$NAME" ]; then NAME="${GITHUB_REF_NAME#v}"; fi
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          # Play needs a build number that only ever goes up.
+          echo "number=${{ github.run_number }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the upload keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" || { echo "ANDROID_KEYSTORE_BASE64 is not set"; exit 1; }
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.jks"
+          {
+            echo "storeFile=$RUNNER_TEMP/upload.jks"
+            echo "storePassword=$STORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } > android/key.properties
+
+      - name: Write release defines
+        env:
+          API_BASE_URL: ${{ vars.PROD_API_BASE_URL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+          FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.FIREBASE_MESSAGING_SENDER_ID }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          json.dump({
+              "ENV": "production",
+              "API_BASE_URL": os.environ["API_BASE_URL"],
+              "SENTRY_DSN": os.environ.get("SENTRY_DSN", ""),
+              # Empty = this build has no push notifications (the app says so).
+              "FIREBASE_API_KEY": os.environ.get("FIREBASE_API_KEY", ""),
+              "FIREBASE_APP_ID": os.environ.get("FIREBASE_APP_ID", ""),
+              "FIREBASE_MESSAGING_SENDER_ID": os.environ.get("FIREBASE_MESSAGING_SENDER_ID", ""),
+              "FIREBASE_PROJECT_ID": os.environ.get("FIREBASE_PROJECT_ID", ""),
+          }, open("release-defines.json", "w"))
+          PY
+
+      # Refuses a placeholder host, an http URL, a debug key alias, a
+      # com.example application id, or a missing keystore.
+      - name: Verify release configuration
+        run: python3 scripts/verify_release_config.py --mode android-release --defines release-defines.json
+
+      - name: Build signed bundle
+        run: >
+          flutter build appbundle --release
+          --build-name=${{ steps.version.outputs.name }}
+          --build-number=${{ steps.version.outputs.number }}
+          --dart-define-from-file=release-defines.json
+          --obfuscate --split-debug-info=build/symbols
+
+      - name: Upload bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: sterymed-${{ steps.version.outputs.name }}-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+
+      # Needed to read a crash from an obfuscated build.
+      - name: Upload debug symbols
+        uses: actions/upload-artifact@v4
+        with:
+          name: sterymed-${{ steps.version.outputs.name }}-symbols
+          path: build/symbols
+          if-no-files-found: error
+
+      - name: Remove the keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks" android/key.properties release-defines.json

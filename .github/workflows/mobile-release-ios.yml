@@ -1,0 +1,15 @@
+name: Mobile — Release iOS (not in scope)
+
+# iOS is not part of the pilot (ULTIMATE_ROADMAP decision 3): there is no
+# ios/Podfile and no signing set-up. This file exists so the gap is explicit
+# instead of an empty workflow. Manual only; it fails on purpose.
+on:
+  workflow_dispatch:
+
+jobs:
+  not-in-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "iOS release is out of scope for the pilot. See docs/RELEASE.md."
+          exit 1

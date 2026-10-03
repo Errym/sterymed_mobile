@@ -32,8 +32,11 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.sterymed_mobile"
+        // The identity the clinic's devices and the Play listing are known by.
+        // It cannot change after the first Play upload, so it is the owner's
+        // to confirm (docs/RELEASE.md). `namespace` above is only the code
+        // package and stays as it is.
+        applicationId = "com.sterymed.mobile"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
