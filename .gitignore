@@ -68,7 +68,6 @@ _script_backups/
 graphify-out/
 flutter_codebase_dump.txt
 _dartfix.log
-docs/phase0/*.local.json
 testing/IDEMPOTENCY_VERIFICATION.md
 # Design reference mock-ups (HTML + screenshots), kept outside git.
 ui_ex/

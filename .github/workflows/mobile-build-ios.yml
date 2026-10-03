@@ -1,6 +1,6 @@
 name: Mobile — Build iOS (simulator)
 
-# iOS is NOT in the pilot (Android-first, ULTIMATE_ROADMAP decision 3), and the
+# iOS is NOT in the pilot (Android-first, see docs/RELEASE.md), and the
 # build is known to fail without a Mac to debug the pods. Manual only, so a
 # red check never hides a real Android regression. Re-enable the triggers when
 # iOS enters scope.

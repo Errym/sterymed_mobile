@@ -29,8 +29,8 @@ this machine.)
 These percentages describe the files included in the emitted coverage report;
 they do not prove coverage of every source file or end-to-end clinic workflow.
 The inventory and historical commentary below predate this measurement. See
-[`docs/CLINIC_READY_MASTER_PLAN.md`](../docs/CLINIC_READY_MASTER_PLAN.md) for the
-current test inventory, audit findings and ordered completion work.
+[`docs/TESTING.md`](../docs/TESTING.md) for the current test inventory and
+[`docs/FIXING_BREAKDOWN.md`](../docs/FIXING_BREAKDOWN.md) for what is left to do.
 
 **Neither `lib/core` nor `lib/features/prosthetic` meets the 70% target.**
 Reporting this as met would be fabricated â€” the actual VERIFY step for

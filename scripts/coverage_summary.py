@@ -43,7 +43,7 @@ for bucket, (hit, found) in sorted(totals.items()):
 pct = (overall[0] / overall[1] * 100) if overall[1] else 0.0
 print(f"{'TOTAL':<28}{overall[0]:>10}{overall[1]:>13}{pct:>9.1f}%")
 
-# Floors (ULTIMATE_ROADMAP T8.5): `python scripts/coverage_summary.py --enforce`
+# Coverage floors (CI): `python scripts/coverage_summary.py --enforce`
 # fails the build when lib/core is under 60% or the whole of lib/ under 50%.
 FLOORS = {"lib/core": 60.0, "TOTAL": 50.0}
 if "--enforce" in sys.argv:
