@@ -61,10 +61,7 @@ class _SyncSection extends StatelessWidget {
             : s.pendingCount > 0
             ? ('En cours d\'envoi', StatusTone.info, Icons.sync)
             : ('À jour', StatusTone.success, Icons.cloud_done_outlined);
-        return _Section(
-          title: 'Synchronisation',
-          children: [
-            InkWell(
+        return InkWell(
               key: const Key('settings-sync'),
               onTap: () => context.openRoute(Routes.sync),
               borderRadius: BorderRadius.circular(AppRadius.md),
@@ -96,9 +93,7 @@ class _SyncSection extends StatelessWidget {
                   StatusBadge(label: label, tone: tone),
                 ],
               ),
-            ),
-          ],
-        );
+            );
       },
     );
   }
@@ -116,22 +111,17 @@ class _PushSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!getIt.isRegistered<PushService>()) {
-      return const _Section(
-        title: 'Notifications',
-        children: [_PushNote(_note, key: Key('alerts-in-app-only'))],
-      );
+      return const _PushNote(_note, key: Key('alerts-in-app-only'));
     }
     final service = getIt<PushService>();
     return BlocBuilder<PushService, PushState>(
       bloc: service,
       builder: (context, s) {
-        return _Section(
-          title: 'Notifications',
+        return Column(
           children: switch (s.availability) {
             PushAvailability.notConfigured => const [
                 _PushNote(
-                  'Les notifications ne sont pas activées dans cette version '
-                  'de l\'application. $_note',
+                  'Notifications indisponibles dans cette version. $_note',
                   key: Key('alerts-in-app-only'),
                 ),
               ],

@@ -50,6 +50,8 @@ class _ProstheticLaboratoriesScreenState
   // kept for the life of the screen (scrolling must not re-ask the server).
   final Map<String, Future<LaboratoryStats>> _stats = {};
 
+  late final ProstheticRepository _repo = getIt<ProstheticRepository>();
+
   @override
   void initState() {
     super.initState();
@@ -62,8 +64,7 @@ class _ProstheticLaboratoriesScreenState
       _error = null;
     });
     try {
-      final labs = await getIt<ProstheticRepository>()
-          .listLaboratories(forceRefresh: true);
+      final labs = await _repo.listLaboratories(forceRefresh: true);
       if (!mounted) return;
       setState(() {
         _labs = labs;
@@ -81,7 +82,7 @@ class _ProstheticLaboratoriesScreenState
 
   Future<LaboratoryStats> _statsFor(String id) => _stats.putIfAbsent(
         id,
-        () => loadLaboratoryStats(getIt<ProstheticRepository>(), id),
+        () => loadLaboratoryStats(_repo, id),
       );
 
   List<LaboratoryData> get _visible {
@@ -113,8 +114,7 @@ class _ProstheticLaboratoriesScreenState
     );
     if (!ok) return;
     try {
-      await getIt<ProstheticRepository>()
-          .updateLaboratory(lab.id, {'archived': true});
+      await _repo.updateLaboratory(lab.id, {'archived': true});
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -128,6 +128,9 @@ class _ProstheticLaboratoriesScreenState
       builder: (_) => _LaboratorySheet(
         lab: lab,
         stats: _statsFor(lab.id),
+        repo: _repo,
+        canManage:
+            getIt<SessionStore>().hasPermission('prosthetic_cases.manage'),
       ),
     );
     if (!mounted || action == null) return;

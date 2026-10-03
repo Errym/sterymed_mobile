@@ -39,7 +39,7 @@ class _CycleListView extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
-        title: 'Cycles de stérilisation',
+        title: 'Cycles',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

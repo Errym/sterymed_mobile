@@ -1,3 +1,4 @@
+import '../../../alerts/data/models/alert_message.dart';
 import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';
@@ -150,7 +151,10 @@ class DashboardRemoteDatasource {
       attention: alerts.take(3).map((a) {
         return DashboardAttentionItem(
           id: a['id']?.toString() ?? '',
-          label: a['message']?.toString() ?? 'Alerte',
+          label: localizeAlertMessage(
+            a['type']?.toString() ?? '',
+            a['message']?.toString() ?? 'Alerte',
+          ),
           severity: a['severity']?.toString() ?? 'info',
           route: '/app/alerts',
         );

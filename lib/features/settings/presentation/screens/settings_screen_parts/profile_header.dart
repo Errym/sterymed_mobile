@@ -25,7 +25,7 @@ class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
@@ -33,39 +33,52 @@ class _ProfileHeader extends StatelessWidget {
         boxShadow: AppShadows.card,
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: const BoxDecoration(
-              color: AppColors.brandPrimaryLight,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Text(
-                _initials,
-                style: AppTypography.pageTitle.copyWith(
-                  color: AppColors.brandPrimary,
-                  fontSize: 22,
+          Row(
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: const BoxDecoration(
+                  color: AppColors.brandPrimaryLight,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    _initials,
+                    style: AppTypography.pageTitle.copyWith(
+                      color: AppColors.brandPrimary,
+                      fontSize: 20,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            name,
-            style: AppTypography.sectionTitle,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            email,
-            style: AppTypography.caption,
-            textAlign: TextAlign.center,
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: AppTypography.sectionTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (email.isNotEmpty)
+                      Text(
+                        email,
+                        style: AppTypography.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.sm),
           Wrap(
-            alignment: WrapAlignment.center,
             spacing: AppSpacing.xs,
             runSpacing: AppSpacing.xs,
             children: [
@@ -78,31 +91,30 @@ class _ProfileHeader extends StatelessWidget {
                 StatusBadge(label: tenant, icon: Icons.business_outlined),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Container(
+          const SizedBox(height: AppSpacing.sm),
+          Column(
             key: const Key('role-description'),
-            width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.md),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceWell,
-              borderRadius: BorderRadius.circular(AppRadius.control),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  RoleLabels.focusOf(role).toUpperCase(),
-                  style: AppTypography.eyebrow,
-                ),
-                const SizedBox(height: 2),
-                Text(RoleLabels.describe(role), style: AppTypography.body),
-              ],
-            ),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                RoleLabels.focusOf(role).toUpperCase(),
+                style: AppTypography.eyebrow,
+              ),
+              Text(RoleLabels.describe(role), style: AppTypography.caption),
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+class _RowDivider extends StatelessWidget {
+  const _RowDivider();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Divider(height: AppSpacing.lg, color: AppColors.borderLight);
 }
 
 class _Section extends StatelessWidget {
@@ -209,7 +221,7 @@ class _Hub extends StatelessWidget {
 
   static const _groups = <(String, List<(String, String, IconData, String)>)>[
     (
-      'Mon cabinet',
+      'Cabinet',
       [
         (
           'Sites et salles',
@@ -218,16 +230,21 @@ class _Hub extends StatelessWidget {
           Routes.sites,
         ),
         (
-          'Appareils',
-          'Autoclaves, programmes, maintenance',
-          Icons.precision_manufacturing_outlined,
-          Routes.devices,
-        ),
-        (
           'Équipe',
           'Membres, rôles, invitations',
           Icons.groups_outlined,
           Routes.team,
+        ),
+      ],
+    ),
+    (
+      'Stérilisation et prothèses',
+      [
+        (
+          'Appareils',
+          'Autoclaves, programmes, maintenance',
+          Icons.precision_manufacturing_outlined,
+          Routes.devices,
         ),
         (
           'Règles de DLU',
@@ -253,7 +270,7 @@ class _Hub extends StatelessWidget {
           Routes.nonConformities,
         ),
         (
-          'Journal d\'audit',
+          "Journal d'audit",
           'Qui a fait quoi, et quand',
           Icons.verified_user_outlined,
           Routes.audit,
@@ -284,7 +301,7 @@ class _Hub extends StatelessWidget {
       ];
       if (visible.isEmpty) continue;
       if (sections.isNotEmpty) {
-        sections.add(const SizedBox(height: AppSpacing.lg));
+        sections.add(const SizedBox(height: AppSpacing.md));
       }
       sections.add(
         _Section(

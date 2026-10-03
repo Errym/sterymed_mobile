@@ -57,42 +57,69 @@ class SettingsScreen extends StatelessWidget {
               isOwner: isOwner,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           AnimatedListItem(
             index: 1,
             child: _Hub(hasPermission: session.hasPermission),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          const AnimatedListItem(index: 2, child: _SyncSection()),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: AppSpacing.md),
           AnimatedListItem(
-            index: 3,
+            index: 2,
             child: _Section(
-              title: 'Sécurité',
+              title: 'Application',
               children: [
+                const _SyncSection(),
+                const _RowDivider(),
                 _InfoTile(
                   icon: Icons.lock_clock_outlined,
                   label: 'Verrouillage automatique',
                   value: 'après ${AppConfig.lockAfter.inMinutes} min',
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                const Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    'En revenant dans l\'application après ce délai, votre '
-                    'code ou votre empreinte est demandé. Les données du '
-                    'cabinet sont chiffrées sur le téléphone.',
-                    style: AppTypography.caption,
+                const _RowDivider(),
+                const _PushSection(),
+                const _RowDivider(),
+                _InfoTile(
+                  icon: Icons.info_outline,
+                  label: 'Version',
+                  value: BuildInfo.fullVersion,
+                ),
+                // The environment matters to a tester, not to a clinic: only
+                // shown when this is not the production build.
+                if (!Env.isProduction) ...[
+                  const _RowDivider(),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.cloud_outlined,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      const Expanded(
+                        child: Text('Environnement', style: AppTypography.label),
+                      ),
+                      StatusBadge(
+                        label: Env.environment,
+                        tone: Env.isStaging
+                            ? StatusTone.warning
+                            : StatusTone.info,
+                      ),
+                    ],
                   ),
+                ],
+                const _RowDivider(),
+                _LinkTile(
+                  icon: Icons.help_outline,
+                  label: 'À propos de SteryMed',
+                  onTap: () => context.openRoute(Routes.about),
                 ),
               ],
             ),
           ),
           const SizedBox(height: AppSpacing.lg),
           AnimatedListItem(
-            index: 4,
-            child: _Section(
-              title: 'Session',
+            index: 3,
+            child: Column(
               children: [
                 SecondaryButton(
                   label: 'Se déconnecter',
@@ -102,7 +129,7 @@ class SettingsScreen extends StatelessWidget {
                       context,
                       title: 'Se déconnecter ?',
                       message:
-                          'Vous serez redirigé vers l\'écran de connexion.',
+                          "Vous serez redirigé vers l'écran de connexion.",
                       confirmLabel: 'Se déconnecter',
                       isDestructive: true,
                     );
@@ -113,16 +140,14 @@ class SettingsScreen extends StatelessWidget {
                     }
                   },
                 ),
-                const SizedBox(height: AppSpacing.sm),
-                SecondaryButton(
-                  label: 'Se déconnecter partout',
-                  icon: Icons.logout_outlined,
+                TextButton(
+                  key: const Key('logout-everywhere'),
                   onPressed: () async {
                     final ok = await ConfirmationDialog.show(
                       context,
                       title: 'Se déconnecter partout ?',
                       message:
-                          'Une demande de révocation sera envoyée. La déconnexion locale est immédiate.',
+                          'Tous les appareils connectés à votre compte seront déconnectés. La déconnexion de ce téléphone est immédiate.',
                       confirmLabel: 'Confirmer',
                       isDestructive: true,
                     );
@@ -134,61 +159,7 @@ class SettingsScreen extends StatelessWidget {
                       context.go(Routes.login);
                     }
                   },
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          AnimatedListItem(
-            index: 5,
-            child: _Section(
-              title: 'Application',
-              children: [
-                _InfoTile(
-                  icon: Icons.info_outline,
-                  label: 'Version',
-                  value: BuildInfo.fullVersion,
-                ),
-                const Divider(
-                  height: AppSpacing.lg,
-                  color: AppColors.borderLight,
-                ),
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.cloud_outlined,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    const Expanded(
-                      child: Text('Environnement', style: AppTypography.label),
-                    ),
-                    StatusBadge(
-                      label: Env.environment,
-                      tone: Env.isProduction
-                          ? StatusTone.success
-                          : Env.isStaging
-                          ? StatusTone.warning
-                          : StatusTone.info,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          const AnimatedListItem(index: 6, child: _PushSection()),
-          const SizedBox(height: AppSpacing.lg),
-          AnimatedListItem(
-            index: 7,
-            child: _Section(
-              title: 'Support',
-              children: [
-                _LinkTile(
-                  icon: Icons.help_outline,
-                  label: 'À propos de SteryMed',
-                  onTap: () => context.openRoute(Routes.about),
+                  child: const Text('Se déconnecter partout'),
                 ),
               ],
             ),

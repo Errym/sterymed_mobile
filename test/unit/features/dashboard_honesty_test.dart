@@ -68,6 +68,29 @@ void main() {
       expect(data.kpis.firstWhere((k) => k.id == 'active_cycles').value, 0);
     });
 
+    test('an alert in the attention list is read in French, like in Alertes',
+        () async {
+      stub('cycles', body: {'data': []});
+      stub('alerts', body: {
+        'data': [
+          {
+            'id': 'a1',
+            'type': 'low_stock',
+            'message': 'Stock for "Gants nitrile" is below threshold (20/500).',
+          },
+          {'id': 'a2', 'type': 'unknown_kind', 'message': 'Texte inconnu'},
+        ]
+      });
+      stub('audit', body: {'data': []});
+      stub('devices', body: {'data': []});
+
+      final data = await DashboardRemoteDatasource(dio).fetch();
+      final labels = data.attention.map((a) => a.label).toList();
+      expect(labels, contains('Stock de « Gants nitrile » sous le seuil (20 sur 500).'));
+      // A text the app does not know is shown exactly as received.
+      expect(labels, contains('Texte inconnu'));
+    });
+
     test('every call failing is an error, not a screen of zeros', () async {
       stub('cycles', fail: true);
       stub('alerts', fail: true);

@@ -102,3 +102,18 @@ Android phone and cannot be closed by tests. Record each one as an entry above.
 - Result: PASS — slowest screen (Prothèses liste, 2 calls) 0.29 s, home 0.31 s
   worst case; all 13 first-load screens under the 2 s budget. This covers the
   network + API part only; T7.7 still needs the phone's render time.
+
+### 2026-10-03 — UI review on the real phone (Samsung SM-S928B, portrait)
+- Build: debug APK, `PRIVACY_SCREEN=false` (review build only), dev backend through `adb reverse`.
+- Looked at with real screenshots: Accueil, Cycles, Alertes, Stock, Plus, Laboratoires.
+- Alerts: the open low-stock alert shows in French with "Voir le stock" and
+  "Marquer comme résolu"; the filters and the summary header render with live data.
+- Found and fixed in the same session: the dashboard "attention" list showed the
+  server's English alert text (now translated like the Alertes tab); the Cycles
+  title was cut off ("Cycles de st…", now "Cycles"); Plus/Paramètres was three
+  screens long with duplicated blocks (now grouped: Cabinet / Stérilisation et
+  prothèses / Conformité / Application, one logout button).
+- Laboratoires on the phone: search, count, server-counted status per card and
+  the detail sheet (numbers, contact, recent work, Modifier / Archiver) work.
+- Not covered by this entry: real QR scan, usage save, goods receipt photo,
+  airplane mode, lock after background, large text, the other five roles.

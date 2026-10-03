@@ -7,13 +7,18 @@ enum _LabAction { edit, archive }
 class _LaboratorySheet extends StatelessWidget {
   final LaboratoryData lab;
   final Future<LaboratoryStats> stats;
+  final ProstheticRepository repo;
+  final bool canManage;
 
-  const _LaboratorySheet({required this.lab, required this.stats});
+  const _LaboratorySheet({
+    required this.lab,
+    required this.stats,
+    required this.repo,
+    required this.canManage,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final canManage =
-        getIt<SessionStore>().hasPermission('prosthetic_cases.manage');
     final rows = <Widget>[
       if ((lab.contactName ?? '').isNotEmpty)
         DetailRow(Icons.person_outline, 'Contact', lab.contactName!),
@@ -76,7 +81,7 @@ class _LaboratorySheet extends StatelessWidget {
         const SizedBox(height: AppSpacing.lg),
         const Text('DERNIERS TRAVAUX', style: AppTypography.eyebrow),
         const SizedBox(height: AppSpacing.xs),
-        _RecentCases(laboratoryId: lab.id),
+        _RecentCases(repo: repo, laboratoryId: lab.id),
         if (canManage) ...[
           const SizedBox(height: AppSpacing.lg),
           Row(
@@ -191,15 +196,16 @@ class _SheetStats extends StatelessWidget {
 }
 
 class _RecentCases extends StatefulWidget {
+  final ProstheticRepository repo;
   final String laboratoryId;
-  const _RecentCases({required this.laboratoryId});
+  const _RecentCases({required this.repo, required this.laboratoryId});
 
   @override
   State<_RecentCases> createState() => _RecentCasesState();
 }
 
 class _RecentCasesState extends State<_RecentCases> {
-  late final Future<CursorPageCases> _future = getIt<ProstheticRepository>()
+  late final Future<CursorPageCases> _future = widget.repo
       .list(laboratoryId: widget.laboratoryId)
       .then((page) => page.items.take(5).toList());
 
