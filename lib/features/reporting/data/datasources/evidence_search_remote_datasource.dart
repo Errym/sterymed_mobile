@@ -3,27 +3,8 @@ import 'package:dio/dio.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/network/cursor_page.dart';
-import '../../../../core/utils/date_filter.dart';
+import '../models/evidence_filter_query.dart';
 import '../models/evidence_search_result_data.dart';
-
-/// The filters of an evidence search as query parameters. The list and the
-/// export both use it, so an export is exactly what the screen shows.
-Map<String, dynamic> evidenceFilterQuery({
-  String? patientReference,
-  int? cycleNumber,
-  String? batchNumber,
-  DateTime? from,
-  DateTime? to,
-}) =>
-    {
-      if (patientReference != null && patientReference.isNotEmpty)
-        'patient_reference': patientReference,
-      if (cycleNumber != null) 'cycle_number': cycleNumber,
-      if (batchNumber != null && batchNumber.isNotEmpty)
-        'batch_number': batchNumber,
-      if (from != null) 'from': fromParam(from),
-      if (to != null) 'to': toParam(to),
-    };
 
 class EvidenceSearchRemoteDatasource {
   final Dio _dio;

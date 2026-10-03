@@ -20,7 +20,7 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
-import '../../data/datasources/evidence_search_remote_datasource.dart';
+import '../../data/models/evidence_filter_query.dart';
 import '../../data/models/evidence_search_result_data.dart';
 import '../../data/repositories/evidence_search_repository.dart';
 import '../bloc/evidence_search_bloc.dart';

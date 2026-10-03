@@ -2,7 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/utils/error_message.dart';
-import '../../data/datasources/dashboard_remote_datasource.dart';
+import '../../data/models/dashboard_data.dart';
 import '../../data/repositories/dashboard_repository.dart';
 import 'dashboard_state.dart';
 

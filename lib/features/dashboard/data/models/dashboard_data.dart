@@ -195,3 +195,11 @@ class DashboardData {
         insights: insights,
       );
 }
+
+/// Every dashboard request failed: there is nothing honest to show.
+class DashboardUnavailableException implements Exception {
+  const DashboardUnavailableException();
+  @override
+  String toString() =>
+      'Le tableau de bord est indisponible. Vérifiez la connexion et réessayez.';
+}

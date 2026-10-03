@@ -5,14 +5,6 @@ import '../../../history/data/models/audit_event_data.dart';
 import '../../../stock/data/models/stock_level_data.dart';
 import '../models/dashboard_data.dart';
 
-/// Every dashboard request failed: there is nothing honest to show.
-class DashboardUnavailableException implements Exception {
-  const DashboardUnavailableException();
-  @override
-  String toString() =>
-      'Le tableau de bord est indisponible. Vérifiez la connexion et réessayez.';
-}
-
 class DashboardRemoteDatasource {
   final Dio _dio;
 
