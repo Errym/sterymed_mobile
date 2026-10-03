@@ -20,8 +20,8 @@ version. Nothing below is marked done unless a command or test proves it.
 
 | Layer | State | Evidence |
 |---|---|---|
-| Mobile code | ✅ proven | `dart analyze lib test` clean; 965 tests (full run before the push work); debug APK builds with Firebase plugins |
-| Backend API | ✅ proven | 288 Pest API tests pass in the isolated runner; OpenAPI contract test green |
+| Mobile code | ✅ proven | `dart analyze lib test` clean; **1033 tests pass, 0 fail** (run in chunks); debug APK builds with Firebase plugins |
+| Backend API | ✅ proven | 290 Pest API tests pass in the isolated runner; OpenAPI contract test green |
 | Six roles | ✅ proven | `verify_authorization_matrix.py` (6 roles × 29 probes + cross-practice wall); `verify_screen_calls_by_role.py` 0 mismatches |
 | Cahier journeys on the live API | ✅ proven | stock, sterilization, prosthetic, empty-clinic, invitation, two-practices, idempotency, export scripts all PASS |
 | Small screens / large text | ✅ proven | `layout_resilience_*` tests at 320×568 @130 %, 390×844, tablet |
