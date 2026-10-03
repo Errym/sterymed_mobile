@@ -4,6 +4,9 @@ import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_date_picker.dart';
@@ -238,151 +241,253 @@ class _ProstheticCaseCreateScreenState
     }
   }
 
+  static const _workTypes = <(String, String)>[
+    ('crown', 'Couronne'),
+    ('bridge', 'Bridge'),
+    ('implant', 'Implant'),
+    ('aligner', 'Gouttière'),
+    ('veneer', 'Facette'),
+    ('denture', 'Prothèse amovible'),
+    ('other', 'Autre'),
+  ];
+
+  String get _workTypeLabel =>
+      _workTypes.firstWhere((w) => w.$1 == _workType, orElse: () => ('', 'Travail')).$2;
+
+  String? get _practitionerName {
+    for (final p in _practitioners) {
+      if (p.id == _practitionerId) return p.name;
+    }
+    return null;
+  }
+
+  String? get _laboratoryName {
+    for (final l in _laboratories) {
+      if (l.id == _laboratoryId) return l.name;
+    }
+    return null;
+  }
+
+  /// What will be created, as it will read in the list of cases.
+  Widget _preview() {
+    final patient = _patient?.reference;
+    final priority = _priorityCtrl.text.trim();
+    return PreviewCard(
+      key: const Key('prosthetic-preview'),
+      mark: EntityMark.initials(
+        patient == null ? '•' : EntityMark.initialsOf(patient),
+      ),
+      eyebrow: 'NOUVEAU DOSSIER · ${_workTypeLabel.toUpperCase()}',
+      title: patient ?? 'Choisissez un patient',
+      titleIsPlaceholder: patient == null,
+      tags: [
+        InfoTag(
+          _impressionType == 'digital' ? 'Empreinte numérique' : 'Empreinte physique',
+          icon: Icons.fingerprint,
+        ),
+        InfoTag(
+          AppDateFormatter.date(_impressionDate),
+          icon: Icons.event_outlined,
+        ),
+        if (_practitionerName != null)
+          InfoTag(_practitionerName!, icon: Icons.medical_services_outlined),
+        if (_laboratoryName != null)
+          InfoTag(_laboratoryName!, icon: Icons.local_shipping_outlined),
+        if (priority.isNotEmpty)
+          InfoTag(
+            priority,
+            icon: Icons.priority_high,
+            color: priority == 'Urgente' ? AppColors.danger : null,
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: const AppAppBar(title: 'Nouveau dossier prothétique'),
+      bottomNavigationBar: PinnedFooter(
+        child: PrimaryButton(
+          label: 'Créer le dossier',
+          isLoading: _submitting,
+          onPressed: _submitting ? null : _submit,
+        ),
+      ),
       body: Form(
         key: _formKey,
-        onChanged: _saveDraft,
+        onChanged: () {
+          _saveDraft();
+          setState(() {});
+        },
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
-            const Text('Patient *', style: AppTypography.label),
-            const SizedBox(height: AppSpacing.xs),
-            InkWell(
-              onTap: _pickPatient,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                decoration: BoxDecoration(
-                  color: AppColors.backgroundCard,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.hairline),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.person_outline),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: Text(
-                        _patient?.reference ?? 'Sélectionner un patient',
-                        style: _patient == null
-                            ? AppTypography.body
-                                .copyWith(color: AppColors.textTertiary)
-                            : AppTypography.bodyStrong,
-                      ),
+            _preview(),
+            const SizedBox(height: AppSpacing.md),
+            FormCard(
+              title: 'Patient',
+              trailing: const Text('Requis', style: AppTypography.caption),
+              children: [
+                InkWell(
+                  key: const Key('prosthetic-patient-picker'),
+                  onTap: _pickPatient,
+                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceWell,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                     ),
-                    const Icon(Icons.chevron_right),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.person_outline),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            _patient?.reference ?? 'Sélectionner un patient',
+                            style: _patient == null
+                                ? AppTypography.body
+                                    .copyWith(color: AppColors.textTertiary)
+                                : AppTypography.bodyStrong,
+                          ),
+                        ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            FormCard(
+              title: 'Travail',
+              trailing: const Text('Requis', style: AppTypography.caption),
+              children: [
+                AppDropdown<String>(
+                  label: 'Type de travail *',
+                  value: _workType,
+                  options: [
+                    for (final w in _workTypes)
+                      AppDropdownOption(value: w.$1, label: w.$2),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _workType = v ?? 'crown');
+                    _saveDraft();
+                  },
+                ),
+                AppDropdown<String>(
+                  label: 'Type d\'empreinte *',
+                  value: _impressionType,
+                  options: const [
+                    AppDropdownOption(value: 'digital', label: 'Numérique'),
+                    AppDropdownOption(value: 'physical', label: 'Physique'),
+                  ],
+                  onChanged: (v) {
+                    setState(() => _impressionType = v ?? 'digital');
+                    _saveDraft();
+                  },
+                ),
+                AppDatePicker(
+                  label: 'Date d\'empreinte *',
+                  value: _impressionDate,
+                  lastDate: DateTime.now(),
+                  onChanged: (d) {
+                    setState(() => _impressionDate = d);
+                    _saveDraft();
+                  },
+                ),
+                Wrap(
+                  spacing: AppSpacing.xs,
+                  children: [
+                    for (final level in const ['Normale', 'Urgente'])
+                      ChoiceChip(
+                        key: Key('prosthetic-priority-$level'),
+                        label: Text(level),
+                        selected: _priorityCtrl.text.trim() == level,
+                        onSelected: (on) => setState(() {
+                          _priorityCtrl.text = on ? level : '';
+                          _saveDraft();
+                        }),
+                      ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppDropdown<String>(
-              label: 'Type d\'empreinte *',
-              value: _impressionType,
-              options: const [
-                AppDropdownOption(value: 'digital', label: 'Numérique'),
-                AppDropdownOption(value: 'physical', label: 'Physique'),
               ],
-              onChanged: (v) {
-                setState(() => _impressionType = v ?? 'digital');
-                _saveDraft();
-              },
             ),
             const SizedBox(height: AppSpacing.md),
-            AppDropdown<String>(
-              label: 'Type de travail *',
-              value: _workType,
-              options: const [
-                AppDropdownOption(value: 'crown', label: 'Couronne'),
-                AppDropdownOption(value: 'bridge', label: 'Bridge'),
-                AppDropdownOption(value: 'implant', label: 'Implant'),
-                AppDropdownOption(value: 'aligner', label: 'Gouttière'),
-                AppDropdownOption(value: 'veneer', label: 'Facette'),
-                AppDropdownOption(value: 'denture', label: 'Prothèse amovible'),
-                AppDropdownOption(value: 'other', label: 'Autre'),
+            FormCard(
+              title: 'Équipe',
+              children: [
+                _loadingPractitioners
+                    ? const LoadingView()
+                    : _practitionersError != null
+                        ? ErrorView(
+                            message: _practitionersError!,
+                            onRetry: _loadPractitioners,
+                          )
+                        : SearchablePickerField(
+                            key: const Key('prosthetic-practitioner-picker'),
+                            label: 'Praticien *',
+                            hint: 'Choisir un praticien',
+                            value: _practitionerId,
+                            options: [
+                              for (final p in _practitioners)
+                                PickerOption(id: p.id, label: p.name),
+                            ],
+                            onChanged: (v) {
+                              setState(() => _practitionerId = v);
+                              _saveDraft();
+                            },
+                          ),
+                _loadingLabs
+                    ? const LoadingView()
+                    : _labsError != null
+                        ? ErrorView(
+                            message: _labsError!, onRetry: _loadLaboratories)
+                        : SearchablePickerField(
+                            key: const Key('prosthetic-laboratory-picker'),
+                            label: 'Laboratoire',
+                            hint: 'Aucun laboratoire',
+                            clearLabel: 'Aucun laboratoire',
+                            value: _laboratoryId,
+                            // Only active laboratories: an archived one is
+                            // never offered for a new case.
+                            options: [
+                              for (final l in _laboratories)
+                                PickerOption(id: l.id, label: l.name),
+                            ],
+                            onChanged: (v) {
+                              setState(() => _laboratoryId = v);
+                              _saveDraft();
+                            },
+                          ),
               ],
-              onChanged: (v) {
-                setState(() => _workType = v ?? 'crown');
-                _saveDraft();
-              },
             ),
             const SizedBox(height: AppSpacing.md),
-            AppDatePicker(
-              label: 'Date d\'empreinte *',
-              value: _impressionDate,
-              lastDate: DateTime.now(),
-              onChanged: (d) {
-                setState(() => _impressionDate = d);
-                _saveDraft();
-              },
+            FormCard(
+              title: 'Remarques',
+              trailing: const Text('Facultatif', style: AppTypography.caption),
+              children: [
+                AppTextArea(
+                  label: 'Remarques',
+                  controller: _notesCtrl,
+                  maxLines: 3,
+                ),
+                AppTextArea(
+                  label: 'Commentaires internes',
+                  controller: _internalCommentsCtrl,
+                  maxLines: 3,
+                ),
+              ],
             ),
             const SizedBox(height: AppSpacing.md),
-            _loadingPractitioners
-                ? const LoadingView()
-                : _practitionersError != null
-                    ? ErrorView(
-                        message: _practitionersError!,
-                        onRetry: _loadPractitioners,
-                      )
-                    : SearchablePickerField(
-                        key: const Key('prosthetic-practitioner-picker'),
-                        label: 'Praticien *',
-                        hint: 'Choisir un praticien',
-                        value: _practitionerId,
-                        options: [
-                          for (final p in _practitioners)
-                            PickerOption(id: p.id, label: p.name),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _practitionerId = v);
-                          _saveDraft();
-                        },
-                      ),
-            const SizedBox(height: AppSpacing.md),
-            _loadingLabs
-                ? const LoadingView()
-                : _labsError != null
-                    ? ErrorView(
-                        message: _labsError!, onRetry: _loadLaboratories)
-                    : SearchablePickerField(
-                        key: const Key('prosthetic-laboratory-picker'),
-                        label: 'Laboratoire',
-                        hint: 'Aucun laboratoire',
-                        clearLabel: 'Aucun laboratoire',
-                        value: _laboratoryId,
-                        // Only active laboratories: an archived one is never
-                        // offered for a new case.
-                        options: [
-                          for (final l in _laboratories)
-                            PickerOption(id: l.id, label: l.name),
-                        ],
-                        onChanged: (v) {
-                          setState(() => _laboratoryId = v);
-                          _saveDraft();
-                        },
-                      ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextArea(
-              label: 'Remarques',
-              controller: _notesCtrl,
-              maxLines: 3,
+            const NoteStrip(
+              text: 'La date d\'envoi au laboratoire, le retour et la pose se '
+                  'renseignent ensuite, en changeant le statut du dossier.',
+              icon: Icons.info_outline,
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextArea(
-              label: 'Commentaires internes',
-              controller: _internalCommentsCtrl,
-              maxLines: 3,
-            ),
-            const SizedBox(height: AppSpacing.xl),
-            PrimaryButton(
-              label: 'Créer le dossier',
-              isLoading: _submitting,
-              onPressed: _submit,
-            ),
+            const SizedBox(height: AppSpacing.lg),
           ],
         ),
       ),

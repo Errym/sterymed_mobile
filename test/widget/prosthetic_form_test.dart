@@ -152,9 +152,10 @@ void main() {
       // the brief's own "sensible defaults and prefilled dates" requirement.
       expect(find.text('Numérique'), findsOneWidget);
       expect(find.text('Couronne'), findsOneWidget);
+      // In the date field and in the live preview.
       expect(
         find.text(DateFormat('dd/MM/yyyy').format(DateTime.now())),
-        findsOneWidget,
+        findsNWidgets(2),
       );
     },
   );
@@ -236,12 +237,14 @@ void main() {
     await pumpCreateScreen(tester);
     await pickPatientAndScrollToSubmit(tester);
 
+    // The practitioner's name is also in the preview: target the picker.
+    final picker = find.byKey(const Key('prosthetic-practitioner-picker'));
     await tester.dragUntilVisible(
-      find.text('Dr Test'),
+      picker,
       find.byType(ListView),
       const Offset(0, -200),
     );
-    await tester.tap(find.text('Dr Test'));
+    await tester.tap(find.descendant(of: picker, matching: find.text('Dr Test')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Dr Martin').last);
     await tester.pumpAndSettle();
@@ -304,5 +307,46 @@ void main() {
     );
 
     expect(find.text('Réessayer'), findsOneWidget);
+  });
+
+  testWidgets('the preview follows the form: patient, work type, priority',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpCreateScreen(tester);
+    final preview = find.byKey(const Key('prosthetic-preview'));
+    expect(
+      find.descendant(of: preview, matching: find.text('Choisissez un patient')),
+      findsOneWidget,
+    );
+
+    await pickPatientAndScrollToSubmit(tester);
+    await tester.tap(find.byKey(const Key('prosthetic-priority-Urgente')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.descendant(of: preview, matching: find.text('Urgente')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: preview, matching: find.textContaining('COURONNE')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('an urgent case is sent as urgent', (tester) async {
+    tester.view.physicalSize = const Size(900, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await pumpCreateScreen(tester);
+    await pickPatientAndScrollToSubmit(tester);
+    await tester.tap(find.byKey(const Key('prosthetic-priority-Urgente')));
+    await tester.pumpAndSettle();
+    await submit(tester);
+
+    final captured = verify(() => prostheticRepo.create(captureAny())).captured.single
+        as Map<String, dynamic>;
+    expect(captured['priority'], 'Urgente');
   });
 }

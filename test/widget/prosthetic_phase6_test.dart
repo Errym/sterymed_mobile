@@ -365,6 +365,9 @@ void main() {
 
     testWidgets('practitioner: clinical actions yes, payment fields no',
         (tester) async {
+      tester.view.physicalSize = const Size(900, 2800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       when(() => session.hasPermission(any())).thenReturn(false);
       when(() => session.hasPermission('prosthetic_cases.manage'))
           .thenReturn(true);
@@ -378,6 +381,9 @@ void main() {
 
     testWidgets('viewer: no status buttons, no edit, no photo, no payment edit',
         (tester) async {
+      tester.view.physicalSize = const Size(900, 2800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       when(() => session.hasPermission(any())).thenReturn(false);
       await pumpApp(
           tester, const ProstheticCaseDetailScreen(caseId: 'case-1'));

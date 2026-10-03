@@ -136,7 +136,8 @@ void main() {
       expect(find.text('Dr Test'), findsOneWidget);
       expect(find.text('Numérique'), findsOneWidget);
       expect(find.text('Couronne'), findsOneWidget);
-      expect(find.text('Labo Dentaire Sud'), findsOneWidget);
+      // In the header summary and in the clinical card.
+      expect(find.text('Labo Dentaire Sud'), findsNWidgets(2));
 
       // Status history is the last section — scroll to it.
       await tester.drag(find.byType(Scrollable).first, const Offset(0, -1000));

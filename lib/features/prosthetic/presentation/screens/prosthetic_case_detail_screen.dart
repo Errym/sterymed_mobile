@@ -9,7 +9,6 @@ import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
-import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
@@ -23,9 +22,9 @@ import '../../data/models/prosthetic_case_data.dart';
 import '../../data/models/prosthetic_case_status_history_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
 import '../utils/prosthetic_case_pdf.dart';
+import '../widgets/prosthetic_case_header.dart';
 import '../widgets/prosthetic_attachment_chip.dart';
 import '../widgets/prosthetic_case_edit_sheet.dart';
-import '../widgets/prosthetic_case_tile.dart';
 import '../widgets/prosthetic_history_tile.dart';
 import '../widgets/prosthetic_info_card.dart';
 import '../widgets/prosthetic_note_block.dart';
@@ -317,17 +316,7 @@ class _ProstheticCaseDetailScreenState
       child: ListView(
         padding: const EdgeInsets.all(AppSpacing.md),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(c.patientReference, style: AppTypography.pageTitle),
-              ),
-              TypeBadge(
-                label: c.status.label,
-                tone: prostheticStatusTone(c.status),
-              ),
-            ],
-          ),
+          ProstheticCaseHeader(data: c),
           const SizedBox(height: AppSpacing.md),
           if (c.status.allowedNext.isNotEmpty && _canManageClinical) ...[
             const SectionHeader(title: 'Changer le statut'),
