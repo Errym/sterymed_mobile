@@ -24,14 +24,10 @@ import 'package:steriymed_mobile/app.dart';
 import 'package:steriymed_mobile/bootstrap.dart';
 
 import '../support/live_backend_guard.dart';
-import '../support/backend_fixture.dart';
-import '../support/test_user.dart';
+import '../support/web_env.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  if (kRunLiveIntegrationTests) {
-    setUpAll(() => verifyFixtureBackend());
-  }
 
   testWidgets(
       'login with valid credentials reaches the dashboard shell',
@@ -45,9 +41,9 @@ void main() {
     final fields = find.byType(TextFormField);
     expect(fields, findsNWidgets(3));
 
-    await tester.enterText(fields.at(0), TestUser.tenantSlug);
-    await tester.enterText(fields.at(1), TestUser.adminEmail);
-    await tester.enterText(fields.at(2), TestUser.adminPassword);
+    await tester.enterText(fields.at(0), WebEnv.slug);
+    await tester.enterText(fields.at(1), WebEnv.emailOwner);
+    await tester.enterText(fields.at(2), WebEnv.password);
     await tester.pump();
 
     await tester.tap(find.text('Se connecter'));
@@ -58,5 +54,11 @@ void main() {
             'a successful login should land on the dashboard shell, whose '
             'bottom nav always shows Accueil');
     expect(find.text('Bienvenue'), findsNothing);
+
+    // Signing out must land on the login screen again, with no session left.
+    await signOut(tester);
+    expect(find.text('Bienvenue'), findsOneWidget,
+        reason: 'sign-out must return to the login screen');
+    expect(find.text('Accueil'), findsNothing);
   }, skip: kSkipUnlessLiveBackend);
 }

@@ -20,17 +20,16 @@ import 'package:steriymed_mobile/app.dart';
 import 'package:steriymed_mobile/bootstrap.dart';
 
 import '../support/live_backend_guard.dart';
-import '../support/backend_fixture.dart';
-import '../support/test_user.dart';
+import '../support/web_env.dart';
 
 Future<void> _login(WidgetTester tester) async {
   await bootstrap(() => const SteryMedApp());
   await tester.pumpAndSettle(const Duration(seconds: 2));
 
   final fields = find.byType(TextFormField);
-  await tester.enterText(fields.at(0), TestUser.tenantSlug);
-  await tester.enterText(fields.at(1), TestUser.adminEmail);
-  await tester.enterText(fields.at(2), TestUser.adminPassword);
+  await tester.enterText(fields.at(0), WebEnv.slug);
+  await tester.enterText(fields.at(1), WebEnv.emailOwner);
+  await tester.enterText(fields.at(2), WebEnv.password);
   await tester.pump();
   await tester.tap(find.text('Se connecter'));
   await tester.pumpAndSettle(const Duration(seconds: 3));
@@ -65,9 +64,6 @@ Future<void> _tapVisible(WidgetTester tester, String text) async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
-  if (kRunLiveIntegrationTests) {
-    setUpAll(() => verifyFixtureBackend());
-  }
 
   testWidgets(
       'create -> start -> complete -> submit -> release (compliant)',
@@ -83,7 +79,7 @@ void main() {
     await tester.pumpAndSettle(const Duration(seconds: 2));
 
     // Device + programme auto-select to the only seeded ones.
-    expect(find.text(TestUser.deviceName), findsOneWidget,
+    expect(find.text(WebEnv.deviceName), findsOneWidget,
         reason: 'the seeded device should be auto-selected');
 
     await tester.tap(find.text('Initialiser & Charger les Sachets'));
