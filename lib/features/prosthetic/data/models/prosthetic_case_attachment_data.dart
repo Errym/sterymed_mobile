@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class ProstheticCaseAttachmentData extends Equatable {
   final String id;
@@ -38,7 +39,7 @@ class ProstheticCaseAttachmentData extends Equatable {
       fileName: json['file_name']?.toString(),
       mimeType: json['mime_type']?.toString(),
       size: parsedSize,
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      createdAt: parseServerTime(json['created_at']?.toString() ?? ''),
     );
   }
 

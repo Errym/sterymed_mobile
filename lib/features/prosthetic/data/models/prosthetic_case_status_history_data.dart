@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class ProstheticCaseStatusHistoryData extends Equatable {
   final String id;
@@ -29,7 +30,7 @@ class ProstheticCaseStatusHistoryData extends Equatable {
         note: json['note']?.toString(),
         changedByUserId: json['changed_by_user_id']?.toString() ?? '',
         changedByName: json['changed_by_name']?.toString() ?? '',
-        createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+        createdAt: parseServerTime(json['created_at']?.toString() ?? '') ??
             DateTime.now(),
       );
 

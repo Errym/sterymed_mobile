@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class DeviceDetail extends Equatable {
   final String id;
@@ -43,9 +44,9 @@ class DeviceDetail extends Equatable {
         siteName: json['site_name']?.toString(),
         notes: json['notes']?.toString(),
         commissionedAt:
-            DateTime.tryParse(json['commissioned_at']?.toString() ?? ''),
+            parseServerTime(json['commissioned_at']?.toString() ?? ''),
         decommissionedAt:
-            DateTime.tryParse(json['decommissioned_at']?.toString() ?? ''),
+            parseServerTime(json['decommissioned_at']?.toString() ?? ''),
       );
 
   /// The same device with the site's name filled in (the API sends only the

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class NonConformityData extends Equatable {
   final String id;
@@ -60,11 +61,11 @@ class NonConformityData extends Equatable {
         description: json['description']?.toString() ?? '',
         raisedByUserId: json['raised_by_user_id']?.toString() ?? '',
         raisedByName: json['raised_by_name']?.toString(),
-        raisedAt: DateTime.tryParse(json['raised_at']?.toString() ?? '') ??
+        raisedAt: parseServerTime(json['raised_at']?.toString() ?? '') ??
             DateTime.now(),
         resolvedByUserId: json['resolved_by_user_id']?.toString(),
         resolvedByName: json['resolved_by_name']?.toString(),
-        resolvedAt: DateTime.tryParse(json['resolved_at']?.toString() ?? ''),
+        resolvedAt: parseServerTime(json['resolved_at']?.toString() ?? ''),
         resolution: json['resolution']?.toString(),
       );
 

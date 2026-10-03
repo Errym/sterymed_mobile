@@ -1717,9 +1717,15 @@ class _StockSection extends StatelessWidget {
                       style: AppTypography.kpiNumber.copyWith(color: color),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    const Padding(
-                      padding: EdgeInsets.only(bottom: 4),
-                      child: Text('état global', style: AppTypography.caption),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        s.partial
+                            ? 'état global · sur les ${s.rows} premières lignes'
+                            : 'état global',
+                        key: const Key('stock-health-caption'),
+                        style: AppTypography.caption,
+                      ),
                     ),
                   ],
                 ),
@@ -1738,11 +1744,13 @@ class _StockSection extends StatelessWidget {
       metrics: s == null
           ? const []
           : [
-              _Metric('Sous le minimum', '${s.low}',
+              // "12+" when more rows exist than were read: never an exact
+              // figure for a partial count.
+              _Metric('Sous le minimum', '${s.low}${s.partial ? '+' : ''}',
                   color: _warnIf(s.low, AppColors.warning)),
-              _Metric('DLC proche', '${s.nearExpiry}',
+              _Metric('DLC proche', '${s.nearExpiry}${s.partial ? '+' : ''}',
                   color: _warnIf(s.nearExpiry, AppColors.warning)),
-              _Metric('Périmés', '${s.expired}',
+              _Metric('Périmés', '${s.expired}${s.partial ? '+' : ''}',
                   color: _warnIf(s.expired, AppColors.danger)),
             ],
     );

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class DluRuleData extends Equatable {
   final String id;
@@ -27,7 +28,7 @@ class DluRuleData extends Equatable {
         storageCondition: json['storage_condition']?.toString() ?? '',
         shelfLifeDays: (json['shelf_life_days'] as num?)?.toInt() ?? 0,
         lastUpdatedAt:
-            DateTime.tryParse(json['last_updated_at']?.toString() ?? ''),
+            parseServerTime(json['last_updated_at']?.toString() ?? ''),
         lastUpdatedBy: json['last_updated_by']?.toString(),
         lastReason: json['last_reason']?.toString(),
         existingLabelsCount:

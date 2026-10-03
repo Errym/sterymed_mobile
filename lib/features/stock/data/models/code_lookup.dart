@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// Where a batch is, and how much, as answered by `GET /v1/lookups/code`.
 class LookupLocation extends Equatable {
@@ -51,7 +52,7 @@ class LookupBatch extends Equatable {
     return LookupBatch(
       id: json['id']?.toString() ?? '',
       batchNumber: json['batch_number']?.toString() ?? '',
-      expiryDate: DateTime.tryParse(json['expiry_date']?.toString() ?? ''),
+      expiryDate: parseServerTime(json['expiry_date']?.toString() ?? ''),
       status: json['status']?.toString() ?? 'active',
       isExpired: json['is_expired'] == true,
       qtyOnHand: (json['qty_on_hand'] as num?)?.toInt() ?? 0,

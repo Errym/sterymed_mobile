@@ -73,12 +73,18 @@ class StockInsight {
   final int low;
   final int expired;
   final int nearExpiry;
+
+  /// True when the server holds more rows than were read: every figure here
+  /// is then a lower bound, and the screen must say so instead of presenting
+  /// a share of a sample as the whole truth.
+  final bool partial;
   const StockInsight({
     required this.rows,
     required this.healthy,
     required this.low,
     required this.expired,
     required this.nearExpiry,
+    this.partial = false,
   });
 
   /// Share of stock rows in good standing, 0-100. Null with no rows at all:

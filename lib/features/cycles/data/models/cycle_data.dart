@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class CycleData extends Equatable {
   final String id;
@@ -124,7 +125,7 @@ class CycleData extends Equatable {
     if (v == null) return null;
     final s = v.toString().trim();
     if (s.isEmpty) return null;
-    return DateTime.tryParse(s);
+    return parseServerTime(s);
   }
 
   /// Used by the repository to inject resolved names after lookup.

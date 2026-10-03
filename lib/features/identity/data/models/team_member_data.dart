@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class TeamMemberData extends Equatable {
   final String id;
@@ -37,8 +38,8 @@ class TeamMemberData extends Equatable {
     email: json['email']?.toString() ?? '',
     role: json['role']?.toString(),
     status: json['status']?.toString() ?? 'active',
-    joinedAt: DateTime.tryParse(json['joined_at']?.toString() ?? ''),
-    disabledAt: DateTime.tryParse(json['disabled_at']?.toString() ?? ''),
+    joinedAt: parseServerTime(json['joined_at']?.toString() ?? ''),
+    disabledAt: parseServerTime(json['disabled_at']?.toString() ?? ''),
   );
 
   @override

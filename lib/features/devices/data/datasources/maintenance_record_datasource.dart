@@ -6,6 +6,13 @@ import '../../../../core/utils/idempotency_key.dart';
 import '../models/maintenance_record_data.dart';
 
 class MaintenanceRecordDatasource {
+  /// A calendar day picked on screen is sent as a day (yyyy-MM-dd): a local
+  /// midnight sent as a timestamp would be read as UTC by the server.
+  static String _dateOnly(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
   final Dio _dio;
   MaintenanceRecordDatasource(this._dio);
 
@@ -58,8 +65,8 @@ class MaintenanceRecordDatasource {
           'kind': kind,
           if (technician != null && technician.isNotEmpty)
             'technician': technician,
-          'performed_at': performedAt.toIso8601String(),
-          if (nextDueAt != null) 'next_due_at': nextDueAt.toIso8601String(),
+          'performed_at': _dateOnly(performedAt),
+          if (nextDueAt != null) 'next_due_at': _dateOnly(nextDueAt),
           if (description != null && description.isNotEmpty)
             'description': description,
         },

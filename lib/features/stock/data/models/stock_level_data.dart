@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class StockLevelData extends Equatable {
   final String id;
@@ -52,7 +53,7 @@ class StockLevelData extends Equatable {
     final qty = (json['quantity'] as num?)?.toInt() ?? 0;
     final min = (json['min_threshold'] as num?)?.toInt() ?? 0;
     final expiresAt =
-        DateTime.tryParse(json['expiry_date']?.toString() ?? '');
+        parseServerTime(json['expiry_date']?.toString() ?? '');
     bool expired = false;
     bool near = false;
     if (expiresAt != null) {

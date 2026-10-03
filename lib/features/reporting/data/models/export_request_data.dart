@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class ExportRequestData extends Equatable {
   final String id;
@@ -36,14 +37,14 @@ class ExportRequestData extends Equatable {
         status: json['status']?.toString() ?? 'pending',
         requestedByName: json['requested_by_name']?.toString() ?? '',
         requestedAt:
-            DateTime.tryParse(json['requested_at']?.toString() ?? '') ??
+            parseServerTime(json['requested_at']?.toString() ?? '') ??
                 DateTime.now(),
         error: json['error']?.toString(),
-        completedAt: DateTime.tryParse(json['completed_at']?.toString() ?? ''),
+        completedAt: parseServerTime(json['completed_at']?.toString() ?? ''),
         sizeBytes: (json['size_bytes'] as num?)?.toInt(),
         recordCount: (json['record_count'] as num?)?.toInt(),
         fileCount: (json['file_count'] as num?)?.toInt(),
-        expiresAt: DateTime.tryParse(json['expires_at']?.toString() ?? ''),
+        expiresAt: parseServerTime(json['expires_at']?.toString() ?? ''),
       );
 
   @override

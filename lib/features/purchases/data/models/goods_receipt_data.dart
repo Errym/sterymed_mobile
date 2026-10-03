@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// One line of a delivery as the server recorded it: the product, the
 /// manufacturer lot and its expiry date, and the quantity that came in.
@@ -30,7 +31,7 @@ class GoodsReceiptLineData extends Equatable {
         productName: json['product_name']?.toString() ?? 'Produit',
         batchId: json['batch_id']?.toString() ?? '',
         batchNumber: json['batch_number']?.toString() ?? '',
-        expiryDate: DateTime.tryParse(json['expiry_date']?.toString() ?? ''),
+        expiryDate: parseServerTime(json['expiry_date']?.toString() ?? ''),
         qty: (json['qty'] as num?)?.toInt() ?? 0,
         discrepancyReason: json['discrepancy_reason']?.toString(),
       );
@@ -87,7 +88,7 @@ class GoodsReceiptData extends Equatable {
       purchaseOrderId: json['purchase_order_id']?.toString() ?? '',
       totalLines: lines.length,
       receivedAt:
-          DateTime.tryParse(json['received_at']?.toString() ?? '') ??
+          parseServerTime(json['received_at']?.toString() ?? '') ??
           DateTime.now(),
       receivedByName: json['received_by_name']?.toString(),
       locationId: json['location_id']?.toString(),

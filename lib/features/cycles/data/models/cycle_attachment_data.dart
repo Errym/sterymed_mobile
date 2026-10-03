@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class CycleAttachmentData extends Equatable {
   /// UUID string returned by the backend — used as the ID in the DELETE
@@ -60,7 +61,7 @@ class CycleAttachmentData extends Equatable {
       fileName: json['file_name']?.toString() ?? json['name']?.toString(),
       mimeType: json['mime_type']?.toString(),
       size: parsedSize,
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? ''),
+      createdAt: parseServerTime(json['created_at']?.toString() ?? ''),
     );
   }
 

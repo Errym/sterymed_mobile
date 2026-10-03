@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// One inventory session as listed (`GET /v1/inventory-counts`) or embedded in
 /// the detail answer.
@@ -45,9 +46,9 @@ class InventoryCountSummary extends Equatable {
         status: json['status']?.toString() ?? 'open',
         note: json['note']?.toString(),
         openedByName: json['opened_by_name']?.toString() ?? '',
-        openedAt: DateTime.tryParse(json['opened_at']?.toString() ?? ''),
+        openedAt: parseServerTime(json['opened_at']?.toString() ?? ''),
         closedByName: json['closed_by_name']?.toString(),
-        closedAt: DateTime.tryParse(json['closed_at']?.toString() ?? ''),
+        closedAt: parseServerTime(json['closed_at']?.toString() ?? ''),
         cancelReason: json['cancel_reason']?.toString(),
         linesCount: (json['lines_count'] as num?)?.toInt() ?? 0,
         adjustmentsCount: (json['adjustments_count'] as num?)?.toInt() ?? 0,
@@ -90,7 +91,7 @@ class InventoryCountLine extends Equatable {
         batchId: json['batch_id']?.toString() ?? '',
         batchNumber: json['batch_number']?.toString() ?? '',
         productName: json['product_name']?.toString() ?? '',
-        expiryDate: DateTime.tryParse(json['expiry_date']?.toString() ?? ''),
+        expiryDate: parseServerTime(json['expiry_date']?.toString() ?? ''),
         batchStatus: json['batch_status']?.toString() ?? 'active',
         countedQty: (json['counted_qty'] as num?)?.toInt() ?? 0,
         expectedQty: (json['expected_qty'] as num?)?.toInt() ?? 0,
@@ -125,7 +126,7 @@ class InventoryUncounted extends Equatable {
         batchId: json['batch_id']?.toString() ?? '',
         batchNumber: json['batch_number']?.toString() ?? '',
         productName: json['product_name']?.toString() ?? '',
-        expiryDate: DateTime.tryParse(json['expiry_date']?.toString() ?? ''),
+        expiryDate: parseServerTime(json['expiry_date']?.toString() ?? ''),
         batchStatus: json['batch_status']?.toString() ?? 'active',
         systemQty: (json['system_qty'] as num?)?.toInt() ?? 0,
       );

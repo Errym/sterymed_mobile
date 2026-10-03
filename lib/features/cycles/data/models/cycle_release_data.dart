@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 enum CycleReleaseDecision { compliant, rejected }
 
@@ -35,7 +36,7 @@ class CycleReleaseData extends Equatable {
       decision: _decisionFromString(json['decision']?.toString()),
       reason: json['reason']?.toString(),
       releasedByName: json['released_by_name']?.toString(),
-      releasedAt: DateTime.tryParse(json['released_at']?.toString() ?? '') ??
+      releasedAt: parseServerTime(json['released_at']?.toString() ?? '') ??
           DateTime.now(),
       isQueued: json['is_queued'] as bool? ?? false,
     );

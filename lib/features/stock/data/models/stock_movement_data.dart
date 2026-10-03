@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class StockMovementData extends Equatable {
   final String id;
@@ -34,7 +35,7 @@ class StockMovementData extends Equatable {
         qty: (json['qty'] as num?)?.toInt() ?? 0,
         reason: json['reason']?.toString(),
         createdAt:
-            DateTime.tryParse(json['occurred_at']?.toString() ?? '') ??
+            parseServerTime(json['occurred_at']?.toString() ?? '') ??
                 DateTime.now(),
         isQueued: json['is_queued'] as bool? ?? false,
       );

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 enum ProstheticCaseStatus {
   impressionCompleted,
@@ -211,15 +212,15 @@ class ProstheticCaseData extends Equatable {
         workType:
             ProstheticWorkType.fromWire(json['work_type']?.toString() ?? ''),
         impressionDate:
-            DateTime.tryParse(json['impression_date']?.toString() ?? '') ??
+            parseServerTime(json['impression_date']?.toString() ?? '') ??
                 DateTime.now(),
-        sentToLabDate: DateTime.tryParse(
+        sentToLabDate: parseServerTime(
             json['sent_to_lab_date']?.toString() ?? ''),
-        returnedFromLabDate: DateTime.tryParse(
+        returnedFromLabDate: parseServerTime(
             json['returned_from_lab_date']?.toString() ?? ''),
-        plannedPlacementDate: DateTime.tryParse(
+        plannedPlacementDate: parseServerTime(
             json['planned_placement_date']?.toString() ?? ''),
-        actualPlacementDate: DateTime.tryParse(
+        actualPlacementDate: parseServerTime(
             json['actual_placement_date']?.toString() ?? ''),
         daysWaitingForPlacement:
             (json['days_waiting_for_placement'] as num?)?.toInt(),
@@ -233,7 +234,7 @@ class ProstheticCaseData extends Equatable {
             json['final_payment_completed'] as bool? ?? false,
         remainingBalance: (json['remaining_balance'] as num?)?.toDouble(),
         administrativeComments: json['administrative_comments']?.toString(),
-        createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+        createdAt: parseServerTime(json['created_at']?.toString() ?? '') ??
             DateTime.now(),
       );
 

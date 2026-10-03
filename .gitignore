@@ -86,3 +86,4 @@ android/local.properties
 
 # Golden-test failure diffs are generated on a failing run.
 test/golden/failures/
+scratch_*

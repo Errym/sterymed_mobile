@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class EvidenceSearchResultData extends Equatable {
   final String labelId;
@@ -39,7 +40,7 @@ class EvidenceSearchResultData extends Equatable {
         patientReference: json['patient_reference']?.toString() ?? '',
         practitionerName: json['practitioner_name']?.toString() ?? '',
         procedure: json['procedure']?.toString() ?? '',
-        usedAt: DateTime.tryParse(json['used_at']?.toString() ?? '') ??
+        usedAt: parseServerTime(json['used_at']?.toString() ?? '') ??
             DateTime.now(),
       );
 

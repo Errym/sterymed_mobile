@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class AuditEventData extends Equatable {
   final String id;
@@ -37,7 +38,7 @@ class AuditEventData extends Equatable {
         subjectId: json['subject_id']?.toString(),
         reason: json['reason']?.toString(),
         occurredAt:
-            DateTime.tryParse(json['occurred_at']?.toString() ?? '') ??
+            parseServerTime(json['occurred_at']?.toString() ?? '') ??
                 DateTime.now(),
         oldValues: _asMap(json['old_values']),
         newValues: _asMap(json['new_values']),

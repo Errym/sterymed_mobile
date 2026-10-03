@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// The three severity levels the backend uses.
 /// Mirror the enum on the server — do not invent.
@@ -68,9 +69,9 @@ class AlertData extends Equatable {
       subjectType: json['subject_type']?.toString() ?? '',
       subjectId: json['subject_id']?.toString(),
       message: json['message']?.toString() ?? '',
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+      createdAt: parseServerTime(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
-      resolvedAt: DateTime.tryParse(json['resolved_at']?.toString() ?? ''),
+      resolvedAt: parseServerTime(json['resolved_at']?.toString() ?? ''),
       resolvedByName: json['resolved_by_name']?.toString(),
     );
   }

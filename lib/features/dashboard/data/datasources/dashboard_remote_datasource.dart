@@ -213,6 +213,7 @@ class DashboardRemoteDatasource {
           low: rows.where((r) => r.isLow).length,
           expired: rows.where((r) => r.isExpired).length,
           nearExpiry: rows.where((r) => r.isNearExpiry).length,
+          partial: _hasMore(stock),
         );
       }
     }

@@ -53,6 +53,12 @@ def baseline_issues(root: Path, flutter_sdk: Path | None) -> list[str]:
         issues.append("CI Flutter pins disagree")
     if pins and "flutter" in declared and min(pins) < declared["flutter"]:
         issues.append("CI Flutter pin is below the declared minimum")
+    # Clinical data must never leave the phone through Android backups.
+    manifest = (root / "android/app/src/main/AndroidManifest.xml").read_text(encoding="utf-8")
+    if 'android:allowBackup="false"' not in manifest:
+        issues.append("AndroidManifest must set android:allowBackup=\"false\" (cloud backup would copy clinical data)")
+    if "android:dataExtractionRules" not in manifest or not (root / "android/app/src/main/res/xml/data_extraction_rules.xml").exists():
+        issues.append("AndroidManifest must reference data_extraction_rules.xml (device-transfer exclusion)")
     if flutter_sdk:
         metadata = json.loads((flutter_sdk / "bin/cache/flutter.version.json").read_text(encoding="utf-8"))
         installed = {"flutter": version(metadata["frameworkVersion"]), "dart": version(metadata["dartSdkVersion"])}

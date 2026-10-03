@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// Mirrors steriqore's `App\Domain\Labeling\Enums\LabelStatus` exactly —
 /// `created -> printed -> used | expired | recalled | voided`. A lookup is
@@ -77,10 +78,10 @@ class LabelScanResult extends Equatable {
       cycleNumber: (json['cycle_number'] as num?)?.toInt() ?? 0,
       deviceName: json['device_name']?.toString() ?? '',
       sterilizedAt:
-          DateTime.tryParse(json['sterilized_at']?.toString() ?? '') ??
+          parseServerTime(json['sterilized_at']?.toString() ?? '') ??
           DateTime.now(),
       useByDate:
-          DateTime.tryParse(json['use_by_date']?.toString() ?? '') ??
+          parseServerTime(json['use_by_date']?.toString() ?? '') ??
           DateTime.now(),
       sequenceInCycle: (json['sequence_in_cycle'] as num?)?.toInt() ?? 0,
       siteName: json['site_name']?.toString() ?? '',

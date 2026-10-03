@@ -702,7 +702,7 @@ class _CycleDetailView extends StatelessWidget {
         await getIt<CycleRepository>().addControlTest(cycleId, {
           'type': _typeToString(type),
           'result': result == ControlTestResult.pass ? 'pass' : 'fail',
-          'performed_at': DateTime.now().toIso8601String(),
+          'performed_at': DateTime.now().toUtc().toIso8601String(),
           if (notesCtrl.text.trim().isNotEmpty) 'notes': notesCtrl.text.trim(),
         });
         if (!context.mounted) return;

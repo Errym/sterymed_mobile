@@ -136,6 +136,37 @@ void main() {
       expect(s.healthPercent, 50);
     });
 
+    test('more rows on the server than were read marks every figure as partial',
+        () async {
+      stubBasics();
+      stub('stock-levels', body: {
+        'data': [
+          {'id': 'a', 'quantity': 3, 'min_threshold': 10, 'expiry_date': _day(200)},
+        ],
+        'meta': {'next_cursor': 'abc'},
+      });
+      final s = (await DashboardRemoteDatasource(dio, (p) => p == 'inventory.view')
+              .fetch())
+          .insights
+          .stock!;
+      expect(s.partial, isTrue);
+      expect(s.low, 1);
+    });
+
+    test('a complete read is not marked partial', () async {
+      stubBasics();
+      stub('stock-levels', body: {
+        'data': [
+          {'id': 'a', 'quantity': 50, 'min_threshold': 10, 'expiry_date': _day(200)},
+        ],
+      });
+      final s = (await DashboardRemoteDatasource(dio, (p) => p == 'inventory.view')
+              .fetch())
+          .insights
+          .stock!;
+      expect(s.partial, isFalse);
+    });
+
     test('no stock rows is "nothing to judge", not 100%', () async {
       stubBasics();
       stub('stock-levels');

@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// An invitation that is neither accepted nor revoked: still waiting for the
 /// person to join (`pending`) or past its date and needing a resend (`expired`).
@@ -22,7 +23,7 @@ class OpenInvitation extends Equatable {
     email: json['email']?.toString() ?? '',
     role: json['role']?.toString() ?? '',
     expired: json['status']?.toString() == 'expired',
-    expiresAt: DateTime.tryParse(json['expires_at']?.toString() ?? ''),
+    expiresAt: parseServerTime(json['expires_at']?.toString() ?? ''),
   );
 
   @override

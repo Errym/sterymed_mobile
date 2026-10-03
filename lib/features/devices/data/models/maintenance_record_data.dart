@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// Mirrors steriqore's `App\Domain\Equipment\Data\MaintenanceRecordData`.
 /// Append-only — the backend exposes no PATCH/DELETE route for this
@@ -33,10 +34,10 @@ class MaintenanceRecordData extends Equatable {
       kind: json['kind']?.toString() ?? 'preventive',
       technician: json['technician']?.toString(),
       performedAt:
-          DateTime.tryParse(json['performed_at']?.toString() ?? '') ??
+          parseServerTime(json['performed_at']?.toString() ?? '') ??
               DateTime.now(),
       nextDueAt: json['next_due_at'] != null
-          ? DateTime.tryParse(json['next_due_at'].toString())
+          ? parseServerTime(json['next_due_at'].toString())
           : null,
       description: json['description']?.toString(),
     );

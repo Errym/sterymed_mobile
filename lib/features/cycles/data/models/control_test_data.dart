@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 enum ControlTestType { vacuum, bowieDick, helix, biological }
 
@@ -48,7 +49,7 @@ class ControlTestData extends Equatable {
       type: _typeFromString(json['type']?.toString()),
       result: _resultFromString(json['result']?.toString()),
       performedAt:
-          DateTime.tryParse(json['performed_at']?.toString() ?? '') ??
+          parseServerTime(json['performed_at']?.toString() ?? '') ??
               DateTime.now(),
       notes: json['notes']?.toString(),
       operatorName: json['operator_name']?.toString(),

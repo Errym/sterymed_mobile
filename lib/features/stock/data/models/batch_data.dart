@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 /// A lot, as `GET /v1/batches` returns it: where it came from, when it
 /// arrived, whether it is usable, and how much of it is on hand across every
@@ -58,8 +59,8 @@ class BatchData extends Equatable {
         supplierId: json['supplier_id']?.toString(),
         supplierName: json['supplier_name']?.toString() ?? '',
         batchNumber: json['batch_number']?.toString() ?? '',
-        expiryDate: DateTime.tryParse(json['expiry_date']?.toString() ?? ''),
-        receivedAt: DateTime.tryParse(json['received_at']?.toString() ?? '')
+        expiryDate: parseServerTime(json['expiry_date']?.toString() ?? ''),
+        receivedAt: parseServerTime(json['received_at']?.toString() ?? '')
             ?.toLocal(),
         status: json['status']?.toString() ?? 'active',
         qtyOnHand: (json['qty_on_hand'] as num?)?.toInt() ?? 0,

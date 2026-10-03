@@ -1,4 +1,5 @@
 import 'package:equatable/equatable.dart';
+import '../../../../core/utils/server_time.dart';
 
 class CycleItemData extends Equatable {
   final String id;
@@ -24,7 +25,7 @@ class CycleItemData extends Equatable {
       description: json['description']?.toString() ?? '',
       batchId: json['batch_id']?.toString(),
       batchNumber: json['batch_number']?.toString(),
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+      createdAt: parseServerTime(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
     );
   }

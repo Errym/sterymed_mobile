@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import 'purchase_order_line_data.dart';
+import '../../../../core/utils/server_time.dart';
 
 class PurchaseOrderData extends Equatable {
   final String id;
@@ -71,10 +72,10 @@ class PurchaseOrderData extends Equatable {
       supplierName: json['supplier_name']?.toString() ?? '',
       status: json['status']?.toString() ?? 'draft',
       lines: lines,
-      createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
+      createdAt: parseServerTime(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
-      orderedAt: DateTime.tryParse(json['ordered_at']?.toString() ?? ''),
-      expectedAt: DateTime.tryParse(json['expected_at']?.toString() ?? ''),
+      orderedAt: parseServerTime(json['ordered_at']?.toString() ?? ''),
+      expectedAt: parseServerTime(json['expected_at']?.toString() ?? ''),
     );
   }
 
