@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'core/constants/app_constants.dart';
 import 'core/push/push_listener.dart';
+import 'shared/widgets/layout/adaptive_width.dart';
 import 'core/push/push_service.dart';
 import 'core/router/app_router.dart';
 import 'core/security/app_guard.dart';
@@ -84,7 +85,7 @@ class _AppView extends StatelessWidget {
           hasSession: () => getIt<SessionStore>().hasSession,
           // Alerts is a bottom-nav tab, so it is reached with go().
           onOpen: (route) => router.go(route),
-          child: _withLocalDataNotice(child!),
+          child: AdaptiveWidth(child: _withLocalDataNotice(child!)),
         ),
       ),
       routerConfig: router,
