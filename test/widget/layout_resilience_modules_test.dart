@@ -24,7 +24,10 @@ import 'package:steriymed_mobile/features/catalog/presentation/screens/product_l
 import 'package:steriymed_mobile/features/catalog/presentation/widgets/product_form_sheet.dart';
 import 'package:steriymed_mobile/features/patients/data/models/patient_data.dart';
 import 'package:steriymed_mobile/features/patients/presentation/widgets/patient_detail_sheet.dart';
+import 'package:steriymed_mobile/features/prosthetic/data/models/laboratory_data.dart';
+import 'package:steriymed_mobile/features/prosthetic/data/models/prosthetic_summary_data.dart';
 import 'package:steriymed_mobile/features/prosthetic/data/repositories/prosthetic_repository.dart';
+import 'package:steriymed_mobile/features/prosthetic/presentation/screens/prosthetic_laboratories_screen.dart';
 import 'package:steriymed_mobile/features/purchases/data/models/purchase_order_data.dart';
 import 'package:steriymed_mobile/features/purchases/data/models/purchase_order_line_data.dart';
 import 'package:steriymed_mobile/features/purchases/data/repositories/purchase_repository.dart';
@@ -274,6 +277,24 @@ void main() {
     final pro = _Prosthetic();
     when(() => pro.list(patientReference: any(named: 'patientReference')))
         .thenAnswer((_) async => const CursorPage(items: []));
+    when(() => pro.listLaboratories(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => const [
+              LaboratoryData(
+                id: 'lab-1',
+                name: 'Laboratoire de Prothèses Dentaires du Centre-Ville de Paris Huitième',
+                contactName: 'Docteur Prénom-Composé Nom-Très-Long',
+                contactPhone: '+33 1 42 68 00 22',
+                contactEmail: 'commandes.longue-adresse@laboratoire-dentaire.example.fr',
+                address: '12 rue de la Paix, Bâtiment B, 75008 Paris, France',
+                notes: 'Livraison le mardi et le vendredi avant 10 h.',
+              ),
+            ]);
+    when(() => pro.summary(
+          laboratoryId: any(named: 'laboratoryId'),
+          scope: any(named: 'scope'),
+        )).thenAnswer((_) async => const ProstheticSummaryData(total: 12, urgent: 3));
+    when(() => pro.list(laboratoryId: any(named: 'laboratoryId')))
+        .thenAnswer((_) async => const CursorPage(items: []));
     _register<ProstheticRepository>(pro);
     final evidence = _Evidence();
     when(() => evidence.search(patientReference: any(named: 'patientReference')))
@@ -461,6 +482,14 @@ void main() {
             .thenReturn('Cabinet Dentaire du Centre-Ville');
         when(() => session.isOwner).thenReturn(true);
         await check(tester, vp.value, const SettingsScreen());
+      });
+
+      testWidgets('laboratories, a laboratory sheet and the form', (tester) async {
+        await check(tester, vp.value, const ProstheticLaboratoriesScreen(),
+            then: () async {
+          await tester.tap(find.byKey(const Key('lab-lab-1')));
+          await tester.pumpAndSettle();
+        });
       });
 
       testWidgets('patient sheet', (tester) async {

@@ -1,22 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
-import '../../../../shared/widgets/cards/app_card.dart';
-import '../../../../shared/widgets/layout/detail_kit.dart';
-import '../../../../shared/widgets/layout/form_card.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/inputs/app_search_field.dart';
+import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
 import '../../data/models/laboratory_data.dart';
+import '../../data/models/prosthetic_case_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
+import '../utils/laboratory_stats.dart';
+import '../widgets/prosthetic_case_tile.dart';
 
+part 'prosthetic_laboratories_screen_parts/laboratory_card.dart';
+part 'prosthetic_laboratories_screen_parts/laboratory_sheet.dart';
+part 'prosthetic_laboratories_screen_parts/laboratory_form.dart';
+
+/// The partner laboratories: who they are, how to reach them, and how much of
+/// the practice's work each one holds right now.
 class ProstheticLaboratoriesScreen extends StatefulWidget {
   const ProstheticLaboratoriesScreen({super.key});
 
@@ -30,6 +44,11 @@ class _ProstheticLaboratoriesScreenState
   List<LaboratoryData> _labs = [];
   bool _loading = true;
   String? _error;
+  String _query = '';
+
+  // One count request per laboratory, made when its card first appears and
+  // kept for the life of the screen (scrolling must not re-ask the server).
+  final Map<String, Future<LaboratoryStats>> _stats = {};
 
   @override
   void initState() {
@@ -48,6 +67,7 @@ class _ProstheticLaboratoriesScreenState
       if (!mounted) return;
       setState(() {
         _labs = labs;
+        _stats.clear();
         _loading = false;
       });
     } catch (e) {
@@ -57,6 +77,21 @@ class _ProstheticLaboratoriesScreenState
         _error = ErrorMessage.from(e);
       });
     }
+  }
+
+  Future<LaboratoryStats> _statsFor(String id) => _stats.putIfAbsent(
+        id,
+        () => loadLaboratoryStats(getIt<ProstheticRepository>(), id),
+      );
+
+  List<LaboratoryData> get _visible {
+    final q = _query.trim().toLowerCase();
+    if (q.isEmpty) return _labs;
+    return _labs
+        .where((l) => [l.name, l.contactName, l.contactPhone, l.contactEmail]
+            .whereType<String>()
+            .any((v) => v.toLowerCase().contains(q)))
+        .toList();
   }
 
   Future<void> _createOrEdit({LaboratoryData? existing}) async {
@@ -72,7 +107,7 @@ class _ProstheticLaboratoriesScreenState
       context,
       title: 'Archiver ce laboratoire ?',
       message: '${lab.name}\n\nIl n\'apparaîtra plus dans la création de '
-          'nouveaux dossiers.',
+          'nouveaux dossiers. Les dossiers existants le gardent.',
       confirmLabel: 'Archiver',
       isDestructive: true,
     );
@@ -87,8 +122,26 @@ class _ProstheticLaboratoriesScreenState
     }
   }
 
+  Future<void> _open(LaboratoryData lab) async {
+    final action = await showAppSheet<_LabAction>(
+      context,
+      builder: (_) => _LaboratorySheet(
+        lab: lab,
+        stats: _statsFor(lab.id),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _LabAction.edit:
+        await _createOrEdit(existing: lab);
+      case _LabAction.archive:
+        await _archive(lab);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final visible = _visible;
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: AppAppBar(
@@ -116,262 +169,53 @@ class _ProstheticLaboratoriesScreenState
                         label: const Text('Ajouter un laboratoire'),
                       ),
                     )
-                  : ListView.separated(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      itemCount: _labs.length,
-                      separatorBuilder: (_, __) =>
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView(
+                        padding: const EdgeInsets.all(AppSpacing.md),
+                        children: [
+                          AppSearchField(
+                            hint: 'Rechercher un laboratoire…',
+                            onChanged: (v) => setState(() => _query = v),
+                          ),
                           const SizedBox(height: AppSpacing.sm),
-                      itemBuilder: (context, index) {
-                        final lab = _labs[index];
-                        return _LabCard(
-                          lab: lab,
-                          onEdit: () => _createOrEdit(existing: lab),
-                          onArchive: () => _archive(lab),
-                        );
-                      },
-                    ),
-    );
-  }
-}
-
-class _LaboratoryFormSheet extends StatefulWidget {
-  final LaboratoryData? existing;
-  const _LaboratoryFormSheet({this.existing});
-
-  @override
-  State<_LaboratoryFormSheet> createState() => _LaboratoryFormSheetState();
-}
-
-class _LaboratoryFormSheetState extends State<_LaboratoryFormSheet> {
-  final _formKey = GlobalKey<FormState>();
-  late final _nameCtrl = TextEditingController(text: widget.existing?.name);
-  late final _contactNameCtrl =
-      TextEditingController(text: widget.existing?.contactName);
-  late final _contactPhoneCtrl =
-      TextEditingController(text: widget.existing?.contactPhone);
-  late final _contactEmailCtrl =
-      TextEditingController(text: widget.existing?.contactEmail);
-  bool _submitting = false;
-
-  @override
-  void dispose() {
-    _nameCtrl.dispose();
-    _contactNameCtrl.dispose();
-    _contactPhoneCtrl.dispose();
-    _contactEmailCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() => _submitting = true);
-    final data = {
-      'name': _nameCtrl.text.trim(),
-      'contact_name': _contactNameCtrl.text.trim(),
-      'contact_phone': _contactPhoneCtrl.text.trim(),
-      'contact_email': _contactEmailCtrl.text.trim(),
-    };
-    try {
-      final repo = getIt<ProstheticRepository>();
-      if (widget.existing != null) {
-        await repo.updateLaboratory(widget.existing!.id, data);
-      } else {
-        await repo.createLaboratory(data);
-      }
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (e) {
-      if (!mounted) return;
-      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  bool _validEmail(String text) =>
-      RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(text);
-
-  @override
-  Widget build(BuildContext context) {
-    final isEdit = widget.existing != null;
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                  AppSpacing.lg,
-                  AppSpacing.md,
-                ),
-                children: [
-                  const SheetHandle(),
-                  const SizedBox(height: AppSpacing.md),
-                  Text(
-                    isEdit ? 'Modifier le laboratoire' : 'Nouveau laboratoire',
-                    style: AppTypography.sectionTitle,
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Il sera proposé à la création d\'un dossier prothétique '
-                    'et sert à suivre les travaux envoyés.',
-                    style: AppTypography.caption,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  ListenableBuilder(
-                    listenable: Listenable.merge([
-                      _nameCtrl,
-                      _contactNameCtrl,
-                      _contactPhoneCtrl,
-                      _contactEmailCtrl,
-                    ]),
-                    builder: (context, _) {
-                      final name = _nameCtrl.text.trim();
-                      final person = _contactNameCtrl.text.trim();
-                      return PreviewCard(
-                        key: const Key('lab-preview'),
-                        mark: EntityMark.initials(EntityMark.initialsOf(name)),
-                        eyebrow: 'LABORATOIRE PARTENAIRE',
-                        title: name.isEmpty ? 'Nom du laboratoire' : name,
-                        titleIsPlaceholder: name.isEmpty,
-                        tags: [
-                          if (person.isNotEmpty)
-                            InfoTag(person, icon: Icons.person_outline),
-                          if (_contactPhoneCtrl.text.trim().isNotEmpty)
-                            InfoTag(
-                              _contactPhoneCtrl.text.trim(),
-                              icon: Icons.call_outlined,
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.xs,
+                              vertical: AppSpacing.xs,
                             ),
-                          if (_contactEmailCtrl.text.trim().isNotEmpty)
-                            InfoTag(
-                              _contactEmailCtrl.text.trim(),
-                              icon: Icons.mail_outline,
+                            child: Text(
+                              _query.trim().isEmpty
+                                  ? '${_labs.length} laboratoire'
+                                      '${_labs.length > 1 ? 's' : ''} partenaire'
+                                      '${_labs.length > 1 ? 's' : ''}'
+                                  : '${visible.length} résultat'
+                                      '${visible.length > 1 ? 's' : ''}',
+                              key: const Key('lab-count'),
+                              style: AppTypography.eyebrow,
                             ),
+                          ),
+                          if (visible.isEmpty)
+                            const Padding(
+                              padding: EdgeInsets.all(AppSpacing.xl),
+                              child: Center(
+                                child: Text(
+                                  'Aucun laboratoire ne correspond.',
+                                  style: AppTypography.caption,
+                                ),
+                              ),
+                            ),
+                          for (final lab in visible) ...[
+                            _LabCard(
+                              lab: lab,
+                              stats: _statsFor(lab.id),
+                              onTap: () => _open(lab),
+                            ),
+                            const SizedBox(height: AppSpacing.sm),
+                          ],
                         ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FormCard(
-                    title: 'Identité',
-                    trailing:
-                        const Text('Requis', style: AppTypography.caption),
-                    children: [
-                      AppTextField(
-                        label: 'Nom *',
-                        controller: _nameCtrl,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Requis.' : null,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FormCard(
-                    title: 'Contact',
-                    trailing:
-                        const Text('Facultatif', style: AppTypography.caption),
-                    children: [
-                      AppTextField(
-                        label: 'Contact',
-                        hint: 'Prénom et nom du technicien',
-                        controller: _contactNameCtrl,
-                      ),
-                      AppTextField(
-                        label: 'Téléphone',
-                        controller: _contactPhoneCtrl,
-                        keyboardType: TextInputType.phone,
-                      ),
-                      AppTextField(
-                        label: 'E-mail',
-                        controller: _contactEmailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (v) {
-                          final text = v?.trim() ?? '';
-                          if (text.isEmpty) return null;
-                          return _validEmail(text)
-                              ? null
-                              : 'Adresse e-mail invalide.';
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            PinnedFooter(
-              child: PrimaryButton(
-                label: isEdit ? 'Enregistrer' : 'Ajouter le laboratoire',
-                isLoading: _submitting,
-                onPressed: _submitting ? null : _submit,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A partner laboratory: who it is, who to reach, one tap to call or write.
-class _LabCard extends StatelessWidget {
-  final LaboratoryData lab;
-  final VoidCallback onEdit;
-  final VoidCallback onArchive;
-  const _LabCard({
-    required this.lab,
-    required this.onEdit,
-    required this.onArchive,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AppCard(
-      key: Key('lab-${lab.id}'),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              EntityMark.initials(EntityMark.initialsOf(lab.name)),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(lab.name, style: AppTypography.cardTitle),
-                    if ((lab.contactName ?? '').isNotEmpty)
-                      Text(lab.contactName!, style: AppTypography.caption),
-                  ],
-                ),
-              ),
-              if (lab.archived)
-                const InfoTag('Archivé', icon: Icons.inventory_2_outlined),
-              PopupMenuButton<String>(
-                onSelected: (v) => v == 'edit' ? onEdit() : onArchive(),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Modifier')),
-                  if (!lab.archived)
-                    const PopupMenuItem(
-                        value: 'archive', child: Text('Archiver')),
-                ],
-              ),
-            ],
-          ),
-          if ((lab.contactPhone ?? '').isNotEmpty ||
-              (lab.contactEmail ?? '').isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            ContactActions(phone: lab.contactPhone, email: lab.contactEmail),
-          ],
-        ],
-      ),
+                    ),
     );
   }
 }
