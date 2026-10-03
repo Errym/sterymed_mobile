@@ -121,7 +121,9 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.text(AppDropdown.unavailableLabel), findsNWidgets(2));
-      expect(find.text('Gants nitrile'), findsOneWidget);
+      // In the name field and in the live preview card above it.
+      expect(find.text('Gants nitrile'), findsNWidgets(2));
+      expect(find.byKey(const Key('product-preview')), findsOneWidget);
     },
   );
 

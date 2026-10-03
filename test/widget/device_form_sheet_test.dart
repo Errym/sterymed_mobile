@@ -146,7 +146,8 @@ void main() {
 
       await open(tester);
 
-      expect(find.text('Melag Vacuklav'), findsOneWidget);
+      // In the name field and in the live preview card above it.
+      expect(find.text('Melag Vacuklav'), findsNWidgets(2));
       expect(
         find.byWidgetPredicate(
           (w) => w is TextField && w.controller?.text == 'MEL-001',
@@ -199,7 +200,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(TextFormField), findsWidgets);
-      expect(find.text('Melag Vacuklav'), findsOneWidget);
+      expect(find.text('Melag Vacuklav'), findsNWidgets(2));
     });
 
     testWidgets('emptying manufacturer, model and notes clears them on save', (

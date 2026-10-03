@@ -5,7 +5,7 @@
 // ("test the real pattern instead"), this tests that: the loading spinner,
 // the error+retry path, and rendering the clinical info card + status
 // history timeline — none of which prosthetic_case_detail_test.dart (Quick
-// Edit flow) or prosthetic_status_bloc_test.dart (status transitions)
+// Edit flow) or prosthetic_status_flow_test.dart (status transitions)
 // already cover.
 
 import 'dart:async';

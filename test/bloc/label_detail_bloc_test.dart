@@ -71,6 +71,23 @@ void main() {
     );
 
     blocTest<LabelDetailBloc, LabelDetailState>(
+      'a non-API failure (e.g. a malformed payload) still ends loading in a '
+      'failure state instead of spinning forever',
+      build: () => LabelDetailBloc(repo, usageRepo),
+      setUp: () {
+        when(() => repo.getByCode('LOT-42')).thenThrow(const FormatException());
+      },
+      act: (b) => b.add(const LoadLabel('LOT-42')),
+      expect: () => [
+        isA<LabelDetailState>()
+            .having((s) => s.status, 'status', LabelDetailStatus.loading),
+        isA<LabelDetailState>()
+            .having((s) => s.status, 'status', LabelDetailStatus.failure)
+            .having((s) => s.error, 'error', isNotEmpty),
+      ],
+    );
+
+    blocTest<LabelDetailBloc, LabelDetailState>(
       'a failed history fetch is swallowed — the label still shows',
       build: () => LabelDetailBloc(repo, usageRepo),
       setUp: () {

@@ -10,7 +10,9 @@ import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
 import 'package:steriymed_mobile/core/network/cursor_page.dart';
+import 'package:steriymed_mobile/core/storage/session_store.dart';
 import 'package:steriymed_mobile/core/theme/tokens.dart';
+import 'package:steriymed_mobile/features/prosthetic/data/models/prosthetic_summary_data.dart';
 import 'package:steriymed_mobile/features/prosthetic/data/repositories/prosthetic_repository.dart';
 import 'package:steriymed_mobile/features/prosthetic/presentation/screens/prosthetic_waiting_placement_screen.dart';
 import 'package:steriymed_mobile/features/prosthetic/presentation/widgets/prosthetic_case_tile.dart';
@@ -21,24 +23,48 @@ import '../helpers/pump_app.dart';
 
 class MockProstheticRepository extends Mock implements ProstheticRepository {}
 
+class MockSessionStore extends Mock implements SessionStore {}
+
 void main() {
   late MockProstheticRepository repo;
 
   setUp(() {
+    // Each row carries its quick actions, so it is taller than a bare tile:
+    // use a tall screen so the rows under test are all built.
+    final view = TestWidgetsFlutterBinding.ensureInitialized()
+        .platformDispatcher
+        .views
+        .first;
+    view.physicalSize = const Size(800, 3000);
+    view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      view.resetPhysicalSize();
+      view.resetDevicePixelRatio();
+    });
     repo = MockProstheticRepository();
     if (GetIt.instance.isRegistered<ProstheticRepository>()) {
       GetIt.instance.unregister<ProstheticRepository>();
     }
     GetIt.instance.registerSingleton<ProstheticRepository>(repo);
+    final session = MockSessionStore();
+    when(() => session.hasPermission(any())).thenReturn(true);
+    if (GetIt.instance.isRegistered<SessionStore>()) {
+      GetIt.instance.unregister<SessionStore>();
+    }
+    GetIt.instance.registerSingleton<SessionStore>(session);
+    when(() => repo.summary(scope: any(named: 'scope'))).thenAnswer(
+      (_) async => const ProstheticSummaryData(total: 1),
+    );
   });
 
   tearDown(() {
     GetIt.instance.unregister<ProstheticRepository>();
+    GetIt.instance.unregister<SessionStore>();
   });
 
   testWidgets('renders each waiting case with its patient reference',
       (tester) async {
-    when(() => repo.waitingForPlacement()).thenAnswer(
+    when(() => repo.waitingForPlacement(aging: null)).thenAnswer(
       (_) async => CursorPage(
         items: [
           buildProstheticCase(id: 'c1', patientReference: 'PAT-000001'),
@@ -57,7 +83,7 @@ void main() {
   testWidgets(
     'shows the empty state when no case is waiting for placement',
     (tester) async {
-      when(() => repo.waitingForPlacement())
+      when(() => repo.waitingForPlacement(aging: null))
           .thenAnswer((_) async => const CursorPage(items: []));
 
       await pumpApp(tester, const ProstheticWaitingPlacementScreen());
@@ -69,7 +95,7 @@ void main() {
 
   testWidgets('shows the real error message and retries on demand',
       (tester) async {
-    when(() => repo.waitingForPlacement()).thenThrow(
+    when(() => repo.waitingForPlacement(aging: null)).thenThrow(
       const ApiException(code: 'internal_error', message: 'Erreur serveur.'),
     );
 
@@ -78,7 +104,7 @@ void main() {
 
     expect(find.text('Erreur serveur.'), findsOneWidget);
 
-    when(() => repo.waitingForPlacement()).thenAnswer(
+    when(() => repo.waitingForPlacement(aging: null)).thenAnswer(
       (_) async => CursorPage(
         items: [buildProstheticCase(id: 'c1', patientReference: 'PAT-000001')],
       ),
@@ -87,7 +113,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PAT-000001'), findsOneWidget);
-    verify(() => repo.waitingForPlacement()).called(2);
+    verify(() => repo.waitingForPlacement(aging: null)).called(2);
   });
 
   testWidgets('loading more appends the next page using the returned cursor',
@@ -100,10 +126,10 @@ void main() {
       for (var i = 0; i < 20; i++)
         buildProstheticCase(id: 'c$i', patientReference: 'PAT-$i'),
     ];
-    when(() => repo.waitingForPlacement()).thenAnswer(
+    when(() => repo.waitingForPlacement(aging: null)).thenAnswer(
       (_) async => CursorPage(items: firstPage, nextCursor: 'cursor-2'),
     );
-    when(() => repo.waitingForPlacement(cursor: 'cursor-2')).thenAnswer(
+    when(() => repo.waitingForPlacement(cursor: 'cursor-2', aging: null)).thenAnswer(
       (_) async => CursorPage(
         items: [buildProstheticCase(id: 'c-next', patientReference: 'PAT-NEXT')],
       ),
@@ -116,7 +142,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('PAT-NEXT'), findsOneWidget);
-    verify(() => repo.waitingForPlacement(cursor: 'cursor-2')).called(1);
+    verify(() => repo.waitingForPlacement(cursor: 'cursor-2', aging: null)).called(1);
   });
 
   group('AgingBadge tone by days waiting for placement', () {
@@ -141,7 +167,7 @@ void main() {
       'fresh (5 days) is green, medium (10 days) is amber, urgent (20 '
       'days) is red',
       (tester) async {
-        when(() => repo.waitingForPlacement()).thenAnswer(
+        when(() => repo.waitingForPlacement(aging: null)).thenAnswer(
           (_) async => CursorPage(items: [
             buildProstheticCase(
               id: 'fresh',

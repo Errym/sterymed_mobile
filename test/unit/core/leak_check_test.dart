@@ -62,6 +62,9 @@ final _streamControllerDeclPattern =
     RegExp(r'(?:final|late)\s+(\w+)\s*=\s*StreamController');
 
 final _disposeCallPattern = RegExp(r'(\w+)\s*\.\s*dispose\s*\(\s*\)');
+// disposeControllerLater(x) is the dialog-safe way to dispose (after the exit
+// animation), so it counts as a dispose of x.
+final _disposeLaterPattern = RegExp(r'disposeControllerLater\s*\(\s*(\w+)\s*\)');
 final _closeCallPattern = RegExp(r'(\w+)\s*\.\s*close\s*\(\s*\)');
 final _ctorInjectedPattern = RegExp(r'this\.(\w+)');
 final _classPattern = RegExp(r'\bclass\s+(\w+)[^{]*\{');
@@ -73,6 +76,12 @@ const _ctorInjectedAllowlist = <String>{
   'AppTextArea.controller',
   'AppSearchField.controller',
   'QuantityStepper.controller',
+  // Owned and disposed by the form screen that also owns the quantity /
+  // reason fields these helper chips write into.
+  'QuickAmountChips.controller',
+  'ReasonPresetChips.controller',
+  // Owned and disposed by AlertListScreen's state; _Body only scrolls with it.
+  '_Body.controller',
 };
 
 class _ClassBlock {
@@ -125,6 +134,7 @@ void main() {
         final disposed = <String>{
           for (final m in _disposeCallPattern.allMatches(cls.body)) m.group(1)!,
           for (final m in _closeCallPattern.allMatches(cls.body)) m.group(1)!,
+          for (final m in _disposeLaterPattern.allMatches(cls.body)) m.group(1)!,
         };
         final ctorInjected = <String>{
           for (final m in _ctorInjectedPattern.allMatches(cls.body)) m.group(1)!,

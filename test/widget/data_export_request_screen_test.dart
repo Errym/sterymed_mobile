@@ -1,113 +1,162 @@
-// TASK verification (widget): tapping the per-export download button must now
-// (a) resolve the presigned URL via ExportRepository.downloadUrl and (b) hand
-// that URL to ExportDownloadService.download with the id-derived filename —
-// i.e. a real file retrieval, not the old clipboard copy. Both collaborators
-// are mocked and registered in the shared GetIt the screen resolves from.
+// Tapping download resolves the presigned URL, saves it as a real, uniquely
+// named file, then offers Ouvrir / Partager. Every failure is a French message.
 
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:steriymed_mobile/core/errors/api_exception.dart';
+import 'package:steriymed_mobile/core/files/file_export_service.dart';
 import 'package:steriymed_mobile/di/di.dart';
 import 'package:steriymed_mobile/features/reporting/data/models/export_request_data.dart';
 import 'package:steriymed_mobile/features/reporting/data/repositories/export_repository.dart';
-import 'package:steriymed_mobile/features/reporting/data/services/export_download_service.dart';
 import 'package:steriymed_mobile/features/reporting/presentation/screens/data_export_request_screen.dart';
 
 import '../helpers/pump_app.dart';
 
-class MockExportRepository extends Mock implements ExportRepository {}
+class _MockRepo extends Mock implements ExportRepository {}
 
-class MockExportDownloadService extends Mock
-    implements ExportDownloadService {}
+class _MockFiles extends Mock implements FileExportService {}
+
+class _MockHandoff extends Mock implements FileHandoff {}
 
 void main() {
-  late MockExportRepository repo;
-  late MockExportDownloadService downloader;
+  late _MockRepo repo;
+  late _MockFiles files;
+  late _MockHandoff handoff;
 
-  final completedExport = ExportRequestData(
-    id: 'abcdef12-3456-7890-aaaa-bbbbbbbbbbbb',
-    status: 'completed',
-    requestedByName: 'Dr Test',
-    requestedAt: DateTime(2026, 9, 20, 14, 30),
-    sizeBytes: 2 * 1024 * 1024,
-  );
+  ExportRequestData export(String status) => ExportRequestData(
+        id: 'abcdef12-3456-7890-aaaa-bbbbbbbbbbbb',
+        status: status,
+        requestedByName: 'Dr Test',
+        requestedAt: DateTime(2026, 9, 20, 14, 30),
+        sizeBytes: 2 * 1024 * 1024,
+      );
+
+  void register<T extends Object>(T v) {
+    if (getIt.isRegistered<T>()) getIt.unregister<T>();
+    getIt.registerSingleton<T>(v);
+  }
+
+  setUpAll(() => registerFallbackValue(File('fallback')));
 
   setUp(() {
-    repo = MockExportRepository();
-    downloader = MockExportDownloadService();
-    if (getIt.isRegistered<ExportRepository>()) {
-      getIt.unregister<ExportRepository>();
-    }
-    if (getIt.isRegistered<ExportDownloadService>()) {
-      getIt.unregister<ExportDownloadService>();
-    }
-    getIt.registerSingleton<ExportRepository>(repo);
-    getIt.registerSingleton<ExportDownloadService>(downloader);
+    repo = _MockRepo();
+    files = _MockFiles();
+    handoff = _MockHandoff();
+    register<ExportRepository>(repo);
+    register<FileExportService>(files);
+    register<FileHandoff>(handoff);
   });
 
   tearDown(() {
     getIt.unregister<ExportRepository>();
-    getIt.unregister<ExportDownloadService>();
+    getIt.unregister<FileExportService>();
+    getIt.unregister<FileHandoff>();
   });
 
-  testWidgets(
-    'tapping download resolves the URL then downloads it with the id-based '
-    'filename',
-    (tester) async {
-      when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
-          .thenAnswer((_) async => [completedExport]);
-      when(() => repo.downloadUrl(completedExport.id))
-          .thenAnswer((_) async => 'https://storage.example.com/e/abc.zip?sig=x');
-      when(() => downloader.download(
-            url: any(named: 'url'),
-            suggestedFileName: any(named: 'suggestedFileName'),
-          )).thenAnswer(
-        (_) async => File('${Directory.systemTemp.path}/abc.zip'),
-      );
-
-      await pumpApp(tester, const DataExportRequestScreen());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Télécharger l\'archive ZIP'));
-      await tester.pumpAndSettle();
-
-      verify(() => repo.downloadUrl(completedExport.id)).called(1);
-      verify(
-        () => downloader.download(
-          url: 'https://storage.example.com/e/abc.zip?sig=x',
-          suggestedFileName: 'steriymed-export-abcdef12.zip',
-        ),
-      ).called(1);
-
-      // Success feedback with the "Ouvrir" action is shown.
-      expect(find.text('Téléchargement terminé.'), findsOneWidget);
-      expect(find.text('Ouvrir'), findsOneWidget);
-    },
-  );
-
-  testWidgets('a download failure surfaces the French error message',
+  testWidgets('download saves a file then offers Ouvrir and Partager',
       (tester) async {
+    final saved = File('${Directory.systemTemp.path}/steriymed-export-x.zip');
     when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
-        .thenAnswer((_) async => [completedExport]);
-    when(() => repo.downloadUrl(completedExport.id))
-        .thenAnswer((_) async => 'https://storage.example.com/e/abc.zip');
-    when(() => downloader.download(
-          url: any(named: 'url'),
-          suggestedFileName: any(named: 'suggestedFileName'),
-        )).thenThrow(
-      // ApiException.from keeps the French message as-is.
-      Exception('boom'),
-    );
+        .thenAnswer((_) async => [export('completed')]);
+    when(() => repo.downloadUrl(any()))
+        .thenAnswer((_) async => 'https://storage.example.com/e/abc.zip?sig=x');
+    when(() => files.saveFromUrl(
+          any(),
+          baseName: any(named: 'baseName'),
+          extension: any(named: 'extension'),
+        )).thenAnswer((_) async => saved);
+    when(() => handoff.open(any()))
+        .thenAnswer((_) async => HandoffResult.opened);
 
     await pumpApp(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
-
     await tester.tap(find.text('Télécharger l\'archive ZIP'));
     await tester.pumpAndSettle();
 
-    verify(() => repo.downloadUrl(completedExport.id)).called(1);
-    // The download button is interactable again (spinner cleared).
-    expect(find.text('Télécharger l\'archive ZIP'), findsOneWidget);
+    verify(() => files.saveFromUrl(
+          'https://storage.example.com/e/abc.zip?sig=x',
+          baseName: 'steriymed-export-abcdef12',
+          extension: 'zip',
+        )).called(1);
+    expect(find.byKey(const Key('saved-file-name')), findsOneWidget);
+    expect(find.byKey(const Key('saved-file-share')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('saved-file-open')));
+    await tester.pumpAndSettle();
+    verify(() => handoff.open(saved)).called(1);
+  });
+
+  testWidgets('with no app able to open it the user is told to share instead',
+      (tester) async {
+    when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => [export('completed')]);
+    when(() => repo.downloadUrl(any())).thenAnswer((_) async => 'https://s/x');
+    when(() => files.saveFromUrl(
+          any(),
+          baseName: any(named: 'baseName'),
+          extension: any(named: 'extension'),
+        )).thenAnswer((_) async => File('${Directory.systemTemp.path}/x.zip'));
+    when(() => handoff.open(any()))
+        .thenAnswer((_) async => HandoffResult.noViewer);
+
+    await pumpApp(tester, const DataExportRequestScreen());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Télécharger l\'archive ZIP'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('saved-file-open')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Utilisez « Partager »'), findsOneWidget);
+  });
+
+  testWidgets('an expired link shows the French reason, nothing is opened',
+      (tester) async {
+    when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => [export('completed')]);
+    when(() => repo.downloadUrl(any())).thenAnswer((_) async => 'https://s/x');
+    when(() => files.saveFromUrl(
+          any(),
+          baseName: any(named: 'baseName'),
+          extension: any(named: 'extension'),
+        )).thenThrow(const ApiException(
+      code: 'link_expired',
+      message: 'Ce fichier n\'est plus disponible (lien expiré). Redemandez-le.',
+    ));
+
+    await pumpApp(tester, const DataExportRequestScreen());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Télécharger l\'archive ZIP'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('lien expiré'), findsOneWidget);
+    verifyNever(() => handoff.open(any()));
+  });
+
+  testWidgets('an expired export offers no download', (tester) async {
+    when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => [export('expired')]);
+    await pumpApp(tester, const DataExportRequestScreen());
+    await tester.pumpAndSettle();
+    expect(find.text('EXPIRÉ'), findsOneWidget);
+    expect(find.text('Télécharger l\'archive ZIP'), findsNothing);
+  });
+
+  testWidgets('a failed request for a new export shows the French reason',
+      (tester) async {
+    when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
+        .thenAnswer((_) async => const []);
+    when(() => repo.request()).thenThrow(const ApiException(
+      code: 'FORBIDDEN',
+      message: 'Action non autorisée.',
+      statusCode: 403,
+    ));
+    await pumpApp(tester, const DataExportRequestScreen());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Demander un Export Complet (ZIP)'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('ApiException'), findsNothing);
+    expect(find.byType(SnackBar), findsOneWidget);
   });
 }

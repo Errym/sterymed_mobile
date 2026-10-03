@@ -33,20 +33,27 @@ void main() {
       'emits [resolving, resolved] on valid scan',
       build: () => ScannerBloc(repo),
       setUp: () {
-        when(() => repo.getByCode(any()))
-            .thenAnswer((_) async => _validResult(labelId: 'l1'));
+        when(
+          () => repo.getByCode(any()),
+        ).thenAnswer((_) async => _validResult(labelId: 'l1'));
       },
       act: (bloc) => bloc.add(const ScanDetected('LABEL-1')),
       wait: const Duration(milliseconds: 500),
       expect: () => [
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.resolving),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.resolved)
             .having((s) => s.result?.labelId, 'result.labelId', 'l1'),
         // the cooldown timer fires within `wait` and transitions back
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.scanning),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
       ],
     );
 
@@ -55,23 +62,31 @@ void main() {
       'returning a status, so this is an error with errorCode set',
       build: () => ScannerBloc(repo),
       setUp: () {
-        when(() => repo.getByCode(any())).thenThrow(const ApiException(
-          code: 'LABEL_EXPIRED',
-          message: 'This label is past its use-by date.',
-          statusCode: 410,
-        ));
+        when(() => repo.getByCode(any())).thenThrow(
+          const ApiException(
+            code: 'LABEL_EXPIRED',
+            message: 'This label is past its use-by date.',
+            statusCode: 410,
+          ),
+        );
       },
       act: (bloc) => bloc.add(const ScanDetected('LABEL-2')),
       wait: const Duration(milliseconds: 500),
       expect: () => [
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.resolving),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.error)
             .having((s) => s.errorCode, 'errorCode', 'LABEL_EXPIRED'),
         // the cooldown timer fires within `wait` and transitions back
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.scanning),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
       ],
     );
 
@@ -79,22 +94,32 @@ void main() {
       'emits [resolving, error] on network error',
       build: () => ScannerBloc(repo),
       setUp: () {
-        when(() => repo.getByCode(any()))
-            .thenThrow(const ApiException(
-          code: 'network_error',
-          message: 'Connexion impossible.',
-        ));
+        when(() => repo.getByCode(any())).thenThrow(
+          const ApiException(
+            code: 'network_error',
+            message: 'Connexion impossible.',
+          ),
+        );
       },
       act: (bloc) => bloc.add(const ScanDetected('LABEL-3')),
       wait: const Duration(milliseconds: 500),
       expect: () => [
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.resolving),
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.error),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.error,
+        ),
         // the cooldown timer fires within `wait` and transitions back
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.scanning),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
       ],
     );
 
@@ -102,21 +127,29 @@ void main() {
       'unknown code emits error',
       build: () => ScannerBloc(repo),
       setUp: () {
-        when(() => repo.getByCode(any())).thenThrow(const ApiException(
-          code: 'not_found',
-          message: 'Étiquette introuvable.',
-        ));
+        when(() => repo.getByCode(any())).thenThrow(
+          const ApiException(
+            code: 'not_found',
+            message: 'Étiquette introuvable.',
+          ),
+        );
       },
       act: (bloc) => bloc.add(const ScanDetected('UNKNOWN-CODE')),
       wait: const Duration(milliseconds: 500),
       expect: () => [
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.resolving),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
         isA<ScannerState>()
             .having((s) => s.status, 'status', ScannerStatus.error)
             .having((s) => s.error, 'error', 'Étiquette introuvable.'),
-        isA<ScannerState>()
-            .having((s) => s.status, 'status', ScannerStatus.scanning),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
       ],
     );
 
@@ -124,8 +157,9 @@ void main() {
       'a second scan during the cooldown window is ignored — no double-fire',
       build: () => ScannerBloc(repo),
       setUp: () {
-        when(() => repo.getByCode(any()))
-            .thenAnswer((_) async => _validResult(labelId: 'l1'));
+        when(
+          () => repo.getByCode(any()),
+        ).thenAnswer((_) async => _validResult(labelId: 'l1'));
       },
       act: (bloc) async {
         bloc.add(const ScanDetected('LABEL-1'));
@@ -158,5 +192,66 @@ void main() {
       expect(bloc.state.status, ScannerStatus.initial);
       bloc.close();
     });
+
+    blocTest<ScannerBloc, ScannerState>(
+      'a transport failure is a retryable error, never a blocking label code, '
+      'and never leaks a raw exception string',
+      build: () => ScannerBloc(repo),
+      setUp: () {
+        when(() => repo.getByCode(any())).thenThrow(StateError('boom 0xDEAD'));
+      },
+      act: (bloc) => bloc.add(const ScanDetected('LABEL-9')),
+      wait: const Duration(milliseconds: 500),
+      verify: (bloc) {
+        // The bloc has already cooled down; the failure is what we assert on.
+      },
+      expect: () => [
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
+        isA<ScannerState>()
+            .having((s) => s.status, 'status', ScannerStatus.error)
+            .having((s) => s.errorCode, 'errorCode', isNull)
+            .having((s) => s.error, 'error', isNot(contains('0xDEAD'))),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
+      ],
+    );
+
+    blocTest<ScannerBloc, ScannerState>(
+      'a blocked label code is shown in French, not the server English',
+      build: () => ScannerBloc(repo),
+      setUp: () {
+        when(() => repo.getByCode(any())).thenThrow(
+          const ApiException(
+            code: 'LABEL_RECALLED',
+            message: 'This label has been recalled and must not be used.',
+            statusCode: 410,
+          ),
+        );
+      },
+      act: (bloc) => bloc.add(const ScanDetected('LABEL-8')),
+      wait: const Duration(milliseconds: 500),
+      expect: () => [
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.resolving,
+        ),
+        isA<ScannerState>()
+            .having((s) => s.errorCode, 'errorCode', 'LABEL_RECALLED')
+            .having((s) => s.error, 'error', contains('rappelée')),
+        isA<ScannerState>().having(
+          (s) => s.status,
+          'status',
+          ScannerStatus.scanning,
+        ),
+      ],
+    );
   });
 }

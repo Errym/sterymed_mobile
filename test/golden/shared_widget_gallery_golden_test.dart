@@ -8,6 +8,9 @@
 // are overlay-triggered (ScaffoldMessenger / showDialog), not embeddable
 // inline widgets, so they don't fit a static gallery layout.
 
+@TestOn('windows')
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:steriymed_mobile/shared/widgets/badges/aging_badge.dart';

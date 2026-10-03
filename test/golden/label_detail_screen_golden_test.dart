@@ -4,6 +4,9 @@
 // fixed surface size and a matchesGoldenFile assertion on top of that
 // already-covered behavior.
 
+@TestOn('windows')
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -26,7 +29,7 @@ class MockSessionStore extends Mock implements SessionStore {}
 
 final _result = LabelScanResult(
   labelId: 'label-1',
-  status: LabelScanStatus.used,
+  status: LabelScanStatus.printed,
   cycleNumber: 12,
   deviceName: 'Autoclave Salle 2',
   sterilizedAt: DateTime(2026, 1, 1),

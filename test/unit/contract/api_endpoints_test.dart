@@ -97,11 +97,14 @@ void main() {
       'prostheticDashboard': ApiEndpoints.prostheticDashboard,
       'prostheticWaitingPlacement': ApiEndpoints.prostheticWaitingPlacement,
       'prostheticCases': ApiEndpoints.prostheticCases,
+      'prostheticCasesSummary': ApiEndpoints.prostheticCasesSummary,
       'laboratories': ApiEndpoints.laboratories,
       'forgotPassword': ApiEndpoints.forgotPassword,
       'locations': ApiEndpoints.locations,
       'batches': ApiEndpoints.batches,
       'practitioners': ApiEndpoints.practitioners,
+      'codeLookup': ApiEndpoints.codeLookup,
+      'inventoryCounts': ApiEndpoints.inventoryCounts,
     };
 
     staticPaths.forEach((name, path) {
@@ -123,6 +126,14 @@ void main() {
       'purchaseOrderOrder': ApiEndpoints.purchaseOrderOrder('X'),
       'purchaseOrderCancel': ApiEndpoints.purchaseOrderCancel('X'),
       'purchaseOrderReceipts': ApiEndpoints.purchaseOrderReceipts('X'),
+      'goodsReceipt': ApiEndpoints.goodsReceipt('X'),
+      'goodsReceiptAttachments': ApiEndpoints.goodsReceiptAttachments('X'),
+      'goodsReceiptAttachmentsBase64':
+          ApiEndpoints.goodsReceiptAttachmentsBase64('X'),
+      'inventoryCount': ApiEndpoints.inventoryCount('X'),
+      'inventoryCountLine': ApiEndpoints.inventoryCountLine('X', 'Y'),
+      'inventoryCountClose': ApiEndpoints.inventoryCountClose('X'),
+      'inventoryCountCancel': ApiEndpoints.inventoryCountCancel('X'),
       'device': ApiEndpoints.device('X'),
       'devicePrograms': ApiEndpoints.devicePrograms('X'),
       'deviceMaintenanceRecords': ApiEndpoints.deviceMaintenanceRecords('X'),
@@ -179,6 +190,6 @@ void main() {
   );
 
   test('snapshot sanity: has the expected live path count from the fetch', () {
-    expect(rawLivePaths.length, 82);
+    expect(rawLivePaths.length, 93);
   });
 }

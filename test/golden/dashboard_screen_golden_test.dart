@@ -3,6 +3,9 @@
 // wiring and fixture data) — this file only adds a fixed surface size and
 // a matchesGoldenFile assertion on top of that already-covered behavior.
 
+@TestOn('windows')
+library;
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';

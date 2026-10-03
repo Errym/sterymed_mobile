@@ -31,7 +31,14 @@ Future<void> _pump(
   double? depositAmount,
   bool finalPaymentCompleted = false,
   double? remainingBalance,
+  double? totalAmount,
 }) {
+  // The payment block has grown (total, deposit, balance): give the test a
+  // screen as tall as a phone's scrolled view instead of the 600px default.
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1.0;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
   return tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -42,6 +49,7 @@ Future<void> _pump(
             depositAmount: depositAmount,
             finalPaymentCompleted: finalPaymentCompleted,
             remainingBalance: remainingBalance,
+            totalAmount: totalAmount,
           ),
           canEdit: canEdit,
           busy: busy,
@@ -98,7 +106,7 @@ void main() {
   });
 
   group('editable (has prosthetic_payments.manage)', () {
-    testWidgets('shows the 3 switches and 2 amount fields, no read-only card',
+    testWidgets('shows the 3 switches and 3 amount fields, no read-only card',
         (tester) async {
       await _pump(tester, canEdit: true, busy: false, onSave: (_) {});
 
@@ -202,5 +210,111 @@ void main() {
         expect(saved!['remaining_balance'], 0.0);
       },
     );
+  });
+
+  group('French decimal input', () {
+    testWidgets('a comma amount is saved as a number, not cleared', (
+      tester,
+    ) async {
+      Map<String, dynamic>? saved;
+      await _pump(
+        tester,
+        canEdit: true,
+        busy: false,
+        onSave: (m) => saved = m,
+      );
+      final fields = find.byType(TextField);
+      await tester.enterText(fields.at(1), '120,50');
+      await tester.enterText(fields.at(2), '1 200,5');
+      await tester.tap(find.text('Enregistrer le paiement'));
+      await tester.pump();
+
+      expect(saved?['deposit_amount'], 120.5);
+      expect(saved?['remaining_balance'], 1200.5);
+    });
+
+    testWidgets('an unreadable amount is refused, never sent as null', (
+      tester,
+    ) async {
+      var calls = 0;
+      await _pump(
+        tester,
+        canEdit: true,
+        busy: false,
+        depositAmount: 50,
+        onSave: (_) => calls++,
+      );
+      await tester.enterText(find.byType(TextField).at(1), '12a');
+      await tester.tap(find.text('Enregistrer le paiement'));
+      await tester.pump();
+
+      expect(calls, 0);
+      expect(find.text('Montant invalide (ex. 120,50).'), findsOneWidget);
+    });
+  });
+
+  group('remaining balance recalculated live (brief §8)', () {
+    testWidgets('typing a total and receiving the deposit updates the balance',
+        (tester) async {
+      Map<String, dynamic>? saved;
+      await _pump(tester, canEdit: true, busy: false, onSave: (m) => saved = m);
+      final fields = find.byType(TextField);
+
+      await tester.enterText(fields.at(0), '1200,50');
+      await tester.pump();
+      expect(find.text('1200.50'), findsOneWidget, reason: 'nothing received yet');
+
+      await tester.enterText(fields.at(1), '300,25');
+      await tester.tap(find.text('Acompte reçu'));
+      await tester.pump();
+      expect(find.text('900.25'), findsOneWidget);
+
+      final balance = tester.widget<AppTextField>(
+        find.widgetWithText(AppTextField, 'Solde restant (€) — calculé'),
+      );
+      expect(balance.enabled, isFalse, reason: 'computed, not typed');
+
+      await tester.tap(find.text('Enregistrer le paiement'));
+      await tester.pump();
+      expect(saved?['total_amount'], 1200.5);
+      expect(saved?['deposit_amount'], 300.25);
+      expect(saved!.containsKey('remaining_balance'), isFalse,
+          reason: 'with a total the server derives the balance itself');
+    });
+
+    testWidgets('a malformed total blocks the save', (tester) async {
+      var calls = 0;
+      await _pump(tester, canEdit: true, busy: false, onSave: (_) => calls++);
+      await tester.enterText(find.byType(TextField).at(0), 'abc');
+      await tester.tap(find.text('Enregistrer le paiement'));
+      await tester.pump();
+      expect(calls, 0);
+      expect(find.text('Montant invalide (ex. 120,50).'), findsOneWidget);
+    });
+
+    testWidgets('a negative amount is refused', (tester) async {
+      var calls = 0;
+      await _pump(tester, canEdit: true, busy: false, onSave: (_) => calls++);
+      await tester.enterText(find.byType(TextField).at(1), '-5');
+      await tester.tap(find.text('Enregistrer le paiement'));
+      await tester.pump();
+      expect(calls, 0);
+    });
+
+    test('previewBalance mirrors the server arithmetic', () {
+      double? p(String total, String deposit, bool received, [bool done = false]) =>
+          ProstheticPaymentSection.previewBalance(
+            total: total,
+            deposit: deposit,
+            depositReceived: received,
+            finalPaymentCompleted: done,
+          );
+      expect(p('1200,50', '300,25', true), 900.25);
+      expect(p('1200,50', '300,25', false), 1200.5, reason: 'deposit not received');
+      expect(p('100', '300', true), 0, reason: 'never negative');
+      expect(p('500', '0', true, true), 0, reason: 'final payment done');
+      expect(p('', '300', true), isNull, reason: 'no total: typed by hand');
+      expect(p('abc', '300', true), isNull);
+    });
   });
 }

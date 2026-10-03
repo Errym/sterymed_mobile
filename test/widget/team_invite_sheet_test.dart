@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
+import 'package:steriymed_mobile/core/storage/session_store.dart';
 import 'package:steriymed_mobile/features/identity/data/repositories/team_repository.dart';
 import 'package:steriymed_mobile/features/identity/presentation/bloc/team_list_bloc.dart';
 import 'package:steriymed_mobile/features/identity/presentation/widgets/team_invite_sheet.dart';
@@ -19,13 +20,24 @@ import '../helpers/pump_app.dart';
 
 class MockTeamRepository extends Mock implements TeamRepository {}
 
+class MockSessionStore extends Mock implements SessionStore {}
+
 void main() {
   late MockTeamRepository repo;
   late TeamListBloc bloc;
+  late MockSessionStore session;
 
   setUp(() {
+    session = MockSessionStore();
+    when(() => session.role).thenReturn('owner');
+    if (GetIt.instance.isRegistered<SessionStore>()) {
+      GetIt.instance.unregister<SessionStore>();
+    }
+    GetIt.instance.registerSingleton<SessionStore>(session);
     repo = MockTeamRepository();
-    when(() => repo.list()).thenAnswer((_) async => []);
+    when(
+      () => repo.list(forceRefresh: any(named: 'forceRefresh')),
+    ).thenAnswer((_) async => []);
     bloc = TeamListBloc(repo);
 
     // _TeamInviteSheetState._submit() resolves TeamRepository via
@@ -41,6 +53,7 @@ void main() {
   tearDown(() {
     bloc.close();
     GetIt.instance.unregister<TeamRepository>();
+    GetIt.instance.unregister<SessionStore>();
   });
 
   // Returns void (not Future<bool?>) on purpose: an async function
@@ -71,8 +84,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('role dropdown shows exactly the 6 real roles in French',
-      (tester) async {
+  testWidgets(
+    'an admin is not offered the Direction role (server refuses it)',
+    (tester) async {
+      when(() => session.role).thenReturn('admin');
+      await openSheet(tester, onOpened: (_) {});
+
+      await tester.tap(find.byType(DropdownButtonFormField<String>));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Direction'), findsNothing);
+      expect(find.text('Administrateur').evaluate(), isNotEmpty);
+      expect(find.text('Lecture seule').evaluate(), isNotEmpty);
+    },
+  );
+
+  testWidgets('role dropdown shows exactly the 6 real roles in French', (
+    tester,
+  ) async {
     await openSheet(tester, onOpened: (_) {});
 
     await tester.tap(find.byType(DropdownButtonFormField<String>));
@@ -109,46 +138,51 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('E-mail invalide.'), findsOneWidget);
 
-    verifyNever(() => repo.invite(
-          email: any(named: 'email'),
-          role: any(named: 'role'),
-        ));
+    verifyNever(
+      () => repo.invite(
+        email: any(named: 'email'),
+        role: any(named: 'role'),
+      ),
+    );
   });
 
-  testWidgets(
-    'success calls invite with the entered fields, shows the success '
-    'snackbar, and pops with true',
-    (tester) async {
-      when(() => repo.invite(email: any(named: 'email'), role: any(named: 'role')))
-          .thenAnswer((_) async {});
+  testWidgets('success calls invite with the entered fields, shows the success '
+      'snackbar, and pops with true', (tester) async {
+    when(
+      () => repo.invite(
+        email: any(named: 'email'),
+        role: any(named: 'role'),
+      ),
+    ).thenAnswer((_) async {});
 
-      late Future<bool?> resultFuture;
-      await openSheet(tester, onOpened: (f) => resultFuture = f);
+    late Future<bool?> resultFuture;
+    await openSheet(tester, onOpened: (f) => resultFuture = f);
 
-      await tester.enterText(
-        find.byType(TextFormField),
-        'praticien@cabinet.fr',
-      );
-      await tester.tap(find.text('Envoyer l\'invitation'));
-      await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextFormField), 'praticien@cabinet.fr');
+    await tester.tap(find.text('Envoyer l\'invitation'));
+    await tester.pumpAndSettle();
 
-      verify(() => repo.invite(
-            email: 'praticien@cabinet.fr',
-            role: 'practitioner',
-          )).called(1);
-      expect(find.text('Invitation envoyée.'), findsOneWidget);
-      expect(await resultFuture, isTrue);
-    },
-  );
+    verify(
+      () => repo.invite(email: 'praticien@cabinet.fr', role: 'practitioner'),
+    ).called(1);
+    expect(find.text('Invitation envoyée.'), findsOneWidget);
+    expect(await resultFuture, isTrue);
+  });
 
   testWidgets(
     'failure shows the real server message, not the raw exception string',
     (tester) async {
-      when(() => repo.invite(email: any(named: 'email'), role: any(named: 'role')))
-          .thenThrow(const ApiException(
-        code: 'conflict',
-        message: 'Cette adresse e-mail est déjà invitée.',
-      ));
+      when(
+        () => repo.invite(
+          email: any(named: 'email'),
+          role: any(named: 'role'),
+        ),
+      ).thenThrow(
+        const ApiException(
+          code: 'conflict',
+          message: 'Cette adresse e-mail est déjà invitée.',
+        ),
+      );
 
       await openSheet(tester, onOpened: (_) {});
       await tester.enterText(
@@ -166,8 +200,9 @@ void main() {
     },
   );
 
-  testWidgets('cancel with nothing typed pops immediately, no confirm dialog',
-      (tester) async {
+  testWidgets('cancel with nothing typed pops immediately, no confirm dialog', (
+    tester,
+  ) async {
     late Future<bool?> resultFuture;
     await openSheet(tester, onOpened: (f) => resultFuture = f);
 

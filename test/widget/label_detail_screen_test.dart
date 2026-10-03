@@ -31,6 +31,21 @@ final _result = LabelScanResult(
   siteName: 'Cabinet Principal',
 );
 
+LabelScanResult _with({
+  LabelScanStatus status = LabelScanStatus.printed,
+  bool usageRecorded = false,
+}) => LabelScanResult(
+  labelId: 'label-1',
+  status: status,
+  cycleNumber: 12,
+  deviceName: 'Autoclave Salle 2',
+  sterilizedAt: DateTime(2026, 1, 1),
+  useByDate: DateTime(2026, 6, 1),
+  sequenceInCycle: 1,
+  siteName: 'Cabinet Principal',
+  usageRecorded: usageRecorded,
+);
+
 void main() {
   late MockLabelRepository repo;
   late MockLabelUsageRepository usageRepo;
@@ -55,12 +70,12 @@ void main() {
   });
 
   Widget wrap(Widget child) => MultiRepositoryProvider(
-        providers: [
-          RepositoryProvider<LabelRepository>.value(value: repo),
-          RepositoryProvider<LabelUsageRepository>.value(value: usageRepo),
-        ],
-        child: child,
-      );
+    providers: [
+      RepositoryProvider<LabelRepository>.value(value: repo),
+      RepositoryProvider<LabelUsageRepository>.value(value: usageRepo),
+    ],
+    child: child,
+  );
 
   testWidgets('renders device/cycle info for a valid label', (tester) async {
     when(() => repo.getByCode(any())).thenAnswer((_) async => _result);
@@ -88,12 +103,60 @@ void main() {
     // '!timersPending' invariant. We only need the request to still be
     // in flight when we assert, not to actually resolve.
     final neverCompletes = Completer<LabelScanResult>();
-    when(() => repo.getByCode(any()))
-        .thenAnswer((_) => neverCompletes.future);
+    when(() => repo.getByCode(any())).thenAnswer((_) => neverCompletes.future);
 
     await pumpApp(tester, wrap(const LabelDetailScreen(code: 'LOT-42')));
     await tester.pump();
 
     expect(find.text('Chargement de l\'étiquette...'), findsOneWidget);
+  });
+
+  group('passive lookup (C03/C06)', () {
+    testWidgets('a printed label is valid and offers to record the usage', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(900, 3000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      when(() => repo.getByCode(any())).thenAnswer((_) async => _with());
+
+      await pumpApp(tester, wrap(const LabelDetailScreen(code: 'LOT-42')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Étiquette valide'), findsOneWidget);
+      expect(find.text('Enregistrer utilisation'), findsOneWidget);
+    });
+
+    testWidgets('an already linked label says so and offers no second use', (
+      tester,
+    ) async {
+      when(() => repo.getByCode(any())).thenAnswer(
+        (_) async => _with(status: LabelScanStatus.used, usageRecorded: true),
+      );
+
+      await pumpApp(tester, wrap(const LabelDetailScreen(code: 'LOT-42')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Étiquette déjà utilisée'), findsOneWidget);
+      expect(find.text('Enregistrer utilisation'), findsNothing);
+    });
+
+    testWidgets('a failed history lookup is never shown as "no usage"', (
+      tester,
+    ) async {
+      when(() => repo.getByCode(any())).thenAnswer((_) async => _with());
+      when(
+        () => usageRepo.history(any()),
+      ).thenThrow(const ApiException(code: 'network', message: 'hors ligne'));
+
+      await pumpApp(tester, wrap(const LabelDetailScreen(code: 'LOT-42')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Historique indisponible'), findsOneWidget);
+      expect(
+        find.textContaining('Aucune utilisation enregistrée'),
+        findsNothing,
+      );
+    });
   });
 }

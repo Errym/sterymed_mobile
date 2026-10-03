@@ -29,7 +29,9 @@ import 'package:hive/hive.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/storage/session_store.dart';
 import 'package:steriymed_mobile/features/cycles/data/models/cycle_data.dart';
+import 'package:steriymed_mobile/core/errors/api_exception.dart';
 import 'package:steriymed_mobile/features/cycles/data/models/cycle_item_data.dart';
+import 'package:steriymed_mobile/features/cycles/data/models/cycle_release_data.dart';
 import 'package:steriymed_mobile/features/cycles/data/repositories/cycle_repository.dart';
 import 'package:steriymed_mobile/features/cycles/presentation/screens/cycle_detail_screen.dart';
 import 'package:steriymed_mobile/features/dlu/data/repositories/dlu_repository.dart';
@@ -279,4 +281,114 @@ void main() {
       verify(() => repo.listItems('cycle-1')).called(2);
     },
   );
+
+  testWidgets(
+    'editing an instrument is one in-place update: never delete + create',
+    (tester) async {
+      tester.view.physicalSize = const Size(900, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final item = CycleItemData(
+        id: 'item-1',
+        cycleId: 'cycle-1',
+        description: 'Cassette',
+        batchId: 'batch-9',
+        createdAt: DateTime(2026, 9, 20, 9, 0),
+      );
+      when(() => repo.listItems(any())).thenAnswer((_) async => [item]);
+      when(() => repo.updateItem(any(), any(), any()))
+          .thenAnswer((_) async => item);
+
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await _settle(tester);
+      await tester.tap(find.text('Modifier'));
+      await _settle(tester);
+      await tester.enterText(find.byType(TextField), 'Cassette révisée');
+      await tester.tap(find.text('Enregistrer'));
+      await _settle(tester);
+
+      final captured =
+          verify(() => repo.updateItem('cycle-1', 'item-1', captureAny()))
+              .captured
+              .single as Map<String, dynamic>;
+      expect(captured, {'description': 'Cassette révisée'});
+      verifyNever(() => repo.deleteItem(any(), any()));
+      verifyNever(() => repo.addItem(any(), any()));
+    },
+  );
+
+  group('release evidence and honest load failures (C02)', () {
+    testWidgets('a released cycle shows the stored decision, reason, actor and time',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      when(() => repo.show(any()))
+          .thenAnswer((_) async => _buildCycle(status: 'released'));
+      when(() => repo.getRelease(any())).thenAnswer(
+        (_) async => CycleReleaseData(
+          id: 'r1',
+          cycleId: 'cycle-1',
+          decision: CycleReleaseDecision.compliant,
+          reason: 'Tous les contrôles conformes',
+          releasedByName: 'Dr Martin',
+          releasedAt: DateTime(2026, 9, 21, 14, 30),
+        ),
+      );
+
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      expect(find.text('Cycle conforme'), findsOneWidget);
+      expect(find.text('Tous les contrôles conformes'), findsOneWidget);
+      expect(find.textContaining('Par Dr Martin le 21/09/2026'), findsOneWidget);
+    });
+
+    testWidgets('a draft cycle never asks for a release decision',
+        (tester) async {
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      verifyNever(() => repo.getRelease(any()));
+    });
+
+    testWidgets('a failed instruments load is not shown as "no instrument"',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      when(() => repo.listItems(any())).thenThrow(
+        const ApiException(code: 'network', message: 'Hors ligne'),
+      );
+
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      expect(find.textContaining('Instruments : chargement impossible'),
+          findsOneWidget);
+      expect(find.text('Aucun instrument enregistré.'), findsNothing);
+    });
+
+    testWidgets('a failed release load says so instead of hiding the section',
+        (tester) async {
+      tester.view.physicalSize = const Size(900, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      when(() => repo.show(any()))
+          .thenAnswer((_) async => _buildCycle(status: 'released'));
+      when(() => repo.getRelease(any())).thenThrow(
+        const ApiException(code: 'server_error', message: 'Panne'),
+      );
+
+      await _pumpScreen(tester, repo);
+      await _settle(tester);
+
+      expect(
+          find.textContaining('Décision de libération : chargement impossible'),
+          findsOneWidget);
+    });
+  });
 }

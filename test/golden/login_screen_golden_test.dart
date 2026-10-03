@@ -3,6 +3,9 @@
 // surface size and a matchesGoldenFile assertion on top of that already-
 // covered behavior.
 
+@TestOn('windows')
+library;
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';

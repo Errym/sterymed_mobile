@@ -36,23 +36,33 @@ void main() {
     }
   }
 
-  test(
-    'a deliberate real 401 UNAUTHENTICATED from any endpoint fires '
-    'onUnauthenticated exactly once',
-    () async {
-      await respondWith(401, code: 'UNAUTHENTICATED');
-      expect(callCount, 1);
-    },
-  );
+  test('a deliberate real 401 UNAUTHENTICATED from any endpoint fires '
+      'onUnauthenticated exactly once', () async {
+    await respondWith(401, code: 'UNAUTHENTICATED');
+    expect(callCount, 1);
+  });
 
-  test(
-    'a 401 with a different real code (e.g. login\'s own '
-    'INVALID_CREDENTIALS) does not fire onUnauthenticated',
-    () async {
-      await respondWith(401, code: 'INVALID_CREDENTIALS');
-      expect(callCount, 0);
-    },
-  );
+  test('a 403 FORBIDDEN asks for the permissions to be re-read', () async {
+    var forbidden = 0;
+    dio.interceptors.clear();
+    dio.interceptors.add(
+      ErrorInterceptor(
+        onUnauthenticated: () => callCount++,
+        onForbidden: () => forbidden++,
+      ),
+    );
+    await respondWith(403, code: 'FORBIDDEN');
+    expect(forbidden, 1);
+    expect(callCount, 0);
+    await respondWith(422, code: 'VALIDATION_FAILED');
+    expect(forbidden, 1);
+  });
+
+  test('a 401 with a different real code (e.g. login\'s own '
+      'INVALID_CREDENTIALS) does not fire onUnauthenticated', () async {
+    await respondWith(401, code: 'INVALID_CREDENTIALS');
+    expect(callCount, 0);
+  });
 
   for (final status in [403, 404, 409, 422, 429, 500]) {
     test('a $status response does not fire onUnauthenticated', () async {
@@ -79,7 +89,8 @@ class _FixedResponseAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future<void>? cancelFuture,
   ) async {
-    final body = '{"error":{"code":"${code ?? 'UNKNOWN'}","message":"x",'
+    final body =
+        '{"error":{"code":"${code ?? 'UNKNOWN'}","message":"x",'
         '"details":{},"request_id":"req-1"}}';
     return ResponseBody.fromString(
       body,

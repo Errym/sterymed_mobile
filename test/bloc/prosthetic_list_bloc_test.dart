@@ -1,16 +1,16 @@
-// All 6 brief-required filter dimensions (page 10: patient, practitioner,
-// laboratory, type of work, status, date period) are now wired end to end:
-// `ProstheticCaseListFilters` carries all 6 (plus a free-text
-// `practitionerId` — no "list practitioners" endpoint exists yet to back
-// a real dropdown, see the filter sheet's own TODO), and `_fetch()` passes
-// every one of them through to `ProstheticRepository.list()`, which
-// already accepted them all along.
+// T6.2 (brief §10): the six filters plus the dashboard scope live in the bloc
+// state; they survive paging and refresh, travel WITH the cursor (a cursor
+// only marks where a page ended), and a late answer for an old filter set can
+// never overwrite the list of a newer one.
 
-import 'package:bloc_test/bloc_test.dart';
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/errors/api_exception.dart';
 import 'package:steriymed_mobile/core/network/cursor_page.dart';
+import 'package:steriymed_mobile/features/prosthetic/data/models/prosthetic_case_data.dart';
+import 'package:steriymed_mobile/features/prosthetic/data/models/prosthetic_summary_data.dart';
 import 'package:steriymed_mobile/features/prosthetic/data/repositories/prosthetic_repository.dart';
 import 'package:steriymed_mobile/features/prosthetic/presentation/bloc/prosthetic_case_list_bloc.dart';
 
@@ -25,325 +25,248 @@ void main() {
     repo = MockProstheticRepository();
   });
 
-  group('ProstheticCaseListBloc', () {
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'loads cases on LoadProstheticCases',
-      build: () => ProstheticCaseListBloc(repo),
-      setUp: () {
-        when(() => repo.list(
-              patientReference: any(named: 'patientReference'),
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: any(named: 'laboratoryId'),
-              workType: any(named: 'workType'),
-              status: any(named: 'status'),
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).thenAnswer(
-          (_) async => CursorPage(items: [buildProstheticCase()]),
-        );
-      },
-      act: (b) => b.add(const LoadProstheticCases()),
-      expect: () => [
-        isA<ProstheticCaseListState>().having(
-          (s) => s.status,
-          'status',
-          ProstheticCaseListStatus.loading,
-        ),
-        isA<ProstheticCaseListState>()
-            .having(
-              (s) => s.status,
-              'status',
-              ProstheticCaseListStatus.success,
-            )
-            .having((s) => s.cases.length, 'cases', 1)
-            .having((s) => s.hasMore, 'hasMore', false),
-      ],
-    );
+  Future<CursorPage<ProstheticCaseData>> Function(Invocation) page(
+    List<ProstheticCaseData> items, {
+    String? next,
+  }) =>
+      (_) async => CursorPage(items: items, nextCursor: next);
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'emits failure with the server message on error',
-      build: () => ProstheticCaseListBloc(repo),
-      setUp: () {
-        when(() => repo.list(
-              patientReference: any(named: 'patientReference'),
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: any(named: 'laboratoryId'),
-              workType: any(named: 'workType'),
-              status: any(named: 'status'),
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).thenThrow(
-          const ApiException(code: 'server_error', message: 'Erreur serveur.'),
-        );
-      },
-      act: (b) => b.add(const LoadProstheticCases()),
-      expect: () => [
-        isA<ProstheticCaseListState>().having(
-          (s) => s.status,
-          'status',
-          ProstheticCaseListStatus.loading,
-        ),
-        isA<ProstheticCaseListState>()
-            .having(
-              (s) => s.status,
-              'status',
-              ProstheticCaseListStatus.failure,
-            )
-            .having((s) => s.error, 'error', 'Erreur serveur.'),
-      ],
-    );
+  void stubList({
+    String? cursor,
+    String? scope,
+    String? status,
+    required Future<CursorPage<ProstheticCaseData>> Function(Invocation) answer,
+  }) {
+    when(() => repo.list(
+          cursor: cursor,
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: status,
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: scope,
+        )).thenAnswer(answer);
+  }
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'FilterProstheticCases passes the real filter fields through to the '
-      'repository and replaces the active filters',
-      build: () => ProstheticCaseListBloc(repo),
-      setUp: () {
-        when(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: any(named: 'laboratoryId'),
-              workType: 'crown',
-              status: 'placed',
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).thenAnswer((_) async => const CursorPage(items: []));
-      },
-      act: (b) => b.add(const FilterProstheticCases(
-        ProstheticCaseListFilters(
-          patientReference: 'PAT-000001',
-          workType: 'crown',
-          status: 'placed',
-        ),
-      )),
-      expect: () => [
-        isA<ProstheticCaseListState>().having(
-          (s) => s.status,
-          'status',
-          ProstheticCaseListStatus.loading,
-        ),
-        isA<ProstheticCaseListState>()
-            .having((s) => s.status, 'status', ProstheticCaseListStatus.success)
-            .having(
-              (s) => s.filters.patientReference,
-              'filters.patientReference',
-              'PAT-000001',
-            ),
-      ],
-      verify: (_) {
-        verify(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: any(named: 'laboratoryId'),
-              workType: 'crown',
-              status: 'placed',
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).called(1);
-      },
-    );
+  void stubSummary(int total, {String? scope, String? status}) {
+    when(() => repo.summary(
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: status,
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: scope,
+        )).thenAnswer((_) async => ProstheticSummaryData(total: total));
+  }
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'loads the next page and appends it on LoadMoreProstheticCases',
-      build: () => ProstheticCaseListBloc(repo),
-      seed: () => ProstheticCaseListState(
-        status: ProstheticCaseListStatus.success,
-        cases: [buildProstheticCase(id: 'case-1')],
-        nextCursor: 'cursor-1',
-      ),
-      setUp: () {
-        when(() => repo.loadMore('cursor-1')).thenAnswer(
-          (_) async => CursorPage(items: [buildProstheticCase(id: 'case-2')]),
-        );
-      },
-      act: (b) => b.add(const LoadMoreProstheticCases()),
-      expect: () => [
-        isA<ProstheticCaseListState>()
-            .having((s) => s.isLoadingMore, 'isLoadingMore', true),
-        isA<ProstheticCaseListState>()
-            .having((s) => s.cases.length, 'cases', 2)
-            .having((s) => s.hasMore, 'hasMore', false)
-            .having((s) => s.isLoadingMore, 'isLoadingMore', false),
-      ],
-      verify: (_) {
-        verify(() => repo.loadMore('cursor-1')).called(1);
-      },
-    );
+  test('loads the first page and the exact total', () async {
+    stubList(answer: page([buildProstheticCase()]));
+    stubSummary(42);
+    final bloc = ProstheticCaseListBloc(repo)..add(const LoadProstheticCases());
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'LoadMoreProstheticCases is a no-op when there is no next cursor',
-      build: () => ProstheticCaseListBloc(repo),
-      seed: () => ProstheticCaseListState(
-        status: ProstheticCaseListStatus.success,
-        cases: [buildProstheticCase()],
-      ),
-      act: (b) => b.add(const LoadMoreProstheticCases()),
-      expect: () => <ProstheticCaseListState>[],
-      verify: (_) {
-        verifyNever(() => repo.loadMore(any()));
-      },
-    );
+    expect(bloc.state.cases.length, 1);
+    expect(bloc.state.total, 42, reason: 'the whole result, not the page');
+    expect(bloc.state.hasMore, isFalse);
+    await bloc.close();
+  });
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'LoadMoreProstheticCases is a no-op while already loading more',
-      build: () => ProstheticCaseListBloc(repo),
-      seed: () => ProstheticCaseListState(
-        status: ProstheticCaseListStatus.success,
-        cases: [buildProstheticCase()],
-        nextCursor: 'cursor-1',
-        isLoadingMore: true,
-      ),
-      act: (b) => b.add(const LoadMoreProstheticCases()),
-      expect: () => <ProstheticCaseListState>[],
-      verify: (_) {
-        verifyNever(() => repo.loadMore(any()));
-      },
-    );
+  test('the list still shows when only the total request fails', () async {
+    stubList(answer: page([buildProstheticCase()]));
+    when(() => repo.summary(
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: any(named: 'status'),
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: any(named: 'scope'),
+        )).thenThrow(const ApiException(code: 'x', message: 'boom'));
+    final bloc = ProstheticCaseListBloc(repo)..add(const LoadProstheticCases());
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
 
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'all 6 filter dimensions combine and are all sent to the repository '
-      'together, dates formatted as YYYY-MM-DD',
-      build: () => ProstheticCaseListBloc(repo),
-      setUp: () {
-        when(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: 'prat-1',
-              laboratoryId: 'lab-1',
-              workType: 'crown',
-              status: 'placed',
-              from: '2026-01-01',
-              to: '2026-01-31',
-            )).thenAnswer((_) async => const CursorPage(items: []));
-      },
-      act: (b) => b.add(FilterProstheticCases(
-        ProstheticCaseListFilters(
+    expect(bloc.state.cases.length, 1);
+    expect(bloc.state.total, isNull);
+    await bloc.close();
+  });
+
+  test('a failed load reports the error and keeps the chosen filters', () async {
+    stubList(
+      status: 'placed',
+      answer: (_) async => throw const ApiException(code: 'x', message: 'Hors ligne'),
+    );
+    stubSummary(0, status: 'placed');
+    final bloc = ProstheticCaseListBloc(repo)
+      ..add(const FilterProstheticCases(ProstheticCaseListFilters(status: 'placed')));
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.failure);
+
+    expect(bloc.state.error, 'Hors ligne');
+    expect(bloc.state.filters.status, 'placed',
+        reason: 'retry and refresh must reuse what the user chose');
+    await bloc.close();
+  });
+
+  test('all six filters plus the scope reach the repository, dates as YYYY-MM-DD',
+      () async {
+    when(() => repo.list(
+          cursor: null,
           patientReference: 'PAT-000001',
           practitionerId: 'prat-1',
           laboratoryId: 'lab-1',
           workType: 'crown',
           status: 'placed',
-          from: DateTime(2026, 1, 1),
-          to: DateTime(2026, 1, 31),
-        ),
-      )),
-      expect: () => [
-        isA<ProstheticCaseListState>().having(
-          (s) => s.status,
-          'status',
-          ProstheticCaseListStatus.loading,
-        ),
-        isA<ProstheticCaseListState>().having(
-          (s) => s.status,
-          'status',
-          ProstheticCaseListStatus.success,
-        ),
-      ],
-      verify: (_) {
-        verify(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: 'prat-1',
-              laboratoryId: 'lab-1',
-              workType: 'crown',
-              status: 'placed',
-              from: '2026-01-01',
-              to: '2026-01-31',
-            )).called(1);
-      },
-    );
-
-    blocTest<ProstheticCaseListBloc, ProstheticCaseListState>(
-      'combined filters persist across a reload (simulates leaving the '
-      'detail screen and coming back, which re-triggers LoadProstheticCases '
-      'on the same bloc instance rather than a fresh one)',
-      build: () => ProstheticCaseListBloc(repo),
-      seed: () => const ProstheticCaseListState(
-        status: ProstheticCaseListStatus.success,
-        filters: ProstheticCaseListFilters(
+          from: '2026-01-01',
+          to: '2026-01-31',
+          scope: 'payments_due',
+        )).thenAnswer((_) async => const CursorPage(items: []));
+    when(() => repo.summary(
           patientReference: 'PAT-000001',
+          practitionerId: 'prat-1',
           laboratoryId: 'lab-1',
+          workType: 'crown',
           status: 'placed',
-        ),
-      ),
-      setUp: () {
-        when(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: 'lab-1',
-              workType: any(named: 'workType'),
-              status: 'placed',
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).thenAnswer(
-          (_) async => CursorPage(items: [buildProstheticCase()]),
-        );
-      },
-      act: (b) => b.add(const LoadProstheticCases()),
-      expect: () => [
-        isA<ProstheticCaseListState>()
-            .having((s) => s.status, 'status', ProstheticCaseListStatus.loading)
-            .having(
-              (s) => s.filters.patientReference,
-              'filters unchanged during reload',
-              'PAT-000001',
-            ),
-        isA<ProstheticCaseListState>()
-            .having((s) => s.status, 'status', ProstheticCaseListStatus.success)
-            .having(
-              (s) => s.filters,
-              'filters still applied after reload',
-              const ProstheticCaseListFilters(
-                patientReference: 'PAT-000001',
-                laboratoryId: 'lab-1',
-                status: 'placed',
-              ),
-            ),
-      ],
-      verify: (_) {
-        // The reload used the *seeded* (pre-navigation) filters, not empty
-        // ones — proving LoadProstheticCases never resets state.filters.
-        verify(() => repo.list(
-              patientReference: 'PAT-000001',
-              practitionerId: any(named: 'practitionerId'),
-              laboratoryId: 'lab-1',
-              workType: any(named: 'workType'),
-              status: 'placed',
-              from: any(named: 'from'),
-              to: any(named: 'to'),
-            )).called(1);
-      },
-    );
-  });
+          from: '2026-01-01',
+          to: '2026-01-31',
+          scope: 'payments_due',
+        )).thenAnswer((_) async => const ProstheticSummaryData(total: 0));
 
-  group('ProstheticCaseListFilters', () {
-    test('copyWith clearX flags null out a single field, others untouched', () {
-      const filters = ProstheticCaseListFilters(
+    final bloc = ProstheticCaseListBloc(repo)
+      ..add(FilterProstheticCases(ProstheticCaseListFilters(
         patientReference: 'PAT-000001',
         practitionerId: 'prat-1',
         laboratoryId: 'lab-1',
         workType: 'crown',
         status: 'placed',
-        from: null,
-        to: null,
-      );
+        from: DateTime(2026, 1, 1),
+        to: DateTime(2026, 1, 31),
+        scope: 'payments_due',
+      )));
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
+    await bloc.close();
+    // The stubs above only match when every value arrived: reaching success
+    // without a MissingStubError proves all seven did.
+  });
 
-      final cleared = filters.copyWith(clearLaboratoryId: true);
+  test('page 2 carries the SAME filters as page 1 (the cursor does not)', () async {
+    stubList(
+      scope: 'at_laboratory',
+      answer: page([buildProstheticCase(id: 'case-1')], next: 'cursor-1'),
+    );
+    stubSummary(2, scope: 'at_laboratory');
+    stubList(
+      cursor: 'cursor-1',
+      scope: 'at_laboratory',
+      answer: page([buildProstheticCase(id: 'case-2')]),
+    );
 
-      expect(cleared.laboratoryId, isNull);
-      expect(cleared.patientReference, 'PAT-000001');
-      expect(cleared.practitionerId, 'prat-1');
-      expect(cleared.workType, 'crown');
-      expect(cleared.status, 'placed');
-    });
+    final bloc = ProstheticCaseListBloc(repo)
+      ..add(const FilterProstheticCases(ProstheticCaseListFilters(scope: 'at_laboratory')));
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
+    bloc.add(const LoadMoreProstheticCases());
+    await bloc.stream.firstWhere((s) => s.cases.length == 2);
 
-    test('isEmpty is true only when all 7 fields are null', () {
-      expect(const ProstheticCaseListFilters().isEmpty, isTrue);
-      expect(
-        const ProstheticCaseListFilters(status: 'placed').isEmpty,
-        isFalse,
-      );
-      expect(
-        ProstheticCaseListFilters(from: DateTime(2026, 1, 1)).isEmpty,
-        isFalse,
-      );
-    });
+    expect(bloc.state.cases.map((c) => c.id), ['case-1', 'case-2']);
+    expect(bloc.state.hasMore, isFalse);
+    expect(bloc.state.filters.scope, 'at_laboratory');
+    verify(() => repo.list(
+          cursor: 'cursor-1',
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: any(named: 'status'),
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: 'at_laboratory',
+        )).called(1);
+    await bloc.close();
+  });
+
+  test('refresh (LoadProstheticCases) re-reads with the filters already chosen',
+      () async {
+    stubList(status: 'placed', answer: page([buildProstheticCase()]));
+    stubSummary(1, status: 'placed');
+    final bloc = ProstheticCaseListBloc(repo)
+      ..add(const FilterProstheticCases(ProstheticCaseListFilters(status: 'placed')));
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
+
+    bloc.add(const LoadProstheticCases());
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
+
+    expect(bloc.state.filters.status, 'placed');
+    verify(() => repo.list(
+          cursor: null,
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: 'placed',
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: any(named: 'scope'),
+        )).called(2);
+    await bloc.close();
+  });
+
+  test('a late answer for an OLD filter set never overwrites the newer list',
+      () async {
+    final slow = Completer<CursorPage<ProstheticCaseData>>();
+    stubList(status: 'sent_to_laboratory', answer: (_) => slow.future);
+    stubSummary(99, status: 'sent_to_laboratory');
+    stubList(status: 'placed', answer: page([buildProstheticCase(id: 'new')]));
+    stubSummary(1, status: 'placed');
+
+    final bloc = ProstheticCaseListBloc(repo)
+      ..add(const FilterProstheticCases(
+          ProstheticCaseListFilters(status: 'sent_to_laboratory')));
+    await Future<void>.delayed(Duration.zero);
+    bloc.add(const FilterProstheticCases(ProstheticCaseListFilters(status: 'placed')));
+    await bloc.stream.firstWhere((s) => s.status == ProstheticCaseListStatus.success);
+
+    // The slow, OLD answer now arrives.
+    slow.complete(CursorPage(items: [buildProstheticCase(id: 'old')]));
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+
+    expect(bloc.state.cases.map((c) => c.id), ['new']);
+    expect(bloc.state.filters.status, 'placed');
+    expect(bloc.state.total, 1);
+    await bloc.close();
+  });
+
+  test('LoadMore is a no-op without a next cursor and while already loading more',
+      () async {
+    final bloc = ProstheticCaseListBloc(repo);
+    bloc.emit(ProstheticCaseListState(
+      status: ProstheticCaseListStatus.success,
+      cases: [buildProstheticCase()],
+    ));
+    bloc.add(const LoadMoreProstheticCases());
+    await Future<void>.delayed(Duration.zero);
+    verifyNever(() => repo.list(
+          cursor: any(named: 'cursor'),
+          patientReference: any(named: 'patientReference'),
+          practitionerId: any(named: 'practitionerId'),
+          laboratoryId: any(named: 'laboratoryId'),
+          workType: any(named: 'workType'),
+          status: any(named: 'status'),
+          from: any(named: 'from'),
+          to: any(named: 'to'),
+          scope: any(named: 'scope'),
+        ));
+    await bloc.close();
+  });
+
+  test('filters equality, isEmpty and clear flags', () {
+    const empty = ProstheticCaseListFilters();
+    expect(empty.isEmpty, isTrue);
+    const scoped = ProstheticCaseListFilters(scope: 'active');
+    expect(scoped.isEmpty, isFalse);
+    expect(scoped.copyWith(clearScope: true), empty);
+    expect(scoped, const ProstheticCaseListFilters(scope: 'active'));
   });
 }

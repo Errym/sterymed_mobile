@@ -13,6 +13,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:steriymed_mobile/core/router/routes.dart';
 import 'package:steriymed_mobile/di/di.dart';
 import 'package:steriymed_mobile/features/stock/data/models/stock_movement_data.dart';
+import 'package:steriymed_mobile/features/stock/data/models/stock_level_data.dart';
 import 'package:steriymed_mobile/features/stock/data/models/stock_option.dart';
 import 'package:steriymed_mobile/features/stock/data/repositories/stock_repository.dart';
 import 'package:steriymed_mobile/features/stock/presentation/screens/stock_adjust_screen.dart';
@@ -35,11 +36,26 @@ StockMovementData _movement({required bool isQueued}) => StockMovementData(
       isQueued: isQueued,
     );
 
+const _row = StockLevelData(
+  id: 's-1',
+  productId: 'p-1',
+  productName: 'Gants',
+  reference: 'GN-1',
+  unit: 'boîte',
+  locationId: 'l-1',
+  locationName: 'Réserve',
+  qty: 10,
+  minThreshold: 2,
+  batchId: 'b-1',
+  batchNumber: 'A1',
+);
+
 void main() {
   late MockStockRepository repo;
 
   setUp(() {
     repo = MockStockRepository();
+    when(() => repo.listSources()).thenAnswer((_) async => [_row]);
     when(() => repo.listOptions(forceRefresh: any(named: 'forceRefresh')))
         .thenAnswer(
       (_) async => (
@@ -92,7 +108,7 @@ void main() {
             reason: any(named: 'reason'),
           )).thenAnswer((_) async => _movement(isQueued: false));
 
-      await pumpScreen(tester, const StockIssueScreen());
+      await pumpScreen(tester, const StockIssueScreen(batchId: 'b-1', locationId: 'l-1'));
       await tester.tap(find.text('Enregistrer la sortie'));
       await tester.pumpAndSettle();
 
@@ -109,7 +125,7 @@ void main() {
             reason: any(named: 'reason'),
           )).thenAnswer((_) async => _movement(isQueued: true));
 
-      await pumpScreen(tester, const StockIssueScreen());
+      await pumpScreen(tester, const StockIssueScreen(batchId: 'b-1', locationId: 'l-1'));
       await tester.tap(find.text('Enregistrer la sortie'));
       await tester.pumpAndSettle();
 
@@ -128,8 +144,12 @@ void main() {
             reason: any(named: 'reason'),
           )).thenAnswer((_) async => _movement(isQueued: true));
 
-      await pumpScreen(tester, const StockAdjustScreen());
-      await tester.enterText(find.byType(TextFormField).first, '5');
+      await pumpScreen(tester, const StockAdjustScreen(batchId: 'b-1', locationId: 'l-1'));
+      await tester.scrollUntilVisible(
+        find.text('Motif (obligatoire) *'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.enterText(find.byType(TextFormField).last, 'Inventaire');
       await tester.tap(find.text('Enregistrer l\'ajustement'));
       await tester.pumpAndSettle();
@@ -147,8 +167,12 @@ void main() {
             reason: any(named: 'reason'),
           )).thenAnswer((_) async => _movement(isQueued: false));
 
-      await pumpScreen(tester, const StockAdjustScreen());
-      await tester.enterText(find.byType(TextFormField).first, '5');
+      await pumpScreen(tester, const StockAdjustScreen(batchId: 'b-1', locationId: 'l-1'));
+      await tester.scrollUntilVisible(
+        find.text('Motif (obligatoire) *'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.enterText(find.byType(TextFormField).last, 'Inventaire');
       await tester.tap(find.text('Enregistrer l\'ajustement'));
       await tester.pumpAndSettle();
@@ -168,7 +192,11 @@ void main() {
             reason: any(named: 'reason'),
           )).thenAnswer((_) async => _movement(isQueued: true));
 
-      await pumpScreen(tester, const StockTransferScreen());
+      await pumpScreen(tester, const StockTransferScreen(batchId: 'b-1', locationId: 'l-1'));
+      await tester.tap(find.byKey(const ValueKey('destination')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bloc').last);
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Enregistrer le transfert'));
       await tester.pumpAndSettle();
 

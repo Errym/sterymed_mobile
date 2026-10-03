@@ -95,8 +95,8 @@ void main() {
   );
 
   testWidgets(
-    'a non-critical transition (receivedAtPractice) calls changeStatus '
-    'directly, with no confirmation dialog',
+    'a non-critical transition (receivedAtPractice) opens the note dialog '
+    '(brief §4) and is sent on "Valider"',
     (tester) async {
       when(() => repo.changeStatus(any(), status: any(named: 'status')))
           .thenAnswer((_) async => _buildCase(
@@ -110,6 +110,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.text('Reçu au cabinet'));
+      await tester.pumpAndSettle();
+      expect(find.text('Passer à « Reçu au cabinet » ?'), findsOneWidget);
+      verifyNever(() => repo.changeStatus(any(), status: any(named: 'status')));
+      await tester.tap(find.text('Valider'));
       await tester.pumpAndSettle();
 
       verify(() => repo.changeStatus(
@@ -159,7 +163,7 @@ void main() {
 
       await tester.tap(find.text('Annulé'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Annuler').first);
+      await tester.tap(find.text('Retour'));
       await tester.pumpAndSettle();
 
       verifyNever(() => repo.changeStatus(any(), status: any(named: 'status')));
