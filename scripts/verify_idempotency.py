@@ -25,6 +25,7 @@ import sys
 import time
 from pathlib import Path
 
+import json
 import requests
 
 BASE = "http://localhost:8010/api"
@@ -182,7 +183,18 @@ def main():
 
     # Assertion A: same key + same payload -> byte-identical response.
     # Fingerprint: (status, body) on success; also (request_id) on error.
-    replay_ok = (r1.status_code == r2.status_code and r1.text == r2.text)
+    # The stored response is re-serialised on replay, so key ORDER can differ;
+    # what a client sees (the JSON) must be identical, and the server marks
+    # the replay with `Idempotency-Replayed: true`.
+    def same_json(a, b):
+        try:
+            return json.loads(a) == json.loads(b)
+        except ValueError:
+            return a == b
+
+    replay_ok = (r1.status_code == r2.status_code and same_json(r1.text, r2.text))
+    if r1.status_code < 400:
+        replay_ok = replay_ok and r2.headers.get("Idempotency-Replayed", "").lower() == "true"
     if r1.status_code >= 400:
         replay_ok = replay_ok and rid1 != "" and rid1 == rid2
 
@@ -192,7 +204,7 @@ def main():
             fingerprint += ", request_id=" + rid1
         else:
             fingerprint += ", body bytes"
-        print("OK replay - same key returned byte-identical response (" + fingerprint + ")")
+        print("OK replay - same key returned the identical response, flagged as a replay (" + fingerprint + ")")
     else:
         print("X replay FAILED - same key + same payload not byte-identical")
         print("  run 1: HTTP " + str(r1.status_code) + " rid=" + (rid1 or "(none)")
@@ -225,7 +237,7 @@ def main():
     verdict = "PASS - idempotency contract holds" if ok else "FAIL"
     date_str = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
 
-    bodies_identical = "yes" if r1.text == r2.text else "NO"
+    bodies_identical = "yes" if same_json(r1.text, r2.text) else "NO"
     note_run1 = ("" if r1.status_code < 400 else
                  "Run 1 returned HTTP " + str(r1.status_code)
                  + " (`" + err_code(r1) + "`), so the replay fingerprint is the "
