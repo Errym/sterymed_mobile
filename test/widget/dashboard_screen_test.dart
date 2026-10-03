@@ -74,7 +74,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Cycles en cours'), findsOneWidget);
+    expect(find.text('Cycles ouverts'), findsOneWidget);
     expect(find.text('Alertes actives'), findsOneWidget);
     expect(find.text('Cycles de stérilisation'), findsNothing);
     expect(find.text('Aucun module accessible'), findsOneWidget);

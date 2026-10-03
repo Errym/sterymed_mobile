@@ -65,4 +65,22 @@ void main() {
       expect(e.occurredAt.toUtc(), DateTime.utc(2026, 10, 3, 7, 15, 40));
     });
   });
+
+  group('honesty: a missing date stays missing', () {
+    test('a cycle the server sends without created_at has no creation time', () {
+      // This is what the real API returns for cycles (verified on the live
+      // server): no created_at. The app used to show the CURRENT time as the
+      // creation time, which changed on every refresh.
+      final c = CycleData.fromJson(const {
+        'id': 'c1',
+        'cycle_number': 12,
+        'status': 'created',
+        'device': {'id': 'd1', 'name': 'Autoclave'},
+        'started_at': null,
+        'completed_at': null,
+      });
+      expect(c.createdAt, isNull);
+      expect(c.startedAt, isNull);
+    });
+  });
 }

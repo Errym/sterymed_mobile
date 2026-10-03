@@ -124,7 +124,7 @@ class _DashboardContent extends StatelessWidget {
     }
 
     final byKey = <String, _KpiSpec? Function()>{
-      'cycles': () => fromKpi('active_cycles', 'Cycles en cours',
+      'cycles': () => fromKpi('active_cycles', 'Cycles ouverts',
           Icons.autorenew, AppColors.brandPrimary),
       'alerts': () => fromKpi('pending_alerts', 'Alertes actives',
           Icons.notification_important_outlined, AppColors.warning,

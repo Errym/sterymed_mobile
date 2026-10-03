@@ -117,7 +117,7 @@ class DashboardRemoteDatasource {
         if (canCycles)
         DashboardKpi(
           id: 'active_cycles',
-          label: 'Cycles en cours',
+          label: 'Cycles ouverts',
           value: unavailable.contains('cycles') ? null : activeCycles,
           approximate: _hasMore(results[0]),
           route: '/app/cycles',

@@ -92,6 +92,10 @@ class _CycleListView extends StatelessWidget {
                     label: 'Tous les cycles (${state.cycles.length})',
                   ),
                   FilterChipOption(
+                    value: 'created',
+                    label: 'En préparation (${count('created')})',
+                  ),
+                  FilterChipOption(
                     value: 'in_progress',
                     label: 'En cours (${count('in_progress')})',
                   ),
@@ -166,6 +170,12 @@ class _Pipeline extends StatelessWidget {
         if (state.cycles.isEmpty) return const SizedBox.shrink();
         int n(String s) => state.cycles.where((c) => c.status == s).length;
         final stages = [
+          (
+            'Préparation',
+            n('created'),
+            'created',
+            AppColors.textSecondary,
+          ),
           ('En cours', n('in_progress'), 'in_progress', AppColors.info),
           (
             'À libérer',
@@ -347,7 +357,10 @@ class _CycleCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   started ??
-                      DateFormat('dd/MM/yyyy HH:mm').format(cycle.createdAt),
+                      (cycle.createdAt == null
+                          ? 'Pas encore démarré'
+                          : DateFormat('dd/MM/yyyy HH:mm')
+                              .format(cycle.createdAt!)),
                   style: AppTypography.caption,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

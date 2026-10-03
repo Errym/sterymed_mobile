@@ -12,7 +12,9 @@ class CycleData extends Equatable {
   final int? programTemperatureCelsius;
   final int? programPlateauMinutes;
   final String? operatorName;
-  final DateTime createdAt;
+  /// The server does not send a creation time for cycles. It stays null
+  /// rather than being replaced by "now", which would show a made-up time.
+  final DateTime? createdAt;
   final DateTime? startedAt;
   final DateTime? completedAt;
   final DateTime? releasedAt;
@@ -34,7 +36,7 @@ class CycleData extends Equatable {
     this.programTemperatureCelsius,
     this.programPlateauMinutes,
     this.operatorName,
-    required this.createdAt,
+    this.createdAt,
     this.startedAt,
     this.completedAt,
     this.releasedAt,
@@ -112,7 +114,7 @@ class CycleData extends Equatable {
       deviceProgramId: deviceProgramId,
       programName: programName,
       operatorName: operatorName,
-      createdAt: _parseDate(json['created_at']) ?? DateTime.now(),
+      createdAt: _parseDate(json['created_at']),
       startedAt: _parseDate(json['started_at']),
       completedAt: _parseDate(json['completed_at']),
       releasedAt: _parseDate(json['released_at']),
