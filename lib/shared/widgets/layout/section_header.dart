@@ -23,10 +23,7 @@ class SectionHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title.toUpperCase(),
-              style: AppTypography.label.copyWith(
-                letterSpacing: 0.6,
-                fontWeight: FontWeight.w600,
-              ),
+              style: AppTypography.eyebrow,
             ),
           ),
           if (trailing != null) trailing!,

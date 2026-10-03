@@ -27,6 +27,13 @@ abstract final class AppColors {
   static const borderLight = Color(0xFFE5E9F0);
   static const borderMedium = Color(0xFFD1D9E6);
 
+  /// Barely-there rule for cards that rely on shadow for their edge.
+  static const hairline = Color(0x0F12284B);
+
+  /// Tinted well used for sub-panels inside a white card (key/value rows,
+  /// the "stock restant" strip, a stat tile).
+  static const surfaceWell = Color(0xFFF3F5F9);
+
   static const backgroundApp = Color(0xFFF7F9FC);
   static const backgroundSubtle = Color(0xFFF7F9FC);
   static const backgroundCard = Color(0xFFFFFFFF);

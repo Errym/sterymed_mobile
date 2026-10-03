@@ -20,6 +20,22 @@ abstract final class Env {
     defaultValue: '',
   );
 
+  // Firebase Cloud Messaging (push notifications). All four must be given at
+  // build time (`--dart-define`); without them push is reported as not
+  // configured and nothing Firebase-related starts.
+  static const firebaseApiKey =
+      String.fromEnvironment('FIREBASE_API_KEY', defaultValue: '');
+  static const firebaseAppId =
+      String.fromEnvironment('FIREBASE_APP_ID', defaultValue: '');
+  static const firebaseMessagingSenderId =
+      String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID', defaultValue: '');
+  static const firebaseProjectId =
+      String.fromEnvironment('FIREBASE_PROJECT_ID', defaultValue: '');
+  static const pushConfigured = firebaseApiKey != '' &&
+      firebaseAppId != '' &&
+      firebaseMessagingSenderId != '' &&
+      firebaseProjectId != '';
+
   static bool get isDev => environment == 'dev';
   static bool get isStaging => environment == 'staging';
   static bool get isProduction => environment == 'production';

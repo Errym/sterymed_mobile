@@ -18,6 +18,9 @@ abstract final class RouteNames {
   static const stockIssue = 'stock-issue';
   static const stockAdjust = 'stock-adjust';
   static const stockTransfer = 'stock-transfer';
+  static const codeLookup = 'code-lookup';
+  static const inventory = 'inventory';
+  static const inventoryCount = 'inventory-count';
   static const labelsDetail = 'labels-detail';
   static const labelsBlocked = 'labels-blocked';
   static const labelsUsage = 'labels-usage';

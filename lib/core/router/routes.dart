@@ -27,6 +27,31 @@ abstract final class Routes {
   static const stockAdjust = '/app/stock/adjust';
   static const stockTransfer = '/app/stock/transfer';
 
+  /// A movement screen with the lot (and place) already chosen, e.g. after a
+  /// scan. Nothing is sent until the user confirms the form.
+  static String stockIssueFor(String batchId, {String? locationId}) =>
+      _withSource(stockIssue, batchId, locationId);
+  static String stockTransferFor(String batchId, {String? locationId}) =>
+      _withSource(stockTransfer, batchId, locationId);
+  static String stockAdjustFor(String batchId, {String? locationId}) =>
+      _withSource(stockAdjust, batchId, locationId);
+  static String _withSource(String base, String batchId, String? locationId) =>
+      Uri(
+        path: base,
+        queryParameters: {
+          'batch': batchId,
+          if (locationId != null) 'location': locationId,
+        },
+      ).toString();
+
+  /// What a scanned or typed product barcode / reference / lot number is.
+  static String codeLookup(String code) =>
+      '/app/stock/code/${Uri.encodeComponent(code)}';
+
+  // Inventory counts ("inventaire")
+  static const inventory = '/app/inventory';
+  static String inventoryCount(String id) => '/app/inventory/$id';
+
   // Labels
   static String labelsDetail(String code) => '/app/labels/$code';
   static String labelsBlocked(String code) => '/app/labels/$code/blocked';

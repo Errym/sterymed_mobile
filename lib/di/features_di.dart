@@ -115,7 +115,7 @@ import '../features/reporting/data/datasources/evidence_search_remote_datasource
 import '../features/reporting/data/datasources/export_remote_datasource.dart';
 import '../features/reporting/data/repositories/evidence_search_repository.dart';
 import '../features/reporting/data/repositories/export_repository.dart';
-import '../features/reporting/data/services/export_download_service.dart';
+import '../core/files/file_export_service.dart';
 
 // ── Scanner ─────────────────────────────────────────────────────────────────
 import '../features/scanner/presentation/bloc/scanner_bloc.dart';
@@ -127,12 +127,10 @@ import '../features/sites/presentation/bloc/site_list_bloc.dart';
 
 // ── Stock ───────────────────────────────────────────────────────────────────
 import '../features/stock/data/datasources/stock_remote_datasource.dart';
+import '../features/stock/data/datasources/inventory_count_remote_datasource.dart';
+import '../features/stock/data/repositories/inventory_count_repository.dart';
 import '../features/stock/data/repositories/stock_repository.dart';
 import '../features/stock/presentation/bloc/stock_level_list_bloc.dart';
-import '../features/stock/presentation/bloc/stock_issue_bloc.dart';
-import '../features/stock/presentation/bloc/stock_adjust_bloc.dart';
-import '../features/stock/presentation/bloc/stock_transfer_bloc.dart';
-import '../features/stock/presentation/cubit/stock_action_cubit.dart';
 
 // ── Suppliers ───────────────────────────────────────────────────────────────
 import '../features/suppliers/data/datasources/supplier_remote_datasource.dart';
@@ -170,7 +168,10 @@ Future<void> registerFeatures(GetIt getIt) async {
   // Dashboard
   // ─────────────────────────────────────────────────────────────────────────
   getIt.registerLazySingleton<DashboardRemoteDatasource>(
-    () => DashboardRemoteDatasource(getIt<DioClient>().dio),
+    () => DashboardRemoteDatasource(
+      getIt<DioClient>().dio,
+      getIt<SessionStore>().hasPermission,
+    ),
   );
   getIt.registerLazySingleton<DashboardRepository>(
     () => DashboardRepository(
@@ -463,12 +464,17 @@ Future<void> registerFeatures(GetIt getIt) async {
   getIt.registerLazySingleton<ExportRepository>(
     () => ExportRepository(getIt<ExportRemoteDatasource>(), getIt<AppCache>()),
   );
-  // Bare Dio on purpose: the download URL is a presigned object-storage link,
-  // not a `/v1` API route — it must not carry the bearer token or be rewritten
-  // against the API base URL.
-  getIt.registerLazySingleton<ExportDownloadService>(
-    () => ExportDownloadService(DioFactory.bare()),
+  // Saves exports as real files (PDF dossier, CSV, ZIP). It holds BOTH an
+  // authenticated Dio (for `/v1` routes) and a bare one on purpose: a
+  // presigned object-storage link must not carry the bearer token or be
+  // rewritten against the API base URL.
+  getIt.registerLazySingleton<FileExportService>(
+    () => FileExportService(
+      authenticated: getIt<DioClient>().dio,
+      bare: DioFactory.bare(),
+    ),
   );
+  getIt.registerLazySingleton<FileHandoff>(() => const DeviceFileHandoff());
   getIt.registerLazySingleton<EvidenceSearchRemoteDatasource>(
     () => EvidenceSearchRemoteDatasource(getIt<DioClient>().dio),
   );
@@ -507,19 +513,13 @@ Future<void> registerFeatures(GetIt getIt) async {
       syncStatus: getIt<SyncStatusCubit>(),
     ),
   );
+  getIt.registerLazySingleton<InventoryCountRepository>(
+    () => InventoryCountRepository(
+      InventoryCountRemoteDatasource(getIt<DioClient>().dio),
+      getIt<AppCache>(),
+    ),
+  );
   getIt.registerFactory<StockLevelListBloc>(
     () => StockLevelListBloc(getIt<StockRepository>()),
-  );
-  getIt.registerFactory<StockIssueBloc>(
-    () => StockIssueBloc(getIt<StockRepository>()),
-  );
-  getIt.registerFactory<StockAdjustBloc>(
-    () => StockAdjustBloc(getIt<StockRepository>()),
-  );
-  getIt.registerFactory<StockTransferBloc>(
-    () => StockTransferBloc(getIt<StockRepository>()),
-  );
-  getIt.registerFactory<StockActionCubit>(
-    () => StockActionCubit(getIt<StockRepository>()),
   );
 }

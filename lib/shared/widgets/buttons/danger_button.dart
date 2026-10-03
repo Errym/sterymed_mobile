@@ -39,7 +39,15 @@ class DangerButton extends StatelessWidget {
               Icon(icon, size: 18),
               const SizedBox(width: AppSpacing.xs),
             ],
-            Text(label, style: AppTypography.buttonLabel),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.buttonLabel,
+              ),
+            ),
           ],
         ),
       ),

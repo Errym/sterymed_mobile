@@ -27,7 +27,7 @@ class AttachmentTile extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.borderLight),
+            border: Border.all(color: AppColors.hairline),
           ),
           child: Stack(
             children: [

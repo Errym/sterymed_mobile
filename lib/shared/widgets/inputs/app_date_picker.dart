@@ -23,12 +23,23 @@ class AppDatePicker extends StatelessWidget {
     this.enabled = true,
   });
 
+  /// `showDatePicker` asserts when `initialDate` falls outside the allowed
+  /// range, e.g. a "Du" field capped at a past "Au" date, opened on today.
+  @visibleForTesting
+  static DateTime clampInitialDate(DateTime date, DateTime first, DateTime last) {
+    if (date.isAfter(last)) return last;
+    if (date.isBefore(first)) return first;
+    return date;
+  }
+
   Future<void> _pick(BuildContext context) async {
+    final first = firstDate ?? DateTime(2000);
+    final last = lastDate ?? DateTime(2100);
     final picked = await showDatePicker(
       context: context,
-      initialDate: value ?? DateTime.now(),
-      firstDate: firstDate ?? DateTime(2000),
-      lastDate: lastDate ?? DateTime(2100),
+      initialDate: clampInitialDate(value ?? DateTime.now(), first, last),
+      firstDate: first,
+      lastDate: last,
     );
     if (picked != null) onChanged(picked);
   }
@@ -50,12 +61,13 @@ class AppDatePicker extends StatelessWidget {
           onTap: enabled ? () => _pick(context) : null,
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: InputDecorator(
-            decoration: InputDecoration(
-              hintText: hint ?? 'Sélectionner une date',
-              suffixIcon: const Icon(Icons.calendar_today_outlined, size: 18),
+            decoration: const InputDecoration(
+              suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
             ),
             child: Text(
               formatted ?? hint ?? 'Sélectionner une date',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: AppTypography.body.copyWith(
                 color: formatted != null
                     ? AppColors.textPrimary

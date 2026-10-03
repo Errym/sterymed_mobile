@@ -9,7 +9,12 @@ class ErrorInterceptor extends Interceptor {
   /// `AuthSessionExpired`.
   final void Function()? onUnauthenticated;
 
-  ErrorInterceptor({this.onUnauthenticated});
+  /// Fired for a `FORBIDDEN` 403: the server may have changed this user's
+  /// role since the permissions were last read, so the app re-reads them
+  /// instead of offering the same refused action for up to 15 minutes.
+  final void Function()? onForbidden;
+
+  ErrorInterceptor({this.onUnauthenticated, this.onForbidden});
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
@@ -18,6 +23,7 @@ class ErrorInterceptor extends Interceptor {
         err.requestOptions.extra['skipAuthExpiry'] != true) {
       onUnauthenticated?.call();
     }
+    if (apiException.isForbidden) onForbidden?.call();
     handler.reject(
       DioException(
         requestOptions: err.requestOptions,

@@ -27,8 +27,11 @@ ThemeData buildLightTheme() {
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.backgroundApp,
       foregroundColor: AppColors.textPrimary,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
+      titleSpacing: AppSpacing.xxs,
       titleTextStyle: AppTypography.sectionTitle,
     ),
 
@@ -38,7 +41,7 @@ ThemeData buildLightTheme() {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.card),
-        side: const BorderSide(color: AppColors.borderLight),
+        side: const BorderSide(color: AppColors.hairline),
       ),
     ),
 
@@ -51,22 +54,26 @@ ThemeData buildLightTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: AppColors.backgroundSubtle,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         borderSide: const BorderSide(color: AppColors.borderLight),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         borderSide: const BorderSide(color: AppColors.borderLight),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         borderSide: const BorderSide(color: AppColors.brandPrimary, width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         borderSide: const BorderSide(color: AppColors.danger),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
       ),
       hintStyle: AppTypography.body.copyWith(color: AppColors.textTertiary),
       labelStyle: AppTypography.label,
@@ -77,9 +84,10 @@ ThemeData buildLightTheme() {
         backgroundColor: AppColors.brandPrimary,
         foregroundColor: AppColors.textOnBrand,
         elevation: 0,
+        minimumSize: const Size(64, 52),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         textStyle: AppTypography.buttonLabel,
       ),
@@ -96,9 +104,10 @@ ThemeData buildLightTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.textPrimary,
         side: const BorderSide(color: AppColors.borderMedium),
+        minimumSize: const Size(64, 52),
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         textStyle: AppTypography.buttonLabel,
       ),
@@ -130,7 +139,7 @@ ThemeData buildLightTheme() {
       behavior: SnackBarBehavior.floating,
       insetPadding: const EdgeInsets.all(AppSpacing.md),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       contentTextStyle: AppTypography.body.copyWith(
         color: AppColors.textOnBrand,

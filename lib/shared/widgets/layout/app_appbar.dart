@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/tokens.dart';
+import '../../../core/utils/extensions/context_ext.dart';
 import '../feedback/sync_status_pill.dart';
 
-/// SteryMed AppBar.
-/// Two modes:
-///   - [navy]=true  → deep navy header (mockup language, used on list/detail screens)
-///   - [navy]=false → white header (used on form screens)
+/// SteryMed AppBar: flat, on the page colour, title next to a back arrow.
+/// Every screen uses the same bar so the app reads as one product; depth comes
+/// from the cards below it, not from a coloured header.
+///
+/// [navy] is kept so existing call sites compile; it no longer changes the
+/// look.
 class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final List<Widget>? actions;
@@ -30,40 +34,59 @@ class AppAppBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = navy ? AppColors.navyHeader : AppColors.backgroundApp;
-    final fg = navy ? AppColors.navyHeaderText : AppColors.textPrimary;
-
     return AppBar(
-      title: Text(title),
-      backgroundColor: bg,
-      foregroundColor: fg,
+      title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      backgroundColor: AppColors.backgroundApp,
+      foregroundColor: AppColors.textPrimary,
+      surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 0,
-      systemOverlayStyle: navy
-          ? const SystemUiOverlayStyle(
-              statusBarColor: Colors.transparent,
-              statusBarIconBrightness: Brightness.light,
-              statusBarBrightness: Brightness.dark,
-            )
-          : null,
-      leading: leading ??
-          (showBack && Navigator.of(context).canPop()
-              ? IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () => Navigator.of(context).pop(),
-                )
-              : null),
+      systemOverlayStyle: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      leading: leading ?? (showBack ? AppBackButton.maybe(context) : null),
       actions: [
         ...(actions ?? const <Widget>[]),
         const SyncStatusPill(),
-        const SizedBox(width: AppSpacing.xs),
+        const SizedBox(width: AppSpacing.md),
       ],
-      bottom: navy
-          ? null
-          : const PreferredSize(
-              preferredSize: Size.fromHeight(1),
-              child: Divider(height: 1, color: AppColors.borderLight),
-            ),
+    );
+  }
+}
+
+/// The back arrow every screen above a tab shows. It pops when there is
+/// history and otherwise goes to the tab the screen belongs to, so a person
+/// who arrived by a deep link or a restored session is never stranded.
+class AppBackButton extends StatelessWidget {
+  const AppBackButton({super.key});
+
+  /// The button when this screen needs one, else null (tab roots, which are
+  /// reached by the bottom bar and have nothing "behind" them).
+  static Widget? maybe(BuildContext context) {
+    final router = GoRouter.maybeOf(context);
+    if (router == null) {
+      return Navigator.of(context).canPop() ? const AppBackButton() : null;
+    }
+    final location =
+        router.routerDelegate.currentConfiguration.uri.toString();
+    if (!context.canPop() && isTabRoute(location)) return null;
+    return const AppBackButton();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.arrow_back),
+      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+      onPressed: () {
+        if (GoRouter.maybeOf(context) == null) {
+          Navigator.of(context).maybePop();
+        } else {
+          context.popOrGo();
+        }
+      },
     );
   }
 }

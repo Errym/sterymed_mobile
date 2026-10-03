@@ -63,6 +63,9 @@ import '../../features/shell/presentation/screens/shell_screen.dart';
 import '../../features/sites/presentation/screens/site_list_screen.dart';
 // Stock
 import '../../features/stock/presentation/screens/batch_list_screen.dart';
+import '../../features/stock/presentation/screens/code_lookup_screen.dart';
+import '../../features/stock/presentation/screens/inventory_count_detail_screen.dart';
+import '../../features/stock/presentation/screens/inventory_count_list_screen.dart';
 import '../../features/stock/presentation/screens/stock_adjust_screen.dart';
 import '../../features/stock/presentation/screens/stock_issue_screen.dart';
 import '../../features/stock/presentation/screens/stock_level_list_screen.dart';
@@ -153,7 +156,12 @@ class AppRouter {
           GoRoute(
             path: Routes.scanner,
             name: RouteNames.scanner,
-            pageBuilder: (_, s) => _fade(s, const ScannerScreen()),
+            pageBuilder: (_, s) => _fade(
+              s,
+              ScannerScreen(
+                startInProductMode: s.uri.queryParameters['mode'] == 'product',
+              ),
+            ),
           ),
           GoRoute(
             path: Routes.cycles,
@@ -176,19 +184,58 @@ class AppRouter {
             pageBuilder: (_, s) => _fade(s, const StockLevelListScreen()),
           ),
           GoRoute(
+            path: '/app/stock/code/:code',
+            name: RouteNames.codeLookup,
+            pageBuilder: (_, s) => _fade(
+              s,
+              CodeLookupScreen(code: s.pathParameters['code']!),
+            ),
+          ),
+          GoRoute(
+            path: Routes.inventory,
+            name: RouteNames.inventory,
+            pageBuilder: (_, s) => _fade(s, const InventoryCountListScreen()),
+          ),
+          GoRoute(
+            path: '/app/inventory/:id',
+            name: RouteNames.inventoryCount,
+            pageBuilder: (_, s) => _fade(
+              s,
+              InventoryCountDetailScreen(countId: s.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
             path: Routes.stockIssue,
             name: RouteNames.stockIssue,
-            pageBuilder: (_, s) => _fade(s, const StockIssueScreen()),
+            pageBuilder: (_, s) => _fade(
+              s,
+              StockIssueScreen(
+                batchId: s.uri.queryParameters['batch'],
+                locationId: s.uri.queryParameters['location'],
+              ),
+            ),
           ),
           GoRoute(
             path: Routes.stockAdjust,
             name: RouteNames.stockAdjust,
-            pageBuilder: (_, s) => _fade(s, const StockAdjustScreen()),
+            pageBuilder: (_, s) => _fade(
+              s,
+              StockAdjustScreen(
+                batchId: s.uri.queryParameters['batch'],
+                locationId: s.uri.queryParameters['location'],
+              ),
+            ),
           ),
           GoRoute(
             path: Routes.stockTransfer,
             name: RouteNames.stockTransfer,
-            pageBuilder: (_, s) => _fade(s, const StockTransferScreen()),
+            pageBuilder: (_, s) => _fade(
+              s,
+              StockTransferScreen(
+                batchId: s.uri.queryParameters['batch'],
+                locationId: s.uri.queryParameters['location'],
+              ),
+            ),
           ),
           GoRoute(
             path: Routes.patients,

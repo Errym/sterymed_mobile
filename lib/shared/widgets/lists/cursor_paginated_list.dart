@@ -91,6 +91,7 @@ class _CursorPaginatedListState<T> extends State<CursorPaginatedList<T>> {
       );
     }
 
+    final stale = widget.error != null;
     final list = ListView.separated(
       controller: _controller,
       padding: widget.padding,
@@ -107,10 +108,50 @@ class _CursorPaginatedListState<T> extends State<CursorPaginatedList<T>> {
       },
     );
 
-    if (widget.onRefresh != null) {
-      return RefreshIndicator(onRefresh: widget.onRefresh!, child: list);
-    }
+    final body = widget.onRefresh != null
+        ? RefreshIndicator(onRefresh: widget.onRefresh!, child: list)
+        : list;
 
-    return list;
+    // Rows are on screen but the last load failed: the list may be out of
+    // date, and the user has to be told rather than left to assume.
+    if (!stale) return body;
+    return Column(
+      children: [
+        Container(
+          key: const Key('list-stale-banner'),
+          width: double.infinity,
+          margin: const EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.xs,
+            AppSpacing.md,
+            0,
+          ),
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          decoration: BoxDecoration(
+            color: AppColors.warningLight,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.cloud_off_outlined,
+                  size: 18, color: AppColors.warning),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  widget.error!,
+                  style: AppTypography.caption,
+                ),
+              ),
+              if (widget.onRetry != null)
+                TextButton(
+                  onPressed: widget.onRetry,
+                  child: const Text('Réessayer'),
+                ),
+            ],
+          ),
+        ),
+        Expanded(child: body),
+      ],
+    );
   }
 }

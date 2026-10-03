@@ -20,14 +20,15 @@ class SecondaryButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return SizedBox(
       width: isFullWidth ? double.infinity : null,
-      height: 48,
+      height: 52,
       child: OutlinedButton(
         onPressed: onPressed,
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.textPrimary,
-          side: const BorderSide(color: AppColors.borderMedium),
+          backgroundColor: AppColors.surfaceWell,
+          side: const BorderSide(color: AppColors.borderLight),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(AppRadius.control),
           ),
         ),
         child: Row(
@@ -38,7 +39,15 @@ class SecondaryButton extends StatelessWidget {
               Icon(icon, size: 18),
               const SizedBox(width: AppSpacing.xs),
             ],
-            Text(label, style: AppTypography.buttonLabel),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.buttonLabel,
+              ),
+            ),
           ],
         ),
       ),

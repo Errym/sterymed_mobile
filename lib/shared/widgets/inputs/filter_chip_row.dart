@@ -32,36 +32,52 @@ class FilterChipRow<T> extends StatelessWidget {
           // (the "Tous" chip). Use `==` — in Dart, null == null is true,
           // and null == 'x' is false. This is the correct behaviour.
           final isSelected = o.value == selected;
+          final fg = isSelected ? AppColors.textOnBrand : AppColors.textSecondary;
           return Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () => onSelected(o.value),
               borderRadius: BorderRadius.circular(AppRadius.pill),
-              child: Container(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.brandPrimary
-                      : AppColors.backgroundSubtle,
+                      ? AppColors.navyHeader
+                      : AppColors.backgroundMuted,
                   borderRadius: BorderRadius.circular(AppRadius.pill),
-                  border: Border.all(
-                    color: isSelected
-                        ? AppColors.brandPrimary
-                        : AppColors.borderLight,
-                  ),
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  o.label,
-                  style: AppTypography.bodyStrong.copyWith(
-                    color: isSelected
-                        ? AppColors.textOnBrand
-                        : AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (o.icon != null) ...[
+                      Icon(o.icon, size: 15, color: fg),
+                      const SizedBox(width: 6),
+                    ] else if (o.dotColor != null) ...[
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: o.dotColor,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Text(
+                      o.label,
+                      style: AppTypography.bodyStrong.copyWith(
+                        color: fg,
+                        fontSize: 13,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -75,5 +91,15 @@ class FilterChipRow<T> extends StatelessWidget {
 class FilterChipOption<T> {
   final T? value;
   final String label;
-  const FilterChipOption({required this.value, required this.label});
+
+  /// A small leading icon, or a coloured dot, to make the chip readable at a
+  /// glance ("Stock bas" with a red dot).
+  final IconData? icon;
+  final Color? dotColor;
+  const FilterChipOption({
+    required this.value,
+    required this.label,
+    this.icon,
+    this.dotColor,
+  });
 }

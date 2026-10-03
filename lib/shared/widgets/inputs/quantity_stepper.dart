@@ -43,12 +43,14 @@ class QuantityStepper extends StatelessWidget {
             const SizedBox(height: AppSpacing.xs),
             Container(
               decoration: BoxDecoration(
-                border: Border.all(
-                  color: field.hasError
-                      ? AppColors.danger
-                      : AppColors.borderMedium,
-                ),
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: field.hasError
+                    ? Border.all(color: AppColors.danger)
+                    : null,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs,
+                vertical: AppSpacing.xs,
               ),
               child: Row(
                 children: [
@@ -64,9 +66,14 @@ class QuantityStepper extends StatelessWidget {
                       controller: controller,
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
-                      style: AppTypography.bodyStrong,
+                      style: AppTypography.kpiNumber.copyWith(fontSize: 34),
                       decoration: const InputDecoration(
+                        filled: false,
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        errorBorder: InputBorder.none,
+                        focusedErrorBorder: InputBorder.none,
                         isDense: true,
                         contentPadding:
                             EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -106,13 +113,15 @@ class _StepButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.transparent,
+      color: AppColors.surfaceWell,
+      shape: const CircleBorder(),
       child: InkWell(
         onTap: onTap,
+        customBorder: const CircleBorder(),
         child: SizedBox(
-          width: 44,
-          height: 44,
-          child: Icon(icon, size: 18, color: AppColors.brandPrimary),
+          width: 48,
+          height: 48,
+          child: Icon(icon, size: 20, color: AppColors.textPrimary),
         ),
       ),
     );

@@ -53,7 +53,7 @@ class _KpiCardState extends State<KpiCard> {
               decoration: BoxDecoration(
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: AppColors.borderLight),
+                border: Border.all(color: AppColors.hairline),
                 boxShadow: AppShadows.card,
               ),
               child: Column(
@@ -71,11 +71,11 @@ class _KpiCardState extends State<KpiCard> {
                         ),
                       ),
                       Container(
-                        width: 30,
-                        height: 30,
+                        width: 32,
+                        height: 32,
                         decoration: BoxDecoration(
                           color: accent.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          shape: BoxShape.circle,
                         ),
                         child: Icon(widget.icon, size: 16, color: accent),
                       ),

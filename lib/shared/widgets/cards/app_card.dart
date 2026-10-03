@@ -12,7 +12,7 @@ class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(AppSpacing.md),
+    this.padding = const EdgeInsets.all(AppSpacing.lg),
     this.onTap,
     this.background,
     this.borderColor,
@@ -25,9 +25,12 @@ class AppCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: background ?? AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: borderColor ?? AppColors.borderLight),
+        border: Border.all(color: borderColor ?? AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
-      child: child,
+      // Tiles, switches and inks inside a card paint on the nearest Material;
+      // without one *below* the card's own background they would be hidden.
+      child: Material(type: MaterialType.transparency, child: child),
     );
 
     if (onTap == null) return content;

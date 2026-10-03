@@ -29,6 +29,7 @@ abstract final class RoleGuard {
     Routes.stockIssue: 'inventory.manage',
     Routes.stockAdjust: 'inventory.manage',
     Routes.stockTransfer: 'inventory.manage',
+    Routes.inventory: 'inventory.view',
     Routes.alerts: 'alerts.view',
     Routes.audit: 'audit.view',
     Routes.sites: 'sites.view',
@@ -70,6 +71,8 @@ abstract final class RoleGuard {
   /// no hit — a suffix-specific rule must precede its prefix-only sibling.
   static const _prefixRules =
       <(String prefix, String? suffix, String permission)>[
+        ('/app/stock/code/', null, 'inventory.view'),
+        ('/app/inventory/', null, 'inventory.view'),
         ('/app/cycles/', '/release', 'cycles.release'),
         ('/app/cycles/', null, 'cycles.view'),
         ('/app/purchases/', '/receive', 'purchasing.manage'),
