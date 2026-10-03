@@ -63,4 +63,23 @@ Thumbs.db
 *.bak
 pjdocs/
 _script_backups/
-_script_backups/
+
+# Machine-local or generated artifacts: never source.
+graphify-out/
+flutter_codebase_dump.txt
+_dartfix.log
+docs/phase0/*.local.json
+testing/IDEMPOTENCY_VERIFICATION.md
+# Design reference mock-ups (HTML + screenshots), kept outside git.
+ui_ex/
+
+# Secrets and release inputs: must never be committed.
+release-defines.json
+.env
+.env.*
+!.env.example
+!.env.*.example
+android/key.properties
+android/local.properties
+*.jks
+*.keystore
