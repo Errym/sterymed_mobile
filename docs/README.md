@@ -34,5 +34,6 @@ release blockers F01-F18).
 | [SECURITY.md](SECURITY.md), [PRIVACY.md](PRIVACY.md) | Implemented controls and open legal questions |
 | [TESTING.md](TESTING.md), [CICD.md](CICD.md) | Test inventory and pipelines |
 | [BACKUP_RESTORE.md](BACKUP_RESTORE.md), [RUNBOOK.md](RUNBOOK.md) | Local data, recovery, triage |
+| [RELEASE.md](RELEASE.md), [ANOMALIES.md](ANOMALIES.md) | How a build ships and what the owner provides; every defect found, with status |
 | [DEVICE_TEST_LOG.md](DEVICE_TEST_LOG.md) | Physical-device setup, gotchas and run log (no runs yet) |
 | [USER_GUIDE.md](USER_GUIDE.md) | French user guide skeleton (screenshots missing) |

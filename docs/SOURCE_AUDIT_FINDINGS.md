@@ -741,7 +741,7 @@ These findings concern validation coverage and wording; they do not by themselve
 
 **Next verification:** Use server-valid payload/DTO fixtures, assert the complete emitted HTTP request at the datasource boundary, and exercise validation against the isolated backend. Rename mock-only test descriptions to state the actual scope.
 
-**Evidence:** `test/unit/repositories/purchase_repository_test.dart:35`; `test/bloc/goods_receipt_bloc_test.dart:133`; `test/bloc/goods_receipt_bloc_test.dart:166`; `test/bloc/goods_receipt_bloc_test.dart:167`; `test/widget/prosthetic_case_detail_test.dart:60`; `test/widget/prosthetic_case_detail_test.dart:107`; `test/widget/prosthetic_case_detail_test.dart:129`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:32`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:38`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:40`
+**Evidence:** `test/unit/repositories/purchase_repository_test.dart:35`; `test/widget/goods_receipt_flow_test.dart:133`; `test/widget/goods_receipt_flow_test.dart:166`; `test/widget/goods_receipt_flow_test.dart:167`; `test/widget/prosthetic_case_detail_test.dart:60`; `test/widget/prosthetic_case_detail_test.dart:107`; `test/widget/prosthetic_case_detail_test.dart:129`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:32`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:38`; `C:/Users/mery/steriqore/app/Http/Requests/Api/V1/Purchasing/ReceiveGoodsRequest.php:40`
 
 #### T07 P1: Session, draft and privacy tests do not demonstrate isolation across accounts
 

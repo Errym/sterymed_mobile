@@ -34,17 +34,17 @@ stale, not re-measured since; re-run `flutter test --coverage` and check
 Real coverage: `alert_list_bloc_test.dart`, `audit_list_bloc_test.dart`,
 `auth_bloc_test.dart`, `cycle_detail_bloc_test.dart`,
 `cycle_list_bloc_test.dart`, `cycle_transition_bloc_test.dart`,
-`dashboard_cubit_test.dart`, `goods_receipt_bloc_test.dart`,
-`label_detail_bloc_test.dart`, `label_usage_bloc_test.dart`,
-`prosthetic_case_detail_bloc_test.dart`, `prosthetic_list_bloc_test.dart`,
-`prosthetic_payment_bloc_test.dart`, `prosthetic_status_bloc_test.dart`,
+`dashboard_cubit_test.dart`, `goods_receipt_flow_test.dart`,
+`label_detail_bloc_test.dart`, `label_usage_flow_test.dart`,
+`prosthetic_case_detail_flow_test.dart`, `prosthetic_list_bloc_test.dart`,
+`prosthetic_payment_section_test.dart`, `prosthetic_status_flow_test.dart`,
 `scanner_bloc_test.dart`, `stock_issue_bloc_test.dart`,
 `sync_status_bloc_test.dart` (real class is `SyncStatusCubit`, not a
 Bloc — noted in the file).
 
-Five of these (`goods_receipt_bloc_test.dart`, `label_usage_bloc_test.dart`,
-`prosthetic_case_detail_bloc_test.dart`, `prosthetic_payment_bloc_test.dart`,
-`prosthetic_status_bloc_test.dart`) are named after Bloc classes that
+Five of these (`goods_receipt_flow_test.dart`, `label_usage_flow_test.dart`,
+`prosthetic_case_detail_flow_test.dart`, `prosthetic_payment_section_test.dart`,
+`prosthetic_status_flow_test.dart`) are named after Bloc classes that
 **don't exist** — those five screens use direct `setState` +
 repository/`getIt` calls, no Bloc. Each file tests that real pattern
 instead (see its own header comment) — a deliberate choice, not a

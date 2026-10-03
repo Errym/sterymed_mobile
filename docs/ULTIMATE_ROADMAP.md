@@ -1,349 +1,633 @@
-# SteryMed: rating and ultimate roadmap to a clinic-safe product
+# SteryMed Mobile — 10/10 Roadmap
 
-**Written 1 October 2026 by a senior-mobile-engineer review of both repositories and both `pjdocs` documents.**
-This file answers three questions: *where are we, how good is it honestly, and what exact sequence gets a clinic to use it safely.*
-It sits on top of [`CLINIC_READY_MASTER_PLAN.md`](CLINIC_READY_MASTER_PLAN.md) (task IDs S/O/R/C/I/P/A/V/D/H, findings F01–F18) and does not replace it: the master plan is the **task catalogue**; this file is the **schedule, scorecard and gates**. Evidence for every finding is in [`SOURCE_AUDIT_FINDINGS.md`](SOURCE_AUDIT_FINDINGS.md).
+**Sources read from scratch:** the Cahier des Charges (all 6 pages), the SteryMed Prosthetic Brief (all 16 pages), the backend source tree as dumped, and your Flutter codebase as dumped.
 
----
-
-## 1. What the product is (from `pjdocs` and the backend)
-
-**Goal.** A multi-tenant SaaS for dental practices: sterilization **traceability** plus **stock** control, usable on the web (administration, label printing) and on a Flutter mobile app (scan, use, receive, validate, consult). Core loop, taken from the backend brief (`steriqore/CLAUDE.md`) and the *cahier des charges*:
-
-> receive stock (lot + expiry) → prepare a load → run an autoclave cycle → record control tests → an authorized user **releases** the cycle → one unique 2D label per pouch → **scan at the chair** → link pouch → cycle → device → practitioner → patient reference → inspection-ready evidence.
-
-Second module (prosthetic brief): track a dental-lab case from impression to placement, with status history, a "waiting for placement" list, a payment block, attachments and a dashboard where every card opens a filtered list.
-
-**Non-negotiables the documents impose** (these define "safe" for this project):
-
-| Rule | Source |
-|---|---|
-| A clinic can never read or change another clinic's data | Cahier §8, backend tenancy + RLS |
-| No silent deletion of proof; corrections carry actor, time, reason | Cahier §8, backend invariants 3 and 7 |
-| Double tap, double scan, lost network never double-count a stock movement, receipt or validation | Cahier §8 and §10 |
-| Stock is derived from an append-only ledger, never set directly | Backend invariant 1 |
-| No label for a cycle that is not released and compliant; a recalled or expired label returns a blocking error | Backend invariants 2 and 5 |
-| Permissions enforced on the server, not only hidden in the UI | Cahier §8 |
-| GDPR/HDS analysis **before any real patient data** | Cahier §8 |
-| "Not delivered unless demonstrated and tested" | Cahier §10 |
-
-**The backend (`steriqore`) is the stronger half.** Laravel 13, PostgreSQL 18 with row-level security as a second tenancy wall, append-only evidence tables with DB triggers, mandatory idempotency middleware, spatie permission/activity-log/backup, 94 API routes that exactly match `docs/openapi.yaml`, 33 permissions with zero dead grants, 77 test files, 56 migrations, scheduled alerts and backups. Its gaps are specific (see §3), not structural.
+**Nothing else.** No prior roadmap, no prior rating doc, no DAILY_LOG conclusions reused as gospel — only what the three primary sources actually say plus what your code actually contains.
 
 ---
 
-## 2. Honest rating
+## Status ledger (updated 2 October 2026 — read this first)
 
-Scale: 10 = a clinic can rely on it today. Scores are my judgement from reading the source and docs and from running the checks below; they are not measurements.
+This document was first written from a code dump. Re-checked against the live repositories and the dev backend on 2 October 2026, **several "gaps" below were already closed** and a few statements are no longer true. The ledger is the source of truth; the phase text keeps its original wording for the reasoning, and each phase carries a `Status:` line.
 
-| Dimension | Score | Why |
+| Phase | Status | Evidence |
 |---|---|---|
-| **Feature breadth vs. the two briefs** | **8.0** | All seven MVP modules and the whole prosthetic lifecycle have screens, repositories and routes: auth, catalog, suppliers, purchase orders and partial receipts, stock movements, devices, cycles, controls, release, labels, scanner, usage, non-conformities, alerts, audit, evidence search, exports, prosthetic dashboard/cases/waiting/payment/PDF. This is the "8.6 out of 10" number, and it is a breadth number. |
-| **Architecture and code quality** | **7.5** | Clean feature folders, BLoC + repository + GetIt + Dio, interceptors for auth/retry/idempotency/errors, a typed `ApiEndpoints` contract test, 37k lines in 425 files. Several routed paths bypass it (setState plus direct repository calls instead of the blocs the tests are named after). |
-| **Write safety and offline** | **4.0** | The riskiest area. Per the audit: replays generate a *new* idempotency key on online failure (duplicate after lost response, F02); the sync worker can overlap and strands items killed mid-sync (F03); queued requests use whichever token is current (F01). Only 6 operations queue at all; every other write throws offline. Documented in OFFLINE_MATRIX; the repair is Phase 2. |
-| **Security, session and privacy** | **4.5** | Good bones (secure token storage, PII scrubbing, no leaked secrets in 55 commits, role guard). But caches, drafts and the outbox are **not scoped to the user/tenant**, so account A's pending work can be replayed under account B (F01). Local payloads are unencrypted (F15; an encrypted `secure_box.dart` is now in progress). Backend: prosthetic `practitioner_id` is validated against *all* users, not the tenant (F06, confirmed in `CreateProstheticCaseRequest.php:28`). |
-| **Clinical correctness** | **4.5** | Two P0s confirmed in code: a **passive label lookup consumes the label** (`ResolveLabelScanAction.php:63` marks it `Used` on a GET, so a viewer or a mere look burns a pouch), and editing a cycle item is delete-then-create and loses the batch link (F04). The release detail does not load the stored decision (F10). |
-| **Backend contract completeness** | **6.0** | Mobile calls `POST /v1/auth/forgot-password`, which **does not exist** (only web Fortify). No `GET locations` / `GET batches`, so a brand-new clinic **cannot receive its first delivery on mobile** (F09). No receipt-photo route, no atomic cycle-item update, no prosthetic print/export, presigned URLs point at the internal Docker host (BUG-010). |
-| **Test evidence** | **5.0** | Real and honest in places (409 replay proven live, contract tests, role-matrix test). But: LCOV line coverage was **34.5%**; **12 of 18** `integration_test` files are 0 bytes; several wire fixtures are mocked in shapes the backend does not emit; the unused-screen tests inflate the count. **Fresh run today: 488 pass, 13 fail** (sync status cubit, cycle detail screen, leak check, export download, crash scrub, error-code contract); analyzer shows 1 warning. The working tree is mid-refactor and red. |
-| **Real-device proof** | **1.0** | `DEVICE_TEST_LOG.md` has zero logged runs. One full-lifecycle run on 2026-09-24 is the only physical evidence. Nothing on iOS. Offline, kill/relaunch, reconnect and dual-client coherence are unproven end to end. |
-| **Release and operations** | **2.5** | Application ID is still `com.example.sterymed_mobile`; release signing is guarded but unconfigured; **no iOS `Podfile`**, so iOS cannot build; both release pipelines are skeletons; no TLS/domain/staging decision (backend OQ-10); production compose does not exist; restore never rehearsed end to end. |
-| **Documentation** | **6.5** | Plentiful (35+ files) but **contradictory**: `PILOT_READINESS.md` says "conditional GO", while the 1 October source audit shows 18 blockers. Cleaned on 1 October: the superseded verdict and never-filled skeleton docs were deleted. |
+| 0 Truth freeze | ✅ code done · ⏳ owner items (T0.6 email, T0.7 accounts/printer) | commit `7cd9b3b`; analyzer clean; fixtures guard tests |
+| 1 Session + storage isolation | ✅ code done · ⏳ real-device gate | commit `19d047f` + 2 Oct closing pass (PII patterns, cold-boot test, startup recovery screen) |
+| 2 Durable writes + sync | ✅ done | commits `d34bdb4`, `ac76a6f`, `4e93410`; fault-injection tests in `test/unit/storage` |
+| 3 Clinic setup, roles | ✅ done | commit `ee276a1`; role-matrix tests |
+| 4 Sterilization + labels | ✅ code + live API proof · ⏳ printer/device day | `scripts/verify_sterilization_journey.py` all PASS |
+| 5 Stock + purchasing | ✅ code + live API proof · ⏳ device run | `scripts/verify_stock_journey.py` all PASS (2 Oct); 2 Oct adds inventory counts, product code lookup, scanner product mode |
+| 6 Prosthetic | ✅ code + live API proof · ⏳ device steps (T6.6 stopwatch, T6.9 PDF opens) | `scripts/verify_prosthetic_journey.py` ALL PASS (2 Oct); `prosthetic_phase6_test`, `prosthetic_list_bloc_test`, `prosthetic_waiting_placement_screen_test` (150 cases) |
+| 7 Monitoring, UX | ✅ code · ⏳ device gate (journey 5 file opened, measured screen times) | version gate now also enforced server-side (`EnforceMinAppVersion`, `MinAppVersionTest`); `layout_resilience_test` (320x568 @130%, phone, tablet) green after fixing 6 real overflows (alerts row, login footer, info card, lock/update screens, date picker, buttons, evidence empty state) |
+| 8 Prove the system | 🟡 code side done · ⏳ device journeys (T8.2 device files, T8.3 release build, T8.7) | authorization matrix ALL PASS, BUG-026 fixed, backend route tests, anomaly report, CI coverage floors; suite 833 pass, analyzer clean |
+| 9 Release + operations | 🟡 code and dev proof done · ⏳ owner inputs (keystore, Play account, staging host/domain, Sentry projects, support owner) and phone/staging runs | `mobile-release-android.yml`, `docs/RELEASE.md`, `verify_media_links.py`, `verify_backup_restore.py`, Caddy staging stack |
+| 10 | ⏳ not started | needs the clinic |
 
-### Overall
+**Statements below that are no longer true** (kept for the audit trail):
+- "Backend has no PATCH for cycle items" (T4.1) → `PATCH /v1/cycles/{id}/items/{item}` exists and the app edits in place.
+- "Backend has no receipt-attachment endpoint" (T5.3) → `POST /v1/goods-receipts/{id}/attachments-base64` exists; the receipt photo uploads for real.
+- "Cahier lists inventaire, no backend domain" → `/v1/inventory-counts` exists and the app has the screens.
+- "Scanner resolves labels only" → scanner has a Produit mode backed by `GET /v1/lookups/code`.
+- Gap 3 (PII) and the logging gap in Part 1 → closed in Phase 1 pass.
 
-| View | Score |
-|---|---|
-| Feature completeness against the briefs | **8 / 10** |
-| **Safe for a clinic to depend on today** | **≈ 4.5 / 10** |
-| Realistic after Milestone M2 below (supervised pilot, test data) | ≈ 7.5 / 10 |
-| After M3 (clinic production) | 9+ / 10 |
-
-**One-sentence verdict:** it is a broad, well-structured app that demonstrates the whole product, but today it can still duplicate a write, replay one user's work under another, burn a clinical label by looking at it, and cannot onboard an empty clinic or recover a password, and none of that has been proven on a real phone. Nothing here needs a rewrite. It needs a sequence of repairs, then proof.
+**Decisions the owner must confirm in writing** (cannot be settled by code):
+1. *Patient identity.* The prosthetic brief §6 lists patient first and last name. The app stores a pseudonymous patient reference (ADR 0011 / BUG-008), which the Cahier §8 supports (RGPD/HDS analysis required before real patient data). Keep this unless the clinic accepts the legal gate.
+2. *Reception role.* The backend has six roles (owner, admin, stock_manager, releaser, practitioner, viewer); there is no separate "reception". Payment fields are gated by `prosthetic_payments.manage` (owner/admin). Confirm reception = admin, or request a new backend role.
+3. *iOS in the pilot?* No `Podfile`, no Mac. Android-first is the default.
+4. *Timeline.* The Cahier §9 allows 12–16 weeks; this plan is 12 weeks part-time solo.
 
 ---
 
-## 3. Requirement coverage against the two briefs
+## Part 1 — What the sources actually require (verified, not assumed)
 
-Legend: ✅ works as specified · 🟡 exists, with a blocker listed · ❌ missing.
+### The Cahier des Charges (the contract you signed)
 
-### Cahier des charges MVP (§4 mandatory modules)
+**§2 — Users.** Four named types: *Administrateur de la structure*, *Responsable de stock / assistant(e)*, *Praticien*, plus the implicit "reception" (§8, §5.3). Each action must keep author, date, hour, old/new value.
 
-| Module | Mobile requirement | Status | Blocking issue (master-plan ID) |
-|---|---|---|---|
-| Account and security | Secure login, persistent session by role | 🟡 | Session not fenced; late 401 can clear a new login (S01); no password recovery API (R05); no inactivity lock (X03) |
-| Catalog | Search, product page, quick add, 2D scan | 🟡 | Scanner resolves **labels only**, no product/batch code lookup (I01) |
-| Stock and movements | Scan in/out, quantity, reason, weak network | 🟡 | Queue unsafe under lost response (O01); more than 100 stock rows and unused locations unreachable (R03, I01) |
-| Purchasing and lots | Receipt, **proof photo**, lot/expiry, orders | 🟡 | Empty clinic cannot pick a first location (F09); no receipt photo contract (I03); lot invented from a timestamp (I02) |
-| Sterilization | Guided cycle, validation, photo/report, history | 🟡 | Item edit loses batch (C01); release decision not loaded (C02); attachments disabled in UI (BUG-001 caller never built) |
-| Labels and scan | Scan, view lot/cycle, record use | 🟡 | GET consumes label (C03); reprint can revive a used label (C04) |
-| Monitoring | Alerts, short indicators, filterable history | 🟡 | Dashboard errors shown as zeros (A01); alert resolve errors hidden (A02); no delivered notification channel (A02) |
-| **Inventory counts ("inventaire")** | Cahier lists inventories under stock manager and monitoring | ❌ | No backend domain at all (backend OQ-12). The master plan flags the decision; this roadmap makes it an explicit gate (X01) |
-| Exports CSV/PDF | Export report | 🟡 | Same-filename attachments overwrite each other in the archive (A04); filtered evidence export not wired (A03); media URLs unreachable (BUG-010) |
+**§3 — MVP limits.** Explicitly includes: **one pilot practice, one main site, simple roles, stock/orders/lots, light sterilization traceability, labels, scan, alerts, exports, web + mobile**. Explicitly *excludes*: advanced SaaS billing, marketplace, AI, complex multi-site, predictive analytics, universal compatibility, heavy customization, dozens of connectors.
 
-### Prosthetic brief (§15 acceptance criteria)
+**§4 — Mandatory MVP modules** (this is the entire scope of the pilot):
 
-| Criterion | Status | Gap |
+| Module | Web requirement | Mobile requirement |
 |---|---|---|
-| Create a complete case in under 2 minutes | 🟡 | Form exists, drafts race (P05); practitioner/lab lookups incomplete (P01); **never timed with a real user** (P06) |
-| Track status + all previous transitions | ✅ | Lifecycle and history exist; needs concurrency-safe transitions (P06) |
-| Find by patient/practitioner/lab/type/status/period, filters combine and persist | 🟡 | Filters lost on page 2 (F11, P02) |
-| Waiting-for-placement with correct elapsed days | 🟡 | Aging only over the loaded page (P02) |
-| Reception verifies deposit/balance/payment | 🟡 | French decimal input can clear money fields (P03) |
-| Dashboard cards open the filtered list | 🟡 | Drill-downs must match counts (P02, A01) |
-| Audit user + time + before/after | ✅ | History exists; immutable DB trigger missing (P06 note) |
-| Responsive web, quick mobile updates | 🟡 | Mobile fine; attachments not viewable (P04) |
-| Secure file access | 🟡 | Unrestricted URL risk on media host; presigned host wrong (BUG-010, D02) |
+| Account & security | Login, password reset, org, users, roles, permissions | Secure login, persistent session by role |
+| Catalog | Products, families, units, photos/docs, min threshold, location, supplier | Search, product page, quick add, 2D code read |
+| Stock & movements | Entries, exits, justified adjustments, simple transfers, history, stock calc | Scan in/out, quantity, reason, confirmation, weak-network mode |
+| Purchases & lots | Suppliers, order, full/partial receipt, lots, expiry dates, reminders | Receipt, proof photo, lot/expiry, order view |
+| Sterilization | Manual cycle, device/program, operator, controls, result, attachments, status | Guided cycle creation/validation, photo/report, history view |
+| Labels & scan | Unique QR/DataMatrix, template, preview, print, justified reprint | Scan a label, consult lot/cycle, record usage |
+| Monitoring | Dashboard, low-stock, near-expiry, failed cycle, inventory, journal, CSV/PDF export | Essential alerts, short indicators, filterable history |
 
-**Scope decision kept:** the app stores a pseudonymous patient *reference*, not names (ADR 0011). The PDF's name examples do not authorize adding identifiable data. This keeps the GDPR/HDS risk low and should stay.
+**§5 — Six demo journeys** (this *is* the acceptance demo):
+
+1. Create clinic + admin + assistant with different rights
+2. Create product + supplier → order → receive lot with expiry
+3. Print label → scan on mobile → record exit without double-count
+4. Create + validate sterilization cycle; keep controls, attachment, operator
+5. Trigger stock/expiry alert → consult audit → export report
+6. Same data correctly on web and mobile
+
+**§6 — Deliverables.** Product (web, Android, iOS), code (private repos, clean Git, no secrets, license), conception (parcours, wireframes, architecture, data model, OpenAPI), **quality (critical unit tests, API tests, main e2e path, anomaly report, acceptance)**, exploitation (Docker, staging, prod, CI/CD, logs, minimal monitoring, backup+restore tested), transmission (README, install, variables, deploy, demo accounts, short user guide). *"Le porteur du projet doit conserver l'accès administrateur aux dépôts, au cloud, aux domaines, aux comptes stores, à la base de données et aux sauvegardes."*
+
+**§7 — Architecture.** Mobile: **Flutter Android/iOS**, same API, camera scan, notifications, **limited local queue for weak network**. This is the only line in the Cahier about mobile architecture, and it maps *exactly* to your outbox.
+
+**§8 — Non-functional.**
+- Isolation stricte des cabinets. Permissions server-side. HTTPS. Secrets outside code. Validation. OWASP.
+- **No silent deletion of proof.** Corrections and reprints carry reason, author, history.
+- **Critical operations transactional and idempotent** — no double receipts, scans, validations.
+- **Screens under 2 seconds** on correct connection. Paginated lists.
+- Anonymized demo data. **RGPD/HDS analysis before any real patient data.**
+- Android récent, iOS récent, **two modern desktop browsers**, test matrix kept.
+
+**§9 — Timeline.** 10 weeks indicative. **"Cible, pas une promesse aveugle."** Requires two autonomous people, 20-25 h/week each, fast decisions, **frozen scope**. Otherwise 12-16 weeks **or reduce the MVP**.
+
+**§10 — Acceptance.** Complete demo journey on staging without hidden fake data. Rights tested. Web and mobile consume the same API and stay coherent after create/edit/scan/sync. Critical error scenarios handled (double-tap/scan, interrupted network, invalid data, failed print). Zero blocking or critical anomalies. **Backup and restore actually tested.** Code, access, documentation, and recorded demo handed to owner. **"Une fonctionnalité seulement visible sur une maquette ou non testée n'est pas considérée comme livrée."**
+
+### The Prosthetic Brief (a *separate* document)
+
+**§1 Main goal.** Centralize prosthetic cases, prevent forgotten tasks, provide real-time visibility, improve coordination.
+
+**§4 Target workflow.** Impression → sent to lab → received → scheduled → placed → cancelled/remade. Each status change stores date, time, user, optional note.
+
+**§5 Home dashboard.** Widgets: active cases, at lab, returned, waiting for placement, placements today/this week, cases requiring reminder, deposits/balances to pay. **UX rule: every dashboard card opens the corresponding filtered list. No dead KPI.**
+
+**§6 Create a case.** Four sections: Patient, Clinical, Laboratory & dates, Notes. **Searchable dropdowns, sensible defaults, prefilled dates.** Searchable.
+
+**§7 Case details.** Patient + practitioner, current status + full timeline, impression type + work category, lab + dates, administrative/payment block, attachments, remarks + history. Actions: Edit, Print/Export.
+
+**§8 Administrative tracking.** Remaining balance auto-recalculated. **Non-blocking warning before "Placed" if outstanding payment.** Financial fields editable by reception/authorized roles, visible to clinicians.
+
+**§9 Waiting for placement.** Auto-inclusion: `returned_from_lab` exists AND `actual_placement` empty AND status not cancelled. Columns: patient, practitioner, lab, work type, return date, planned placement, **days elapsed**, current status. **Aging levels 0-7 / 8-14 / 15+ days.** Thresholds configurable later.
+
+**§10 Search and filters.** Six filters: patient, practitioner, laboratory, work type, status, date period. **"Filters must work together and persist while the user opens a case and returns to the list."**
+
+**§11 Post-MVP roadmap.** Attachments, automatic alerts, statistics, practice software integration, mobile optimization. Explicitly *not* MVP.
+
+**§13 Backend.** REST endpoints for cases, filters, status transitions, payments, attachments, labs, dashboard counts. Never expose raw secrets, patient data or unrestricted file URLs.
+
+**§14 Mobile responsibilities.** Home compact summary, list with search+filters one-handed, detail with timeline, quick status change one-tap, attachments with capture/upload, waiting-for-placement with days elapsed, notifications later, **"at minimum preserve form content during temporary connectivity loss; avoid silent data loss."**
+
+**§15 MVP acceptance.** Create under 2 min. Track status + all transitions always visible. Find by any filter combination. Wait: auto-include with correct elapsed days. Admin: reception verifies deposit/balance/payment from case page. Dashboard: cards open correct filtered cases. Audit: every modification records user, timestamp, previous/next state. Responsive. Secure.
+
+**§16 Implementation order.** Phase 1 Core (data model, CRUD, labs, statuses, history, search, filters). Phase 2 Operations (dashboard, waiting, payments, roles, fast actions). Phase 3 Documents (photos, PDFs, slips, file storage, export). Phase 4 Automation (alerts, reminders, statistics). Phase 5 Integrations.
+
+### Your Flutter codebase — verified state
+
+**Built and structurally sound:**
+- All 8 Cahier modules have screens.
+- All 6 Cahier demo journeys have code paths.
+- Prosthetic brief Phases 1 and 2 are implemented (models, repos, list, detail, create, edit, status, waiting, dashboard, payments).
+- Auth, session, RBAC (permission-based via `RoleGuard`), theme, router, DI, shared widget kit, cursor-paginated list, outbox, sync engine, sync status pill — all present.
+- Sentry, PII scrubber, idempotency interceptor, retry interceptor, error mapper — present.
+
+**Real gaps, verified in code (not from any doc):**
+
+1. **Idempotency key duplication.** In `stock_repository.dart::_submitWrite`, `label_usage_repository.dart::recordUsage`, `cycle_repository.dart::_submitTransition`, `purchase_repository.dart::receive` — the offline path calls `generateIdempotencyKey()` twice per item. Violates Cahier §8 "opérations ... idempotentes."
+
+2. **`SyncEngine._syncOne` strands items.** Item marked `syncing`, then `remove` on success or reset to `pending` on failure. If the app is killed between the mark and the reset, the item never returns to `pending()` and is invisible forever. Violates Cahier §8 "aucune suppression silencieuse" and §7's "file locale limitée."
+
+3. **`PiiScrubber` covers 5 fields only.** `token`, `password`, `patient_id`, `practitioner_id`, `Bearer <token>`. Missing: `name`, `email`, `phone`, `reference`, `patient_reference`, `notes`, `procedure`, `description`, `administrative_comments`. And `LoggingInterceptor` calls `.toString()` on parsed `Map`s — the Dart string form is `{name: Jean}`, not `{"name":"Jean"}` — the regex never matches. Both bugs are silent. Violates Cahier §8 "confidentialité."
+
+4. **`cycle_detail_screen.dart::_editItem` does delete-then-create.** Loses `batch_id`. If the create fails, the item is gone. Violates Cahier §8 "aucune suppression silencieuse d'une preuve."
+
+5. **Two prosthetic screens have no `dispose()`:** `_LaboratoryFormSheetState` (4 controllers), `_ProstheticCaseCreateScreenState` (3 controllers). Violates nothing contractual but is a leak.
+
+6. **No release keystore**, `applicationId = com.example.sterymed_mobile`, `mobile-release-android.yml` and `mobile-release-ios.yml` are empty files. Violates Cahier §6 "compilables" and §10 "démonstration du parcours complet."
+
+7. **iOS `Podfile` missing**, iOS CI fails. Violates Cahier §6 "applications Android/iOS compilables."
+
+8. **`integration_test/` is 13 of 16 files empty.** Violates Cahier §6 "parcours end-to-end principal" and §10 "fonctionnalité ... non testée n'est pas livrée."
+
+9. **No real-device log.** `docs/DEVICE_TEST_LOG.md` has zero entries. Violates §10 by definition.
+
+10. **Test coverage floors unknown** but the rating audit says LCOV was 34.5%. Cahier §6 requires "tests unitaires critiques." Critical-path coverage on `lib/core/` and `lib/features/*/data/` is what matters.
+
+11. **No staging deployment.** Backend has a local Docker skeleton, no prod. Cahier §6 requires staging/production separated. §10 requires demo on staging.
+
+12. **Backup/restore not drilled.** Cahier §10 explicitly requires "sauvegarde et restauration ont été réellement testées."
+
+13. **`team_invite_sheet.dart` and other invite flows are not tested against the real backend.** Cahier §5.1 requires "créer ... un administrateur et un assistant avec des droits différents."
+
+14. **`goods_receipt_screen.dart` dead-ends on empty clinic.** Derives locations from `/stock-levels` — empty clinic has none. Violates Cahier §5.2 (journey 2 is literally "receive a lot").
+
+### What the sources do NOT require (drop from scope)
+
+- Complex multi-site
+- Advanced billing / SaaS subscription management
+- Marketplace
+- AI / predictive analytics
+- Universal browser/OS compatibility
+- Dozens of connectors
+- The prosthetic brief's §11 post-MVP items (statistics, automatic alerts beyond the basic, practice-software integration)
+
+### What the prosthetic brief's own §16 says about ordering
+
+The prosthetic brief explicitly separates Phase 1 (Core) from Phase 2 (Operations). Your code has both. Phase 3 (Documents) is partially built (attachments upload/delete exist). Phase 4 (Automation) is explicitly deferred. Phase 5 (Integrations) is explicitly deferred.
+
+**Conclusion:** the prosthetic module is not a "v1.1 cut." It is a *co-deliverable* with the Cahier pilot, but its own §16 says "Phases 3-5 come after." The 10-week Cahier target can't hold both at full depth, but Prosthetic Phases 1-2 are already built. Do not cut them.
 
 ---
 
-## 4. The plan in one picture
+## Part 2 — The honest current status
 
-Seven principles shape the sequence:
+Score against the sources:
 
-1. **Safety before features.** The app already has the features. Fix duplicate, wrong-actor and evidence-loss risks first (P0), then unblock journeys (P1).
-2. **Contract before client.** Every mobile workaround for a missing endpoint is deferred until the backend contract is agreed. No success-looking form pointed at an absent route.
-3. **Backend track runs in parallel from week 1.** Seven of the P0/P1 items are server defects that no mobile change can fix.
-4. **Each change ships with its regression test**, not in a final testing phase.
-5. **Prove with the exact bytes.** The release candidate APK/IPA, on the real phone, against staging with a restricted DB role, through the intended distribution channel.
-6. **Real patient data only after the legal gate.** Test data until X04 is signed off.
-7. **No ✅ without a citable artifact** (the project's existing no-fabrication rule stays).
-
-### Three milestones (so "done" is never vague)
-
-| Milestone | Meaning | Data allowed | Target |
+| Requirement | Weight | Current | Gap |
 |---|---|---|---|
-| **M1: Safe to demonstrate** | All P0 closed with regression tests; tree green; demo journey runs on a real Android phone | Fake/demo data | end of week 5 |
-| **M2: Supervised pilot** | P0 + P1 closed; all six roles verified; offline matrix proven on device; signed Android build on the owner's account; staging with TLS and restored backup | Test data in the clinic, staff watching, paper process still running in parallel | end of week 12 |
-| **M3: Clinic production** | Every gate in §9 passes on the candidate build; written acceptance by a named clinic representative; support owner named | Real patient references, after X04 | end of week 17 |
+| §4 all 8 modules have functional screens | 20% | **19/20** | Minor: receipt photo, attachments in some flows |
+| §5 six demo journeys work end-to-end | 25% | **14/25** | J2 blocked empty-clinic; J5 needs verify; J6 not proven |
+| §6 quality deliverables (tests, anomaly report, acceptance) | 15% | **7/15** | Real tests exist for many; e2e empty; acceptance not signed |
+| §6 exploitation (Docker, staging, CI/CD, backup tested) | 10% | **3/10** | No staging, no restore drill, no release pipeline |
+| §6 transmission (README, guide, demo accounts) | 5% | **4/5** | Docs exist; demo accounts; user guide skeleton |
+| §8 non-functional (isolation, idempotency, PII, no silent delete, 2s, RGPD/HDS) | 15% | **6/15** | Session, idempotency, PII, item-edit, backup all gap |
+| §10 acceptance conditions | 10% | **2/10** | Not one of the six conditions is provable today |
+| Prosthetic §15 (co-deliverable) | n/a | **~70%** | Phases 1-2 done; aging uses loaded page; filters lost on return; money parse fr; leaks |
+| **Total** | **100%** | **≈ 55%** | **Ready to demonstrate, not ready to accept** |
 
-Estimates assume what the cahier assumes: **two people (one mobile, one backend/web) at 20–25 h/week**, decisions made within days, scope frozen. If either person has less time, multiply. Phases overlap (see the Gantt below); the critical path is S → O → C → V → D → H.
+Translation: **the app demonstrates the whole product but cannot be signed off on any single §10 condition today.** You are roughly at the end of the Cahier's "étape 3 — Traçabilité" of §9, not at "étape 5 — Stabilisation."
+
+**The 10/10 roadmap is therefore not "finish building."** It is "close §10 conditions one by one and get the acceptance signed."
+
+---
+
+## Part 3 — The 10/10 roadmap
+
+Twelve phases. Each phase closes one or more §10 conditions plus the specific §4/§5/§8 requirements it serves. Each phase has a binary gate. No phase starts until the prior gate is green.
+
+**Total duration: 12 weeks part-time solo (or 8 weeks full-time solo).** This matches the Cahier §9 escape clause exactly.
 
 ```
-Week:        1   2   3   4   5   6   7   8   9  10  11  12  13  14  15  16  17
-P0 contract  ███
-P1 session       ██████
-P2 durable           ████████
-P3 setup (J)             ██████
-P4 clinical                  ██████████
-P5 inventory                         ██████████
-P6 prosthetic                    ████████
-P7 trust UX                              ██████████
-P8 proof     ·   ·   ·   ·   ░░░░░░░░░░░░░░░░░░░████████ (continuous, final weeks 11–14)
-P9 release   ░░░░ (starts wk1: signing, Mac)           ██████████
-P10 accept                                                     ██████████
-Backend track ████████████████████████████████ (F05–F07, idempotency, lookups, export, deploy)
-             |------- M1 ------|            |----- M2 -----|                  |--- M3 ---|
+Week:        1   2   3   4   5   6   7   8   9  10  11  12
+P0 truth     ███
+P1 session      ██████
+P2 sync              ████████
+P3 clinic-setup           ██████
+P4 steril+labels                ██████████
+P5 stock+purch                       ██████████
+P6 prosthetic                    ████████ (parallel to P4/P5)
+P7 monitoring                            ██████
+P8 proof                    ░░░░░░░░░░░░░░░░░░░░████████ (continuous)
+P9 release                                      ██████
+P10 accept                                              ██████
 ```
 
 ---
 
-## 5. Phase-by-phase roadmap
+### PHASE 0 — Truth freeze and green tree
 
-Task IDs refer to the master plan. For each phase: goal, what changes, first concrete steps, the proof that closes it, and the main risk.
+**Status: ✅ code · ⏳ T0.6/T0.7 are owner actions (scope email, Play account, keystore, printer sample, Sentry DSN, support channel).**
 
-### Phase 0: Freeze the truth and make validation repeatable (week 1, parallel with 1)
+**Duration: 4 days. Closes: none by itself. Unblocks everything.**
 
-**Goal.** Stop building on a moving, red tree and settle every cross-team decision.
+**Why:** you cannot prove any §10 condition from a red tree.
 
-| Step | Detail |
-|---|---|
-| 0.1 | **Get green.** The tree today has 13 failing tests and 1 analyzer warning, with ~86 modified files (many are CRLF line-ending noise; `.gitattributes` already added). Triage the 13: decide per failure whether the test or the in-progress refactor is wrong. Commit the in-progress work (secure box, queue harness, fixtures) in reviewable slices. **Never "make it pass" by resetting the queue.** (G04) |
-| 0.2 | **Fingerprint** the two checkouts, toolchain (Flutter 3.47.2, Dart ≥3.12) and staging URLs; pin them. (G02) |
-| 0.3 | **Decision workshop with the clinic owner (45 min, written outcome).** Seven decisions, each with a named owner (G01): practitioner eligibility; clinical release prerequisites (which controls must pass); DLU rule authority; **inventory count scope (X01)**; notification channel (push, email, in-app); owner/admin policy (can an admin invite an owner? last-owner guard); which connector or the documented mock. |
-| 0.4 | **Open backend tickets** (J/B) for F05, F06, F07, F17, F18, idempotency (O04), lookup endpoints (R03), atomic item update (C01), receipt photos (I03), password recovery (R05), media URL host (BUG-010). Each ticket gets acceptance text from the master plan. |
-| 0.5 | **Disposable fixtures (G03):** two tenants × six roles, empty clinic, populated clinic, > 1 page of data, all cycle/label/prosthetic states, duplicate attachment filenames. A fixture refuses to run against a database that does not carry a `TEST_ENV` marker. |
-| 0.6 | **Start long-lead items now** (they block M2/M3 and cost weeks of calendar, not effort): borrow or rent a Mac for the iOS archive; create the owner's Google Play and Apple developer accounts; generate and escrow the Android upload keystore; pick hosting and the domain; order a **label printer test sample**. |
+### Tasks
 
-**Proof.** `flutter analyze --fatal-infos` clean; `flutter test` 0 failures with the log stored; decisions document signed; fixtures re-creatable with one command.
-**Risk.** Decisions slip. Mitigation: each unresolved decision falls back to the master plan's stated safe default and is logged.
+- [ ] `T0.1` `flutter analyze --fatal-infos` → 0 issues.
+- [ ] `T0.2` `flutter test` → 100% green. Store log at `build/test_baseline.log`.
+- [ ] `T0.3` Categorize every modified file in `git status`. Commit or delete. Nothing uncommitted.
+- [ ] `T0.4` `.gitattributes` renormalization committed once.
+- [ ] `T0.5` Write `docs/DEMO_BASELINE.md`: run the six Cahier journeys manually on your dev machine. Record for each: works / broken / blocked. This is your honest starting point.
+- [ ] `T0.6` Send the scope email to the product owner. Subject: *Confirmation de périmètre et de planning — Cahier §9*. Body: quote §9 "condition de délai" verbatim, state the four Cahier roles, state that the prosthetic module is co-deliverable per its own brief §16, propose 12 weeks part-time solo, request written confirmation. **Print the reply and file it.**
+- [ ] `T0.7` Long-lead items started today:
+  - [ ] Android upload keystore generated, stored in `android/key.properties` (gitignored), backed up in a password manager
+  - [ ] Play Console account created ($25)
+  - [ ] **Confirm with owner: is iOS in pilot?** Yes → start the Apple Developer account and Mac access path now. No → proceed Android-only for pilot; iOS lands in v1.1.
+  - [ ] Label printer sample ordered (clinic's actual printer model)
+  - [ ] Sentry project DSN in hand for staging
+  - [ ] Support channel named (email alias or shared inbox)
 
-### Phase 1: Protect sessions, local data and diagnostics (weeks 1–3) — closes F01, F08, F15
+### GATE 0 — binary
 
-**Goal.** Two accounts on one phone can never see or replay each other's data; a restart never loses or exposes anything.
-
-Work order (S01 → S02 → S03 → S04 → S05 → S06):
-
-1. **Session lifecycle object** with `(environment, tenant, user, generation)`. Every dispatched request carries the generation; a response from an older generation is dropped. Logout clears local state *before* the slow server revoke. Regression test: A logs in → request in flight → logout → B logs in → A's late 401 arrives → B is still logged in (S01).
-2. **Boot that never blocks or crashes.** First frame renders without waiting for queue replay; corrupt storage becomes a recoverable "needs attention" screen. Invalid credentials vs. offline vs. server error are three different restore outcomes (S02).
-3. **Owner-scoped encrypted storage.** Finish the in-progress `SecureBox` (`lib/core/storage/secure_box.dart`): per-box AES key in secure storage, legacy plaintext boxes **quarantined, never silently wiped or assigned to the next login**, key-loss yields a recovery state. Migrate drafts, outbox and clinical caches (S03).
-4. **Typed cache keys** that include the owner; fix the `devices` key collision (device list vs. device detail model) that can throw on navigation; invalidate dashboard/list caches after confirmed writes (S04).
-5. **Structured diagnostics.** Allow-list logging; redact tokens, ids, query strings, nested payloads; normalize errors once (S05).
-6. Connectivity subscription ownership, resume check, version metadata (S06).
-
-**Proof (V03 subset).** A→logout→B with delayed requests; kill during migration; upgrade from the previous build with pending items; missing key; token never present in any captured log or Sentry event (inspect real event objects).
-**Risk.** Migration bugs destroy pending offline work. Mitigation: migration is copy-then-flush-then-verify-then-mark; plaintext is removed only after a read-back match; test against a recorded legacy box.
-
-### Phase 2: Durable writes and honest synchronization (weeks 3–6) — closes F02, F03
-
-**Goal.** For every mutation, "success" means exactly one business effect, including after crash, timeout-after-commit, double tap and reconnect.
-
-1. **One durable operation per intent, created before the first send** (O01): immutable id/key, original event time, canonical body, method/path, owner scope, schema version. Online sending and offline replay use *the same record and the same key*. Delete the interceptor behaviour that mints a fresh key on retry.
-2. **Single serialized worker** (O02) with startup recovery of items stuck in `syncing`, persisted backoff, per-resource ordering (a cycle's start must precede its complete), auth-pause when the session is invalid.
-3. **Explicit queue states** (O03): pending, sending, unknown outcome, auth-blocked, conflict, validation-failed, confirmed. Deleting an unresolved item shows a loss-aware confirmation.
-4. **Server side (B/J) (O04):** make the idempotency middleware concurrency-safe (two identical keys racing), scope the key by tenant + endpoint + body hash, and decide what happens after the 24 h replay window: an old uncertain operation shows "outcome needs checking" and is reconciled against the business record, **never blindly re-sent under a fresh key**.
-5. **Clinical time** (O05): `used_at` is captured at the moment of use, not at the moment of replay.
-6. **Truthful sync UI** (O06): counts include in-flight and blocked items; no green "synchronized" while work is unresolved. The existing sync pill is reused, not rebuilt.
-
-**Proof (V03 core).** Deterministic fault injection with real server counts: response lost after commit → one stock movement; two concurrent sends → one; kill between persist/send/ack → one; reconnect with reordered events; 401/403/409/422/429/5xx each leave a correct record and an understandable state. Assertions read **server-side counts and stock deltas**, not just the response body.
-**Risk.** Largest single change in the plan. Mitigation: ship behind the existing `OutboxOperation` API; migrate one operation type at a time starting with `stockIssue`; keep the live idempotency contract test (already passing) as a tripwire.
-
-### Phase 3: Role-correct clinic setup and complete lookups (weeks 5–8)
-
-**Goal.** An empty clinic can be provisioned on web and receive its first delivery on mobile; each of the six roles can do exactly its own work.
-
-1. **Backend lookups (R03, B):** `GET locations`, `GET batches` (complete, paginated, unused locations included), a minimal eligible-practitioner list that does **not** require the invitations permission.
-2. **Tenant-safe practitioner assignment (R02, B):** replace `Rule::exists('users','id')` with a tenant-membership + eligibility rule in create/update/usage requests. Add last-owner and self-disable guards. Test foreign, disabled and archived ids through direct API calls.
-3. **Mobile consumption (R03/R04):** replace the "derive pickers from the first stock page" mitigation (BUG-002/003) with real lookups; async pickers; archived selections remain visible; nullable PATCH clears; locale-safe validation.
-4. **Account recovery (R05, J):** choose one of two designs and finish it. (a) Add `POST /v1/auth/forgot-password` and `/reset-password` that reuse Fortify's broker, with a deep link back into the app; or (b) open the existing web recovery page and return to login. Do not ship the current form (it calls a route that does not exist).
-5. **Permissions audit (R01):** every routed screen and action against the six-role table, including deep links, camera use, exports, and mixed clinical/payment prosthetic patches (send only the authorized fields).
-
-**Proof.** The empty-clinic fixture becomes a standing acceptance test. `V01` matrix: six roles × (UI, direct route, direct API, permission-changed-mid-session).
-**Risk.** Role names or grants drift between seeder and deployed tenants. Mitigation: verify real `/me` responses on staging; add a reseed step to deployment.
-
-### Phase 4: Finish sterilization, label use and traceability (weeks 6–10) — closes F04, F05, F10
-
-**Goal.** The full chain *prepare → load → controls → complete → submit → release → print → scan → patient use → evidence* is correct with server read-back.
-
-1. **Passive vs. active label lookup (C03, B/J).** Split `GET /labels/{code}` (pure read, safe for viewers and incident selection) from an explicit `POST …/use` command. Remove the `Used`/`Expired` mutation from the GET path. This is the highest-value single backend change in the plan.
-2. **Reprint rules (C04).** A reprint requires a reason, increments the counter, and **cannot move a Used/Expired/Recalled label back to Printed**. Render the selected format; validate DataMatrix and QR on the real printer and a real reader.
-3. **Cycle items (C01).** Add `PATCH /cycles/{id}/items/{item}` (atomic, preserves item id and batch id, only in an editable state), or restrict editing explicitly. Delete-then-create is removed.
-4. **Release evidence (C02).** Load `GET /cycles/{id}/release`; show decision, reason, actor, time; per-section evidence states ("could not load" is never rendered as "no evidence"); full image/PDF viewer; releaser can read what they must sign.
-5. **Guided creation (C05)** filtered to active devices/programs belonging together (server validates that the program belongs to the device); concurrency recheck under lock before start/release.
-6. **Scanner robustness (C06).** Camera permission and resume, manual fallback, one lookup per scan intent, a network error is never shown as "unsafe label", usage history failure never says "no usage".
-7. **Non-conformities (C07):** searchable subjects, resolution, recall handoff.
-8. **Attachments (BUG-001 caller).** Build the missing mobile caller for the working base64 endpoint with progress and retry; or keep the screen disabled and drop it from M2. Decision logged.
-
-**Proof.** Journey `J-STERIL`: two roles, real device, real printed label, scan, usage, evidence export; then the negative set: rejected cycle (no labels), recalled label (410 + audit), expired label, used label, duplicate use, viewer scan (no state change).
-**Risk.** Clinical rule ambiguity. Mitigation: decisions from Phase 0; do not invent regulatory durations.
-
-### Phase 5: Complete inventory and purchasing (weeks 8–12)
-
-**Goal.** An empty clinic orders, receives (partially, then fully), scans, moves and consumes stock with correct lots and no duplicate deltas.
-
-1. **Scan modes (I01):** product/batch code lookup endpoint (agreed in Phase 0) and scanner mode switch (label / product); constrain source location + batch + available quantity; valid transfer destinations only.
-2. **Receipt validation (I02):** positive quantities, remaining quantity, locale prices, a *manufacturer* lot and expiry captured from the user, never a timestamp-invented lot.
-3. **Receipt photo (I03):** backend route + mobile capture/upload with progress and retry; define the case where the receipt commits but the photo upload fails (the receipt is not rolled back; the missing proof is a visible task).
-4. **Draft order edit/cancel, receipt history, supplier detail (I04).**
-5. **Stock correctness under concurrency (I05):** expired/recalled/insufficient stock; two operators; retries; pending change shown separately from confirmed balance; archived site/location containing stock must transfer or block.
-6. **X01, inventory counts** if the clinic confirms it is required for the pilot: design the count session (open, count lines, close, generate Adjustment movements through the existing ledger action) as a backend-first feature; otherwise record the exclusion in the written acceptance so the cahier line is not silently dropped.
-
-**Proof.** `J-STOCK` journey with server read-back of ledger deltas; partial receipt then completion; lost response mid-receipt → one movement.
-
-### Phase 6: Prosthetic work (weeks 6–9, runs in parallel with Phase 4)
-
-**Goal.** The prosthetic acceptance criteria pass with the real team.
-
-P01 tenant-valid lookups; P02 filters preserved across pagination/refresh/back and race-safe, KPI drill-downs equal their counts, aging uses the server's agreed date/timezone over the full result; P03 French decimals, non-negative amounts, never turn malformed input into a null PATCH, non-blocking warning before "Placed"; P04 open/download attachments, camera/gallery/document, expired URL recovery, PDFs that paginate; P05 durable drafts including dates/selectors, awaited save-submit-clear, stale id validation; P06 lifecycle with concurrency-safe transitions plus the append-only DB trigger for history.
-
-**Proof.** A real receptionist and a real practitioner create a case in under two minutes (stopwatch recorded), move it through impression → sent → received → scheduled → placed, with a payment outstanding warning and a cancel/restart, and find it with combined filters.
-
-### Phase 7: Trustworthy monitoring, records and everyday UX (weeks 9–13)
-
-A01 dashboard counts that distinguish **unavailable / stale / zero**; A02 alert resolve with per-id state and code-specific errors, plus the **core notification channel with delivery proof** (decision from Phase 0); A03 audit/evidence search without first-load failures, with the filtered export wired; A04 export archives with unique paths and manifest/checksum (fixes F07), failure and expiry handling; A05 shared list/search semantics, small screens, large text; A06 connector or labeled mock, accurate About/privacy/help text.
-
-**X02, minimum-version gate (new, small).** `GET /v1/me` or a header returns `min_supported_app_version`; the app shows a blocking "update required" screen when below it. Without this, a backend contract fix can strand clinics on old builds.
-**X03, inactivity lock (new, small).** After N minutes in the background, require device biometrics/PIN before the session is shown again; hide screens in the app switcher. A shared tablet in a surgery needs this more than most apps.
-**X05, production telemetry.** Sentry DSN per environment, release/dist upload, PII scrub test on real event objects, error budget alert to the support owner.
-
-### Phase 8: Prove the whole system (continuous; formal run weeks 11–14)
-
-| ID | Deliverable |
-|---|---|
-| V01 | Six roles × two tenants × direct-API authorization matrix |
-| V02 | **Fill the 12 empty `integration_test` files** with real journeys (scan/use, stock, receipt, conflict, offline/restart, alert, prosthetic lifecycle, waiting placement), each on isolated fixtures with server read-back |
-| V03 | Fault injection suite (response lost, concurrent sends, kill points, stale 401, permission change, migration) |
-| V04 | Backend regression tests: prosthetic/laboratory routes, label transitions, export filename collisions, restricted-role jobs, deployment config; a missing contract snapshot must **fail** CI, not skip |
-| V05 | CI gates: analyze, unit/widget/contract, **changed-code coverage threshold**, web checks, reproducible build. Raise whole-repo line coverage from 34.5% to ≥ 60% on `lib/core` and ≥ 50% overall as a floor |
-
-**Rule:** a test that is empty, skipped, mocked in a wire shape the server does not emit, or aimed at an unrouted screen does not count.
-
-### Phase 9: Release artifacts and operations (starts week 1, completes weeks 13–16)
-
-1. **Identity and signing (D01).** Replace `com.example.sterymed_mobile` with the owned application id; Android upload key + Play App Signing; iOS bundle id, **create the missing `ios/Podfile`**, signing, archive; version from a release pipeline. Debug-signed APKs must not leave the building.
-2. **Hosting and TLS (D04).** Decide platform (OQ-10), terminate TLS in front of FrankenPHP, production compose, secrets from a manager, separate staging, migration role set up on a **fresh** deployment, Docker context excludes `.env`.
-3. **Media (D02).** Presigned URLs must resolve to a public host. Remove the `minio:9000` rewrite hack from the production path once fixed.
-4. **Physical matrix (D03).** At least: one recent mid-range Android, one small-screen Android, one tablet, one iPhone; fresh install and upgrade with a pending queue; large text; 3G/flaky Wi-Fi profile; **measure** the "common screens under 2 seconds" requirement with a written device/network profile.
-5. **Printer and scanner** (D02): the real clinic label printer and a real 2D scanner/phone camera under surgery lighting.
-6. **Operations (D04/D05).** Backup restore rehearsed end to end (database and media), rollback rehearsed with realistic alert history, queue and idempotency store durability across Redis restart, monitoring on errors/queues/certificates, support owner and runbook.
-7. **Store and distribution.** Play internal-testing track and TestFlight for the pilot; no public listing until after M3.
-
-### Phase 10: Clinic acceptance and handoff (weeks 15–17 and the pilot)
-
-H01 clinic staff run the demo on the **candidate build** (the cahier §5 journey: create clinic and users → order/receive lot with expiry → print/scan/use without double counting → cycle with controls and attachment → alert → audit → export → same data on web and mobile); H02 triage — zero open critical/high, no blocked required journey, no record loss/duplication/wrong-tenant attribution; H03 written acceptance naming build, backend deployment, devices, printer, roles, evidence, known limits, plus French user guide, runbook, backup/restore, release and support documents and all credentials transferred to the owner; H04 rollout under a named support owner, daily inspection of sync and failed jobs for the first two weeks, practiced rollback.
+- [ ] Analyzer clean, test suite green, tree committed
+- [ ] `docs/DEMO_BASELINE.md` written
+- [ ] Scope email sent, response filed
+- [ ] Keystore + Play + printer sample started
+- [ ] iOS in-scope decision recorded in writing
+- [ ] Sentry DSN + support channel named
 
 ---
 
-## 6. What was **not** in the master plan and is added here
+### PHASE 1 — Session safety and local storage isolation
 
-These are proposals; each needs an owner's yes/no in Phase 0.
+**Status: ✅ code complete 2 Oct 2026. Open: the real-device gate items (A→logout→B on a phone, no unencrypted box on disk) — no phone was attached; run per `docs/DEVICE_TEST_LOG.md`.**
 
-| ID | Item | Why |
-|---|---|---|
-| X01 | **Inventory count (inventaire)** decision and, if required, a backend-first implementation | The cahier lists inventories for the stock manager and under monitoring. The backend has no such domain (OQ-12). Either build it or record the exclusion in writing. |
-| X02 | **Minimum supported app version gate** | Lets the server retire a bad build and prevents silent contract drift between app and API. |
-| X03 | **Inactivity lock + app-switcher privacy** | Shared clinical devices hold patient references and clinical records. |
-| X04 | **Legal gate: GDPR/HDS analysis, hosting location, data-processing agreement, retention, device-loss procedure** | The cahier forbids real patient data before this is done. HDS-certified hosting may change the platform choice in D04, so decide *before* paying for infrastructure. |
-| X05 | **Production telemetry and alert routing** | Without it a clinic's failure is learned from a phone call. |
-| X06 | **Staged rollout and rollback of the app** | Play staged percentage + TestFlight groups; keep the previous signed build installable. |
+**Duration: 6 days. Closes: §8 "isolation stricte des cabinets" + §8 "confidentialité" for local data.**
 
----
+**Why:** §8 requires strict cabinet isolation and RGPD-appropriate handling. Two accounts on one clinic device today can see each other's drafts and replay each other's writes.
 
-## 7. Parallel tracks and ownership
+### Tasks
 
-| Track | Owner | Weeks | Content |
-|---|---|---|---|
-| Mobile core | M | 1–8 | Phases 1, 2, mobile half of 3 |
-| Backend safety | B | 1–8 | F05/F06/F07, idempotency, lookups, atomic item update, label split, export collision, deployment defects |
-| Mobile features | M | 6–13 | Phases 4, 5, 6, 7 on top of the finished contract |
-| Joint proof | J | 5–14 | Fixtures, V01–V05, device runs |
-| Release ops | J | 1–16 | Signing, Mac/iOS, hosting, restore, printer |
-| Clinic | C | 1, 8, 12, 15–17 | Decisions, scheduled demo rehearsals (weeks 8 and 12), acceptance |
+- [ ] `T1.1` `lib/core/session/session_generation.dart`: `(environment, tenantId, userId, generation)`.
+  - [ ] Stamp generation on every request.
+  - [ ] Drop responses from older generations.
+- [ ] `T1.2` `lib/core/storage/secure_box.dart`: per-owner AES-256 Hive box.
+  - [ ] Keys in `flutter_secure_storage`, derived from `(environment, tenantId, userId)`.
+  - [ ] `KeyLossException` → "Storage needs attention" screen, never silent wipe.
+- [ ] `T1.3` Migrate `steriymed.outbox`, `steriymed.kv`, `steriymed.cycle_notes` to per-user boxes.
+  - [ ] Migration = read → write to encrypted → verify byte-for-byte → delete plaintext.
+  - [ ] Failure → quarantine under `quarantine:{timestamp}`, surface recovery screen. Never assign to the next login.
+- [ ] `T1.4` Non-blocking boot: rewrite `bootstrap.dart` so the first frame renders **before** any network call, queue read, or Sentry init.
+  - [ ] Corrupt Hive → renders "Storage needs attention", not a crash.
+- [ ] `T1.5` Structured allow-listed logger.
+  - [ ] `Logger.info(event, fields: {...})` with an allow-list per event.
+  - [ ] `LoggingInterceptor` uses it, never `response.data.toString()`.
+  - [ ] `CrashReporter.beforeSend` walks `event.exceptions[].value` and `event.extra`, scrubs by key name.
+  - [ ] Extend `PiiScrubber` patterns to `name`, `email`, `phone`, `reference`, `patient_reference`, `notes`, `procedure`, `description`, `administrative_comments`.
+- [ ] `T1.6` `ConnectivityService`: hold upstream subscription, cancel on dispose.
+- [ ] `T1.7` Wire `AppLifecycleObserver` → on resume: refresh `/me`, flush outbox.
 
-Two **clinic rehearsals** (week 8 on M1, week 12 on M2) are deliberate: the clinic sees working software early, and the acceptance in week 17 contains no surprises.
+### Tests
 
----
+- [ ] A logs in → request in flight → A logs out → B logs in → A's late 401 arrives → B still logged in.
+- [ ] Upgrade from current build with pending outbox items → items migrate to current user, all preserved.
+- [ ] Kill during storage migration → idempotent, restarts clean, no data loss.
+- [ ] Cold boot with 500-item outbox → first frame < 500 ms.
+- [ ] Log a request containing a patient name → Sentry event shows `[REDACTED]`.
+- [ ] Log an error whose message embeds a patient reference → Sentry event shows `[REDACTED]`.
 
-## 8. Risk register (top ten)
+### GATE 1 — binary
 
-| # | Risk | Likelihood | Impact | Mitigation |
-|---|---|---|---|---|
-| 1 | Storage migration loses queued offline work | Medium | **Critical** | Copy-flush-verify-mark; quarantine, never wipe; test on recorded legacy data |
-| 2 | Backend and mobile ship incompatible contracts | High | High | Contract snapshot test fails CI; X02 version gate; changes agreed in the matrix first |
-| 3 | Clinical rules undefined at build time | Medium | High | Phase 0 decisions with named owner; safe defaults logged; no invented regulatory durations |
-| 4 | iOS cannot be built or distributed in time | **High** | High | Mac and Apple account in week 1; Android pilot first, iOS a named later milestone if needed |
-| 5 | Scope creep (dark mode, AI, billing, analytics) | High | Medium | Frozen by the cahier §3; additions only through the decisions log |
-| 6 | Presigned media URLs unreachable from phones | **Certain** until fixed | High | BUG-010 fix is a Phase 0 ticket; verified on physical devices (D02) |
-| 7 | Real patient data enters before legal clearance | Low | **Critical** | X04 gate checked in H01; demo data only before it |
-| 8 | Printer/scanner mismatch discovered late | Medium | High | Printer sample ordered in week 1; tested at M1 rehearsal |
-| 9 | Two-person capacity (20–25 h/week) shorter than assumed | Medium | High | Estimates scale linearly; M2 is the guard rail: a safe supervised pilot, not a feature race |
-| 10 | Green tests mask real failures (mocked shapes, empty journey files, 34.5% coverage) | High | High | V05 rule: only routed, server-read-back, fixture-isolated tests count |
-
----
-
-## 9. Definition of done (clinic-safe)
-
-All must be true on the **exact release candidate**, with the evidence stored in the ledger (master plan §8):
-
-1. Every required journey in §3 maps to a reachable screen and an executed test or recorded device run.
-2. All six roles and both tenant boundaries pass positive **and** negative checks, through UI and direct API.
-3. A write interrupted at any point (kill, timeout after commit, offline, double tap, account switch, upgrade) produces **exactly one** correct record and a truthful screen.
-4. Clinical evidence (cycle, release, label, usage, movement, audit) can be read, linked, exported and recovered with original identities and times; no passive read changes clinical state.
-5. A new clinic can be provisioned and receive its first delivery without a database edit.
-6. Signed Android (and iOS, if in scope) builds from the owner's accounts install, upgrade and report errors to monitoring; media opens on a real phone.
-7. Backup **restore** and rollback have been performed on staging; TLS, queues, scheduled jobs and monitoring are live; a support owner is named.
-8. The GDPR/HDS gate (X04) is signed off before real patient references enter.
-9. Zero open P0/P1; each lower-severity limitation has an owner, a workaround and the clinic's written approval.
-10. A named clinic representative signs the acceptance of this build.
+- [ ] A→logout→B regression passes **on a real device**
+- [ ] Kill during migration → no data loss, no crash
+- [ ] Cold boot with 500-item outbox → first frame < 500 ms
+- [ ] No unencrypted box on disk
+- [ ] Patient name never appears in any log or Sentry event
+- [ ] All Phase 1 tests green
 
 ---
 
-## 10. What to do on Monday (the first five working days)
+### PHASE 2 — Durable writes and honest sync
 
-1. **Day 1.** Triage the 13 failing tests and the one analyzer warning; commit the in-progress Phase 0/1 work (secure box, queue harness, fixtures, release-config verifier) in small commits, tests green.
-2. **Day 1.** Send the Phase 0 decision list (§5, step 0.3) to the clinic owner and book the 45-minute session.
-3. **Day 2.** Open the backend tickets (step 0.4), starting with the three P0 server defects: label GET mutation (F05), tenant-unsafe practitioner (F06), export filename collision (F07). These are small, high-value and independent of any mobile work.
-4. **Day 2–3.** Begin S01 (session generation) with the A→logout→B regression test written *first*.
-5. **Day 3–5.** In parallel: order a Mac/iOS access, create the store accounts, generate and escrow the Android upload key, pick the printer sample, choose hosting after the HDS question (X04) is asked.
+**Status: ✅ done.**
 
-By the end of week 1 the tree is green and decided; by the end of week 5 the app cannot lose, duplicate or mis-attribute a clinical write (M1); by week 12 a supervised pilot can run with test data in the real surgery (M2); by week 17 the clinic accepts it in writing (M3).
+**Duration: 8 days. Closes: §8 "opérations critiques transactionnelles et idempotentes" + §7 "file locale limitée."**
+
+**Why:** §8 is explicit. A double receipt, double scan, or a lost validation is a contract violation.
+
+### Tasks
+
+- [ ] `T2.1` Fix the double-key bug in four repositories (`stock_repository`, `label_usage_repository`, `cycle_repository`, `purchase_repository`). One key per user intent, generated before the first send, reused on retry, offline queue, and replay.
+- [ ] `T2.2` Rebuild `OutboxItem`:
+  - [ ] `id`, `idempotencyKey` (immutable, generated once).
+  - [ ] `method`, `path`, `payload`, `originalEventAt`, `ownerGeneration`, `schemaVersion`, `attemptCount`, `nextAttemptAt`, `status`, `lastError`, `lastRequestId`.
+- [ ] `T2.3` Rebuild `SyncEngine`:
+  - [ ] Single-flight `flush()` via `Completer`.
+  - [ ] Startup recovery: items stuck in `syncing` → reset to `pending`, same key.
+  - [ ] Auth pause: 401 → stop flush, don't burn retries.
+  - [ ] Ordering: `createdAt` plus dependency chain (`cycles/{id}/start` before `cycles/{id}/complete`).
+  - [ ] Persisted backoff per item.
+  - [ ] Explicit states: `pending`, `sending`, `confirmed`, `unknown_outcome`, `auth_blocked`, `conflict`, `validation_failed`, `manual_review`.
+  - [ ] `unknown_outcome` **never auto-retries with a fresh key.** Reconcile against the business record first (fetch the resource; if the effect is present, mark confirmed; if absent, resend with the original key).
+- [ ] `T2.4` Truthful sync UI: `pendingCount = pending + sending + auth_blocked`; `manualReviewCount = manual_review + conflict + validation_failed`. Pill always visible.
+- [ ] `T2.5` `used_at` at clinical moment: capture `DateTime.now()` on submit in `LabelUsageFormScreen`, pass through the whole chain.
+
+### Tests (fault injection with server-side readback)
+
+- [ ] Response lost after commit → replay → exactly one business row.
+- [ ] Timeout after commit → replay → exactly one business row.
+- [ ] Kill between persist and send → restart → recovered → exactly one row.
+- [ ] Kill between send and ack → restart → recovered → exactly one row.
+- [ ] Two flushes racing → one send.
+- [ ] 401 during flush → pause → re-login → resume → exactly one row.
+- [ ] Offline usage form → kill → restore → submit → sync → `used_at` preserves original event time.
+
+### GATE 2 — binary
+
+- [ ] Every fault-injection test passes with server-side row-count assertion
+- [ ] Sync pill never green while items pending or in manual review
+- [ ] `used_at` preserved across offline replay
+- [ ] All Phase 2 tests green
+
+---
+
+### PHASE 3 — Clinic setup and empty-clinic bootstrap
+
+**Status: ✅ done.**
+
+**Duration: 6 days. Closes: §5.1 (create clinic + users with rights) + §5.2 (order + receive lot).**
+
+**Why:** the current goods-receipt screen derives locations from `/stock-levels`. Empty clinic → dead end. Cahier §5.2 is literally "receive a lot with expiry."
+
+### Tasks
+
+- [ ] `T3.1` Goods receipt empty-clinic handling: when no locations exist, show French card "Créez un emplacement sur le web" with a link to the web admin URL. Never dead-end.
+- [ ] `T3.2` Same handling on `stock_issue_screen`, `stock_adjust_screen`, `stock_transfer_screen`. Card already exists — extend to goods receipt.
+- [ ] `T3.3` Team roster: `TeamRepository.practitioners()` filters `active && role ∈ {owner, admin, practitioner}`.
+- [ ] `T3.4` Role matrix sweep: for every screen listed below, verify in-screen actions are gated per Cahier §2 (Administrateur, Responsable de stock, Praticien, Reception) and per Cahier §4 module requirements:
+  - [ ] `label_detail_screen` → Enregistrer utilisation → `usages.manage`
+  - [ ] `purchase_order_list_screen` → Nouvelle commande → `purchasing.manage`
+  - [ ] `purchase_order_detail_screen` → Mark ordered, Recevoir → `purchasing.manage`
+  - [ ] `stock_level_list_screen` → Actions rapides → `inventory.manage`
+  - [ ] `alert_list_screen` → Marquer comme résolu → `alerts.manage`
+  - [ ] `cycle_list_screen` → Nouveau cycle → `cycles.manage`
+  - [ ] `dlu_rules_screen` → Create/edit/delete → `labels.manage`
+  - [ ] `team_list_screen` → Invite/disable → `invitations.create` / `memberships.disable`
+  - [ ] `prosthetic_case_detail_screen` → clinical vs payment split
+  - [ ] `device_detail_screen` → all actions
+- [ ] `T3.5` Rule: hide the control, never just disable it. A user must not see a button that 403s.
+- [ ] `T3.6` Password recovery: backend has no `POST /v1/auth/forgot-password`. Ship French message with support email + web reset URL. Never a silent-fail form.
+- [ ] `T3.7` `rbac_role_matrix_test.dart` covers every Cahier role × every screen with in-screen actions.
+
+### Tests
+
+- [ ] Empty clinic → goods receipt → CTA visible → tap opens web admin.
+- [ ] Disabled practitioner not selectable in any picker.
+- [ ] Archived laboratory selectable in edit with "(archivé)".
+- [ ] Role matrix green for all four Cahier roles × all screens with in-screen actions.
+
+### GATE 3 — binary
+
+- [ ] Empty clinic can receive its first stock (or see honest CTA to web)
+- [ ] Disabled practitioner not selectable anywhere
+- [ ] Role matrix covers all four Cahier roles × all screens
+- [ ] Forgot-password screen calls no missing endpoint
+- [ ] All Phase 3 tests green
+
+---
+
+### PHASE 4 — Sterilization + labels end-to-end
+
+**Status: ✅ code + live API proof. Open: T4.8 printer/scanner day on a real device.**
+
+**Duration: 10 days. Closes: §5.3 (print, scan, record use without double-count) + §5.4 (cycle with controls and attachment) + §4 sterilization + label modules.**
+
+**Why:** this is the clinical heart of the Cahier and the two demo journeys that carry the safety risk.
+
+### Tasks
+
+- [x] `T4.1` Cycle item edit — **done differently**: the backend now has `PATCH /cycles/{id}/items/{item}` (atomic, keeps item id, position and batch link; refused with `CYCLE_LOAD_LOCKED` once the cycle left draft). The app edits in place; delete-then-create is gone. Proof: step 5 of `verify_sterilization_journey.py`.
+- [ ] `T4.2` Release decision readable:
+  - [ ] `CycleDetailBloc._onLoad` calls `GET /cycles/{id}/release` when status is `released` or `rejected`.
+  - [ ] Release card always rendered for those statuses with decision, reason, actor, timestamp.
+- [ ] `T4.3` Attachment viewer:
+  - [ ] `CycleDetailAttachmentTile` `onTap` → `ImagePreviewDialog` (images) or `OpenFilex.open` (PDFs).
+  - [ ] Actual image loads via `MediaUrl.resolve(...)`, not placeholder.
+- [ ] `T4.4` Scan → detail:
+  - [ ] `ScannerBloc` calls `GET /labels/{code}` **exactly once per intent**.
+  - [ ] Result stored on bloc, reused by detail (no re-fetch on navigation).
+  - [ ] `canRecordUsage => status == used`, matching the real backend (`LABEL_NOT_SCANNED` otherwise).
+- [ ] `T4.5` `used_at` captured at clinical moment (verified again in Phase 2's test).
+- [ ] `T4.6` Evidence dossier:
+  - [ ] Wire `GET /labels/{label}/usage/dossier` to an "Exporter PDF" button on label detail.
+  - [ ] Save PDF → `OpenFilex.open`.
+- [ ] `T4.7` Cycle labels generation:
+  - [ ] Verify `POST /cycles/{id}/labels` is called only for `status == released`.
+  - [ ] Handle `CYCLE_LABELS_ALREADY_GENERATED` with a clear French message.
+- [ ] `T4.8` Real-device scanner day:
+  - [ ] Print labels from the actual clinic printer.
+  - [ ] Test at 5, 10, 20, 30, 50 cm.
+  - [ ] Test at 0°, 45°, 90°.
+  - [ ] Low light.
+  - [ ] Damaged and wrinkled labels.
+  - [ ] Screen glare.
+  - [ ] Both QR and DataMatrix.
+  - [ ] Log every result in `docs/DEVICE_TEST_LOG.md`.
+  - [ ] Fix every failure.
+
+### Tests
+
+- [ ] Scan `created` label → detail says "imprimer d'abord", no CTA.
+- [ ] Scan `printed` label → CTA enabled → usage form → submit → server records with correct `used_at`.
+- [ ] Scan `used` label → detail says "déjà utilisé" with usage history.
+- [ ] Scan `recalled` label → 410 → `LabelBlockedScreen`.
+- [ ] Double scan within 400 ms → second is blocked.
+- [ ] Load released cycle → release card shows decision and actor.
+- [ ] Tap image attachment → full-screen viewer.
+- [ ] Tap PDF attachment → device PDF viewer.
+- [ ] Exporter PDF on label detail → file opens.
+- [ ] Cycle lifecycle end-to-end on device (create → start → complete → submit → release).
+
+### GATE 4 — binary
+
+- [ ] Cycle item edit doesn't lose `batch_id` (or refuses and explains)
+- [ ] Release decision readable on every released/rejected cycle
+- [ ] Attachments open in real viewer on device
+- [ ] Scan → detail is one network call; blocked labels go to `LabelBlockedScreen`
+- [ ] `used_at` preserved across replay
+- [ ] Evidence dossier export works end-to-end on device
+- [ ] Scanner proves correct on a real device with real printed labels
+- [ ] Cycle lifecycle e2e passes on a real device
+- [ ] All Phase 4 tests green
+
+---
+
+### PHASE 5 — Stock and purchasing complete
+
+**Status: ✅ code + live API proof (`verify_stock_journey.py`). Open: device run, T5.6 two-device concurrency on phones (server side proven: second issue refused 409).**
+
+**Duration: 10 days. Closes: §5.2 (partial receipt, lot, expiry) + §4 stock + purchases + lots modules.**
+
+### Tasks
+
+- [x] `T5.1` French decimal parsing (`lib/core/utils/decimal_input.dart`, tested):
+  - [ ] `purchase_order_create_sheet.dart` and `goods_receipt_screen.dart`: parse via `NumberFormat.locale('fr_FR').parse(text)`.
+  - [ ] Reject negative/zero in validators.
+- [x] `T5.2` Receipt validation (`ReceiptLineDraft`, tested):
+  - [ ] Quantity: positive, ≤ remaining.
+  - [ ] Batch number: required, min 2 chars.
+  - [ ] Expiry date: required for consumables, must be in the future.
+  - [ ] Discrepancy reason: required if quantity < ordered.
+- [x] `T5.3` Receipt photo — **done differently**: the backend has `POST /goods-receipts/{id}/attachments-base64`. The receipt is recorded first; the photo is sent right after; if that fails the stock stays correct and the screen says the proof is still missing (retry from receipt history). No "local only" fiction needed.
+- [ ] `T5.4` Stock movements already queue via outbox — verify in Phase 2's fault-injection suite.
+- [ ] `T5.5` Empty-location limitation on stock screens: keep the empty-state card, add text "Certains emplacements inutilisés n'apparaissent pas. Contactez votre administrateur."
+- [ ] `T5.6` Two-device concurrency: script two clients issuing the same batch simultaneously. Verify server rejects second → app surfaces error correctly.
+
+### Tests
+
+- [ ] `12,50` → 12.50 sent. `-5` → validation error.
+- [ ] Zero quantity on receipt → error, no submit.
+- [ ] Empty batch number → error.
+- [ ] Past expiry date → error.
+- [ ] Two-device concurrent issue → second receives server error, app displays it.
+- [ ] Full purchase journey on device: order → partial receipt → final receipt → stock delta correct.
+
+### GATE 5 — binary
+
+- [ ] French decimal works for prices
+- [ ] Receipt validation rejects zero/negative/empty
+- [ ] Receipt photo is honest about local-only
+- [ ] Stock deltas after issue/adjust/transfer are correct server-side
+- [ ] Two-device concurrency produces correct error
+- [ ] Real-device run: order → partial receipt → issue → transfer → all verified on web
+- [ ] All Phase 5 tests green
+
+---
+
+### PHASE 6 — Prosthetic workflow complete (parallel to P4/P5)
+
+**Duration: 8 days. Closes: Prosthetic Brief §15 MVP acceptance.**
+
+**Why:** the prosthetic brief is a co-deliverable. Its §16 Phase 1 (Core) and Phase 2 (Operations) are what the pilot needs. Phases 3-5 remain post-pilot.
+
+### Tasks
+
+- [x] `T6.1` Controllers disposed in `_LaboratoryFormSheetState` and `_ProstheticCaseCreateScreenState` (verified 2 Oct; `leak_check_test.dart` guards it).
+- [x] `T6.2` Filters persist (Brief §10: "filters must work together and persist while the user opens a case and returns"): **(done: `prosthetic_list_bloc_test`, race-safe generation counter)**
+  - [ ] The six filters (patient reference, practitioner, laboratory, work type, status, period) live in `ProstheticCaseListBloc` state, survive page 2, refresh, open-case-and-back, and a dashboard drill-down pre-fills them.
+  - [ ] A late response from an old filter set never overwrites a newer one (race-safe).
+- [x] `T6.3` Dashboard cards (Brief §5 "no dead KPI card"): each of the seven widgets opens the list pre-filtered, and the list's total equals the card's number. **(done: `prosthetic_phase6_test` dashboard group; live script step 11 = all seven cards equal their list total)**
+- [x] `T6.4` Waiting for placement (Brief §9): inclusion rule computed by the server over the **whole** result, not the loaded page; days elapsed from the server date; aging 0–7 / 8–14 / 15+; quick actions schedule, note, open. **(done: `prosthetic_waiting_placement_screen_test` 150 cases; live script step 12)**
+- [x] `T6.5` Payment block (Brief §8): French decimals (`decimal_input.dart`), non-negative, remaining balance recalculated live, malformed input never becomes a null PATCH, non-blocking warning before "Placed" when a balance is outstanding. Payment fields only for `prosthetic_payments.manage`; clinicians read them. **(done: `prosthetic_phase6_test` payment group; live script step 10)**
+- [ ] `T6.6` Create in under 2 minutes (Brief §15): searchable practitioner and laboratory pickers (active only), prefilled impression date, draft survives kill (durable, awaited save/clear). **Time it with a stopwatch on a phone and record it in `DEVICE_TEST_LOG.md`.** **(code + draft tests done; the phone stopwatch run is still owed)**
+- [x] `T6.7` Status lifecycle: every transition stores user, time, note; critical transitions (Cancelled, Placed) ask for confirmation; server rejects invalid transitions and the app shows the French reason; history always visible. **(done: `prosthetic_status_flow_test`, `prosthetic_phase6_test`; live script steps 4-9)**
+- [x] `T6.8` Attachments (Brief §16 phase 3, light): capture or pick, upload with progress and a clear retry state, open image/PDF; expired URL recovers by re-fetching. **(done in code: progress + Réessayer + expired-URL reload; capture needs the device run)**
+- [ ] `T6.9` Print/Export (Brief §7): PDF of the case from the detail screen (server PDF exists); opens on device. **(PDF is built on the phone, `prosthetic_case_pdf_test`; opening it on a device is still owed)**
+- [x] `T6.10` Roles: `prosthetic_cases.view` everyone; `.manage` owner/admin/practitioner; payments owner/admin. Hidden, not disabled (T3.5). **(done: `prosthetic_phase6_test` roles group; live script read-only member)**
+
+### Tests
+
+- [ ] Filters survive: apply 3 filters → open case → back → same list, same filters.
+- [ ] Card count equals filtered list total for each of the seven cards.
+- [ ] Waiting list with 150 cases shows correct aging buckets beyond page 1.
+- [ ] `12,50` deposit saved as 12.50; `abc` blocks submit with a message.
+- [ ] Placed with outstanding balance → warning shown, transition still allowed.
+- [ ] Practitioner role: sees payment block read-only, no edit button.
+- [ ] Live script `scripts/verify_prosthetic_journey.py`: create → impression→sent→received→scheduled→placed with history read-back, invalid transition refused, wrong-tenant practitioner refused.
+
+### GATE 6 — binary
+
+- [ ] Brief §15 criteria each map to a passing test or a recorded device run (create < 2 min stopwatch included)
+- [ ] No dead KPI; filters persist; aging correct beyond page 1
+- [ ] Live prosthetic journey script all PASS
+- [ ] All Phase 6 tests green
+
+---
+
+### PHASE 7 — Monitoring, records and everyday UX
+
+**Duration: 6 days. Closes: Cahier §4 "Pilotage" + §5.5 (alert → audit → export).**
+
+- [x] `T7.1` Dashboard honesty: a failed call shows "indisponible" with retry, never a zero. Distinguish unavailable / stale / zero. **(done: `dashboard_honesty_test`)**
+- [x] `T7.2` Alerts: list filterable by type and state; resolve shows per-alert result and the real French error; low stock, near expiry (DLC), failed cycle, overdue control all reachable. **(done: `alert_list_screen_test`; the server raises 4 kinds: low stock, near expiry, expired, failed cycle. It raises no "overdue control" alert, so the app does not invent one)**
+- [x] `T7.3` Audit/journal: filter by action, actor, subject, period; first load never fails silently; evidence search by label/lot/patient reference. **(done: `audit_phase7_test`, evidence search screen)**
+- [x] `T7.4` Exports CSV/PDF (Cahier §4): download, save, share; failure and expiry handled; filtered export wired where the backend supports it; archives never overwrite same-named files. **(done: `export_buttons_test`, `data_export_request_screen_test`, unique file names in `FileExportService`)**
+- [x] `T7.5` Minimum-version gate: the app shows a blocking "mise à jour requise" screen when the server says the build is too old (small backend change; agree it in the contract first). **(done 2 Oct: app `VersionGate` + server `EnforceMinAppVersion`, 5 backend tests in `MinAppVersionTest`)**
+- [x] `T7.6` Inactivity lock: after N minutes in background, require device biometrics/PIN; hide content in the app switcher (shared surgery devices). **(done: `app_guard_test`, `InactivityLock`, `PrivacyScreen`)**
+- [ ] `T7.7` Small screens, large text (scale 1.3), tablet layout sanity, every list paginated, every screen < 2 s on a normal connection (measure; record device and network). **(layout part done 2 Oct: `layout_resilience_test` 320x568 at 130%, phone, tablet, 7 screens; server side measured 2 Oct with `scripts/measure_api_times.py`: slowest screen 0.31 s of the 2 s budget, all 13 screens OK; the render time on a named phone and network is still owed)**
+- [x] `T7.8` Honest About/privacy/help text: no claims the app cannot back (a connector is a labeled mock). **(done 2 Oct: the fake "Recevoir les alertes" switch was removed because there is no push infrastructure; About text corrected; `settings_screen_test`)**
+
+### GATE 7 — binary
+
+- [ ] Journey 5 (alert → audit → export) runs on a device with the file opened
+- [ ] No screen shows a zero or empty state for a failed load
+- [ ] Measured screen times recorded (< 2 s target, device + network named)
+- [ ] All Phase 7 tests green
+
+---
+
+### PHASE 8 — Prove the whole system
+
+**Duration: continuous; formal run 8 days. Closes: Cahier §6 quality + §10 conditions 1–4.**
+
+- [x] `T8.1` Authorization matrix: six roles × two tenants × (UI, direct route, direct API, permission changed mid-session). Positive and negative. A tenant can never read or write another's data (Cahier §10.2). **(done 2 Oct: `scripts/verify_authorization_matrix.py` ALL PASS: 6 roles x 29 probes with valid bodies, tenant wall by id/list/credentials/cross-practice case, role changed mid-session refused on the same token. Found and fixed BUG-026 on the way)**
+- [ ] `T8.2` Fill the empty `integration_test` files with real journeys, each with server read-back: scan/use, stock, receipt, conflict, offline/restart, alert, prosthetic lifecycle, waiting placement. **(written 2 Oct, NOT yet executed: `journeys/stock_issue`, `conflict_409`, `goods_receipt`, `scanner_usage`, `alert_resolve`, `prosthetic_case`, `waiting_placement` each read the server back after the UI step; the offline journey needs airplane mode so it is a manual device scenario and its empty stub was removed; the 4 other empty stubs were removed too. Tick this box when they have been run, see ANOMALIES A-03)**
+- [ ] `T8.3` Fault injection: response lost, timeout after commit, double tap, double scan, kill points, stale 401, account switch, upgrade with a pending queue (re-run the Phase 2 suite on the release build). **(partly: Phase 2 fault-injection suite in `test/unit/storage` + `test/live/queue_lost_response_live_test`, `verify_idempotency.py` and `verify_idempotency_concurrency.py` PASS 2 Oct; the re-run on a release build and the upgrade-with-pending-queue run need the signed build, Phase 9)**
+- [x] `T8.4` Backend regression tests for the routes this app depends on (prosthetic, laboratories, inventory counts, code lookup, label transitions, idempotency); a missing contract snapshot fails CI. **(done 2 Oct: `ProstheticWorkflowTest` now covers laboratories and waiting-placement, 14 pass; `OpenApiContractTest` snapshot regenerated and passing; `PermissionCachePerTenantTest`, `MinAppVersionTest`)**
+- [x] `T8.5` CI gates: analyze `--fatal-infos`, unit/widget/contract, coverage floor (≥ 60% `lib/core`, ≥ 50% overall), reproducible build. **(done 2 Oct: `flutter analyze --fatal-infos` in CI, `scripts/coverage_summary.py --enforce` floors lib/core 60% and overall 50% added to `mobile-test.yml`; measured lib/core 76.6%, overall 50.7%, which is only just over the floor)**
+- [x] `T8.6` **Anomaly report** (`docs/ANOMALIES.md`): every defect found, severity, status. Cahier §10.5: zero open blocking/critical. **(done 2 Oct: `docs/ANOMALIES.md`; no blocking or critical item open; A-01 High must close on staging)**
+- [ ] `T8.7` The six Cahier journeys run end to end on a phone against staging, screen-recorded, results in `DEVICE_TEST_LOG.md`. **(owed: needs a phone and staging)**
+
+### GATE 8 — binary
+
+- [ ] Authorization matrix green, including wrong-tenant attempts
+- [ ] Journeys 1–6 recorded on a device with no hidden fake data
+- [ ] Anomaly report with zero open blocking/critical
+- [ ] CI green on the candidate commit
+
+---
+
+### PHASE 9 — Release artifacts and operations
+
+**Duration: 8 days (long-lead items start in Phase 0). Closes: Cahier §6 exploitation + §10.5 backup/restore.**
+
+- [ ] `T9.1` Identity and signing: replace `com.example.sterymed_mobile` with the owned application id; Android upload key + Play App Signing; version from the pipeline; no debug-signed APK leaves the building. iOS: bundle id, create `ios/Podfile`, signing and archive **only if iOS is in the pilot**. **(code done 2 Oct: provisional id `com.sterymed.mobile` for the owner to confirm, version from the tag and run number, Gradle refuses an unsigned or debug-signed release, `verify_release_config.py --mode android-release` passes, and a signed obfuscated release bundle builds (68 MB, exit 0, signature verified with a throwaway test keystore on 2 Oct). Owed: the real upload keystore, owner-confirmed id, iOS stays out of scope)**
+- [x] `T9.2` Release pipelines: `mobile-release-android.yml` builds a signed AAB from a tag; iOS pipeline only if in scope. **(done 2 Oct: `mobile-release-android.yml` builds the signed AAB from a `v*.*.*` tag after analyze and tests; iOS workflows are manual-only placeholders; setup in `docs/RELEASE.md`)**
+- [ ] `T9.3` Staging separate from production: HTTPS with a real certificate, production compose, secrets from a manager, migration role set up on a **fresh** deployment, Docker context excludes `.env`. **(code done 2 Oct: Caddy with automatic HTTPS, app not published on a host port, `.dockerignore` excludes `.env*`, env template completed; compose and Caddyfile validate. Owed: an actual staging host, domain and secrets, and the first fresh migration run there)**
+- [ ] `T9.4` Media: presigned URLs resolve on a public host from a phone (BUG-010); verify on a physical device. **(fixed and proven on dev 2 Oct: `PublicPresigner`, `verify_media_links.py` ALL PASS, `PublicPresignerTest`, BUG-010 closed; owed: the same on staging and from a phone)**
+- [ ] `T9.5` **Backup and restore actually performed** (database and media) on staging, timed, written up in `docs/BACKUP_RESTORE.md`; rollback rehearsed. **(performed and timed on the dev stack 2 Oct: `verify_backup_restore.py` ALL PASS, dump 7 s, restore 20 s, counts equal, media restored in 8 s, written up in `BACKUP_RESTORE.md` and `RELEASE.md`; owed: the same on staging, and a rehearsed rollback there)**
+- [ ] `T9.6` Monitoring: Sentry DSN per environment with release upload; alert routing to the support owner; queue and certificate checks. **(partly: Sentry DSN per environment is wired through the release workflow secret and `SENTRY_LARAVEL_DSN`; owed: the projects, release upload of symbols, alert routing to a named support owner)**
+- [ ] `T9.7` Physical matrix: one recent mid-range Android, one small-screen Android, one tablet (and an iPhone if iOS is in scope); fresh install and upgrade with a pending queue; flaky 3G profile. **(owed: needs physical phones)**
+- [ ] `T9.8` Distribution: Play internal-testing track for the pilot; no public listing before acceptance. **(owed: needs the Play account; steps in `RELEASE.md` section 2)**
+
+### GATE 9 — binary
+
+- [ ] Signed build installs, upgrades and reports an error to Sentry
+- [ ] Staging is HTTPS and separate from production
+- [ ] Restore performed and timed; rollback rehearsed
+- [ ] Media opens on a real phone from staging
+
+---
+
+### PHASE 10 — Acceptance and handoff
+
+**Duration: 8 days plus pilot. Closes: Cahier §10.6 and the "validation écrite de la recette".**
+
+- [ ] `T10.1` Demo rehearsal with the clinic on the **candidate build**: the six journeys of Cahier §5, recorded.
+- [ ] `T10.2` Triage: zero open critical/high; every lower item has an owner, workaround and the clinic's written approval.
+- [ ] `T10.3` Handover (Cahier §6, "propriété et accès"): repositories, cloud, domains, store accounts, database and backups, keystore, Sentry; **no critical component tied to a developer's personal account**.
+- [ ] `T10.4` Documents: README, install, variables, deploy, demo accounts, short French user guide, runbook, backup/restore, release and support documents, privacy note.
+- [ ] `T10.5` Legal gate: RGPD/HDS analysis, hosting location, processor agreement, retention, device-loss procedure. **Real patient references enter only after this is signed**; until then anonymised demo data.
+- [ ] `T10.6` Written acceptance naming build, backend deployment, devices, printer, roles, evidence and known limits, signed by a named clinic representative.
+- [ ] `T10.7` Pilot rollout under a named support owner; daily check of sync failures and failed jobs for the first two weeks; practiced rollback.
+
+### GATE 10 — binary
+
+- [ ] Signed acceptance on file
+- [ ] Every access handed over and confirmed by the owner
+- [ ] Recorded demo delivered
+- [ ] Support owner named
+
+---
+
+## Part 4 — Definition of done (Cahier §10, one line each)
+
+1. Full demo journey on staging, no hidden fake data → Phase 8 + 10
+2. Rights tested; a clinic never reads or writes another's data → `T8.1`
+3. Web and mobile on the same API, coherent after create/edit/scan/sync → journey 6, `T8.7`
+4. Critical error scenarios handled (double tap/scan, network cut, invalid data, failed print) → Phase 2 + `T8.3`
+5. No open blocking/critical anomaly; backup and restore truly tested → `T8.6`, `T9.5`
+6. Code, access, documentation and recorded demo handed over → Phase 10
+
+*"Une fonctionnalité seulement visible sur une maquette ou non testée n'est pas considérée comme livrée."* — a box is ticked only with an artifact: a passing test, a script run, or a dated device-log entry.

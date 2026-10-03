@@ -70,3 +70,26 @@ Each entry: date, tester, build/commit, scenario, steps, result.
 *(none yet — every offline-queue scenario in `docs/OFFLINE_MATRIX.md` and
 the app-kill-and-relaunch scenario remain unverified on a real device; this is real, tracked debt, not
 fabricated as done)*
+
+## Device steps owed for Phase 6 and Phase 7 (no phone was attached on 2026-10-02)
+
+Everything below is covered by tests and, for the server side, by
+`scripts/verify_prosthetic_journey.py` (ALL PASS). These steps need a physical
+Android phone and cannot be closed by tests. Record each one as an entry above.
+
+| Task | Step | Pass when |
+|---|---|---|
+| T6.6 | Create a prosthetic case with a stopwatch, from the home screen to the saved case | under 2 minutes; the time is written in the entry |
+| T6.8 | Add a photo to a case with the camera; repeat with the network cut and restored | upload shows progress, a failure shows Réessayer, the photo opens afterwards |
+| T6.9 | Detail screen, Imprimer / Exporter en PDF | the PDF opens on the phone and shows the case, history and payment |
+| T7.4 | Cahier journey 5: alert, then journal, then export | the exported file is opened on the phone |
+| T7.5 | Set `MIN_APP_VERSION` above the installed build on the server, open the app | the "Mise à jour requise" screen blocks the app; clearing the setting lets it in again |
+| T7.6 | Leave the app in the background past the lock delay | the lock screen asks for fingerprint / PIN; the app switcher shows no content |
+| T7.7 | Open the home, list and detail screens on a normal connection | each is usable in under 2 seconds; write down the phone and network |
+
+### 2026-10-02 — API time per screen (server side only, not a phone run)
+- Build/commit: dev backend, practice seeded by `scripts/seed_web_journeys.py`
+- Tester: `python scripts/measure_api_times.py --runs 5` on the dev machine
+- Result: PASS — slowest screen (Prothèses liste, 2 calls) 0.29 s, home 0.31 s
+  worst case; all 13 first-load screens under the 2 s budget. This covers the
+  network + API part only; T7.7 still needs the phone's render time.

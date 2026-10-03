@@ -225,7 +225,7 @@ until this route exists, same class of block as BUG-001.
 
 ---
 
-## BUG-010 — Presigned URLs (exports *and* cycle attachments) point at the internal Docker hostname, unreachable from any real client
+## BUG-010 — ✅ FIXED 2026-10-02 (dev proven, staging owed): presigned URLs (exports *and* cycle attachments) pointed at the internal Docker hostname
 **Severity:** 🔴 Blocking
 **Called by:** `ExportRepository.downloadUrl()` → `POST /v1/data-export-requests/{id}/download`
 **Found:** 2026-09-24, live curl against `steriqore-app` + `steriqore-postgres`/minio stack.
@@ -258,6 +258,23 @@ to end:** uploaded a real test file via
 but its `url` was again `http://minio:9000/steriqore-media/...` — the
 `media` disk (cycle/label attachments) has the exact same problem as
 `backups`.
+
+**Fix (2 Oct, steriqore, uncommitted):** the host is part of a presigned URL's
+signature, so rewriting it afterwards (Laravel's `temporary_url`) would break the
+signature. Presigning needs no network, so a disk that sets `public_endpoint`
+(`AWS_PUBLIC_ENDPOINT_MEDIA` / `AWS_PUBLIC_ENDPOINT_BACKUPS`) now signs
+`temporaryUrl()` with a second S3 client whose endpoint is that public address
+(`App\Support\Storage\PublicPresigner`, wired in `AppServiceProvider::boot`;
+Laravel's S3 adapter ignores `buildTemporaryUrlsUsing`, so the disk is wrapped).
+Uploads and reads keep the internal endpoint; a disk without the setting is unchanged.
+
+**Evidence:** `scripts/verify_media_links.py` ALL PASS on the dev stack: a photo
+uploaded through the API comes back as a `http://localhost:9023/...` link that
+opens from the host machine with the same bytes, and a tampered signature gets
+403. `tests/Feature/PublicPresignerTest.php` (3 tests, offline). `verify_backup_restore.py`
+also serves a restored photo through the same link. **Still owed:** the same check
+on staging with `https://<STORAGE_DOMAIN>` and from a real phone (Phase 9, `T9.4`);
+on a phone over `adb reverse`, forward the storage port too (`adb reverse tcp:9023 tcp:9023`).
 
 **First fix attempt was wrong — corrected here rather than left
 standing.** Assumed (from the `s3` disk having a `url` config key set)
@@ -986,7 +1003,7 @@ Flagging here rather than guessing.
 
 ---
 
-## BUG-024 — Missing: no print/export endpoint for a prosthetic case
+## BUG-024 — ✅ CLOSED 2026-10-02: no server print endpoint, so the phone builds the PDF itself
 
 **Severity:** 🟡 Non-blocking — genuinely missing, not "by design" (unlike
 BUG-023 above).
@@ -1005,7 +1022,11 @@ actions** as one bullet. `Quick Edit` is real and backend-supported
 call. Building a "Print/Export" button now would be UI with no real
 capability behind it, the same category of mistake as BUG-008.
 
-**Needed from backend before mobile can implement this:** an endpoint
+**Resolution (2 Oct):** Phase 6 (T6.9) builds the case PDF on the phone from the
+data the app already holds (`prosthetic_case_pdf.dart`, `prosthetic_case_pdf_test.dart`),
+so no backend endpoint is needed. A server PDF stays an option later.
+
+**Originally flagged as needed from backend:** an endpoint
 (e.g. `GET /v1/prosthetic-cases/{id}/pdf` or similar) that renders the
 case — patient reference, practitioner, clinical/lab dates, payment
 block, notes — as a document reception can print or hand to a courier
@@ -1049,6 +1070,60 @@ adding the real backend route, removing the dead helper, or adding a call
 site forces an intentional update to both the test and this entry instead
 of the drift going unnoticed.
 
+## BUG-026 — ✅ FIXED 2026-10-02: registering a practice could leave another one answering 403 on every endpoint
+
+**Severity:** 🔴 High for a multi-clinic deployment (a freshly registered owner is
+locked out of the whole API), low for a single-clinic pilot. Not a mobile bug.
+
+**Found:** 2026-10-02, while writing `scripts/verify_prosthetic_journey.py` (two
+practices registered one after the other).
+
+**Repro (dev stack, Octane):** register practice A and practice B with
+`POST /v1/tenants`, log each owner in, then call `GET /v1/sites` (or any
+permission-gated route) with each token. One of the two, not always the same
+one, gets `HTTP_403 "This action is unauthorized."` on every endpoint while
+`/v1/me` still lists the full permission set. `php artisan permission:cache-reset`
+fixes the one that was locked out and can lock the other one out on a later
+request, so it behaves like a per-worker cache problem, not a missing role.
+
+**Why this is not BUG-022:** BUG-022 was closed because a single new practice
+worked immediately. This only shows with two practices created close together,
+which that test never did.
+
+**Likely cause (not verified):** `spatie/laravel-permission` keeps its role and
+permission map in memory per Octane worker, keyed by team id; a worker that
+loaded the map before the second practice's roles existed keeps serving the
+stale one.
+
+**Root cause (confirmed 2 Oct):** `roles` is row-level-secured per practice, but
+`spatie/laravel-permission` caches ONE global "permission -> roles" map under a
+single Redis key. Whichever practice's request rebuilt that map decided whose
+roles it contained, so every other practice read a map without its own roles
+and got 403 until `permission:cache-reset`. It is not a per-worker problem: the
+Octane reset listener was already on.
+
+**Fix (steriqore, uncommitted):** `App\Support\Tenancy\TenantPermissionRegistrar`
+gives each practice its own cache entry (key carries the team id and a global
+version, so a deploy-time `permission:cache-reset` still invalidates everyone).
+It is bound in `AppServiceProvider::boot()` because Spatie binds its own
+registrar while booting.
+
+**Evidence:** before the fix, `scripts/verify_authorization_matrix.py` failed
+right after registering a second practice (practitioner of the first practice
+answered 403 on a route its role allows); after the fix the same script passes
+end to end with no cache reset. `tests/Feature/Api/V1/PermissionCachePerTenantTest.php`
+(4 tests) guards the wiring; the test database does not enforce row-level
+security, so the live script is the real proof. `scripts/verify_two_practices.py`
+registers four practices back to back and calls 300 interleaved requests: all
+200 (this script did not fail on the old code on a quiet dev stack, so it is a
+regression check, not the reproduction).
+
+**Mobile impact (before the fix):** none in the code. A device that hits it shows the generic
+"not allowed" message on every screen. Not worked around in the app.
+`scripts/verify_prosthetic_journey.py` retries after `permission:cache-reset`
+so the proof does not flake on it.
+
+
 | ID | Severity | Endpoint |
 |----|----------|----------|
 | BUG-001 | ✅ Fixed (base64 endpoint), mobile caller not yet built | POST /cycles/{id}/attachments-base64 — verified live end-to-end |
@@ -1060,7 +1135,7 @@ of the drift going unnoticed.
 | BUG-007 | 🟡 | PATCH /cycles/{id} |
 | BUG-008 | ✅ Fixed, live-verified | Patients are anonymous by design; removed the local PII cache that worked around it |
 | BUG-009 | 🟡 | POST /purchase-orders/{id}/receipts/attachments (missing) |
-| BUG-010 | 🔴 | Presigned URLs (`backups` + `media` disks) use internal `minio:9000` host — first fix attempt (`url` config) confirmed *not* to work for `temporaryUrl()`, real fix needs adapter/infra work |
+| BUG-010 | ✅ Fixed on dev, staging check owed | Presigned URLs (`backups` + `media` disks) use internal `minio:9000` host — first fix attempt (`url` config) confirmed *not* to work for `temporaryUrl()`, real fix needs adapter/infra work |
 | BUG-011 | ✅ Fixed | GET /members (was missing entirely — Team screen 100% broken) |
 | BUG-012 | ✅ Fixed | POST /invitations/accept (500 — role never usable) |
 | BUG-013 | ✅ Fixed | GET /stock-levels (was missing product/batch/location enrichment) |
@@ -1074,5 +1149,6 @@ of the drift going unnoticed.
 | BUG-021 | ✅ Fixed, live-verified | POST /tenants (new practice signup) — was a deterministic 500, `RegisterTenantController` now wraps `UserData::fromModel` in `TenantContext::run()` |
 | BUG-022 | ✅ Closed, not a bug | One test account's stale permission cache — confirmed the normal registration/role-assignment flow doesn't reproduce it |
 | BUG-023 | ✅ Not a bug | Prosthetic brief's First/Last name patient fields don't exist — patients are anonymous by design (see BUG-008); mobile left unchanged |
-| BUG-024 | 🟡 Missing | GET /prosthetic-cases/{id}/print or similar — no print/export endpoint exists; mobile has nothing to call |
+| BUG-024 | 🟢 Closed by design | GET /prosthetic-cases/{id}/print or similar — no print/export endpoint exists; mobile has nothing to call |
 | BUG-025 | 🟢 Dead code, caught by contract test | ApiEndpoints.site(id) → /v1/sites/{id} has no matching backend route; zero call sites today |
+| BUG-026 | ✅ Fixed, live-verified | A practice could answer 403 everywhere until the permission cache was reset (one global cache of per-practice roles) |

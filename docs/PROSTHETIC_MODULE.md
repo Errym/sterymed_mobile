@@ -48,8 +48,8 @@ against the brief's raw field list:
   transitions (mirrors the backend's `allowedNextStatuses()` exactly),
   remaining-balance/payment-due logic, waiting-placement filter logic.
 - `test/bloc/prosthetic_list_bloc_test.dart`,
-  `prosthetic_status_bloc_test.dart`, `prosthetic_payment_bloc_test.dart`,
-  `prosthetic_case_detail_bloc_test.dart` (the latter three are named
+  `prosthetic_status_flow_test.dart`, `prosthetic_payment_section_test.dart`,
+  `prosthetic_case_detail_flow_test.dart` (the latter three are named
   after Blocs that don't exist — these screens use direct
   `setState`/repository calls; the files test that real pattern instead,
   see each file's own header comment).

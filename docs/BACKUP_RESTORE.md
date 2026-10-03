@@ -86,3 +86,20 @@ prosthetic-case create-screen draft (`ProstheticCaseDraftStore`) just
 means an in-progress, not-yet-submitted draft has to be re-entered — the
 same as it already is on force-quit, since that draft was never in the
 outbox or synced anywhere either.
+
+## Server backup and restore drill (Cahier §10.5)
+
+The server owns the clinic's data; the phone only holds an unsent queue (above).
+The server's nightly backup and the restore procedure are in the backend repo
+(`docs/operations.md`). They have been **performed and timed**, not just
+documented:
+
+```
+python scripts/verify_backup_restore.py     # dev stack up, practice seeded
+```
+
+2 Oct 2026, dev stack, small data (2 MB dump): database backup 7 s, restore into a
+scratch database 20 s with the row count of every business table equal to the live
+database and a practice's six roles intact; media mirror 9.7 s, a deleted photo
+restored in 8 s and served again with identical bytes. **Owed:** the same drill on
+staging, with the timings written here. Rollback steps are in `RELEASE.md` §4.
