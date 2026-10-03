@@ -174,18 +174,14 @@ void main() {
   });
 
   test(
-    'BUG-025 (documented, not silently worked around): ApiEndpoints.site(id) '
-    'points at a route that does not exist on the real backend -- '
-    "`php artisan route:list --path=v1/sites` shows only the bare index "
-    'route. Currently dead code (zero call sites in lib/), so this assertion '
-    'is a tripwire: it fails on purpose so that fixing the route, removing '
-    'the helper, or adding a real call site forces someone to update this '
-    'test and docs/BACKEND_BUGS.md deliberately, instead of the drift going '
-    'unnoticed.',
+    'BUG-025 closed: the dead ApiEndpoints.site(id) helper was removed -- the '
+    'backend has no /v1/sites/{id} route (only the index), and nothing in the '
+    'app called it. The sites list is the only sites endpoint the app uses.',
     () {
-      expect(existsLive(ApiEndpoints.site('X')), isFalse,
-          reason: 'If this now passes, /v1/sites/{id} exists live -- update '
-              'this test to assert isTrue and close BUG-025.');
+      expect(existsLive(ApiEndpoints.sites), isTrue);
+      expect(existsLive('/v1/sites/X'), isFalse,
+          reason: 'If this now passes, /v1/sites/{id} exists live: the app can '
+              'use it, and docs/BACKEND_BUGS.md BUG-025 can be closed.');
     },
   );
 

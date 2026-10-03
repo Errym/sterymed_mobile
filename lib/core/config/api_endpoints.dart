@@ -7,7 +7,6 @@ abstract final class ApiEndpoints {
   static const logout = '$_v1/auth/logout';
   static const logoutEverywhere = '$_v1/auth/tokens';
   static const forgotPassword = '$_v1/auth/forgot-password';
-  static const resetPassword = '$_v1/auth/reset-password';
   static const me = '$_v1/me';
 
   // Alerts
@@ -59,7 +58,6 @@ abstract final class ApiEndpoints {
 
   // Sites
   static const sites = '$_v1/sites';
-  static String site(String id) => '$_v1/sites/$id';
 
   // Devices
   static const devices = '$_v1/devices';
