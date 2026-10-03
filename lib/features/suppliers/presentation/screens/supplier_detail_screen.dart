@@ -1,23 +1,35 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/decimal_input.dart';
+import '../../../../core/utils/error_message.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import '../../../../core/utils/formatters/currency_formatter.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
+import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../catalog/data/models/product_data.dart';
 import '../../../catalog/data/repositories/product_repository.dart';
+import '../../../purchases/data/models/purchase_order_data.dart';
+import '../../../purchases/data/repositories/purchase_repository.dart';
 import '../../data/models/supplier_data.dart';
+import '../../data/models/supplier_order_stats.dart';
 import '../../data/models/supplier_product_data.dart';
 import '../../data/repositories/supplier_repository.dart';
-import '../../../../core/utils/error_message.dart';
+import '../widgets/supplier_form_sheet.dart';
 
 class SupplierDetailScreen extends StatefulWidget {
   final String supplierId;
@@ -27,10 +39,20 @@ class SupplierDetailScreen extends StatefulWidget {
   State<SupplierDetailScreen> createState() => _SupplierDetailScreenState();
 }
 
+/// Everything the page needs, read together.
+class _SupplierPage {
+  final SupplierData supplier;
+  final List<SupplierProductData> links;
+  final Map<String, ProductData> productsById;
+
+  /// This supplier's orders among the most recent ones. Null when the order
+  /// list could not be read (the page still works without it).
+  final List<PurchaseOrderData>? orders;
+  const _SupplierPage(this.supplier, this.links, this.productsById, this.orders);
+}
+
 class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
-  late Future<
-          (SupplierData?, List<SupplierProductData>, Map<String, ProductData>)>
-      _future;
+  late Future<_SupplierPage> _future;
 
   @override
   void initState() {
@@ -38,19 +60,27 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
     _future = _load();
   }
 
-  Future<(SupplierData?, List<SupplierProductData>, Map<String, ProductData>)>
-      _load() async {
+  Future<_SupplierPage> _load() async {
     final results = await Future.wait([
       getIt<SupplierRepository>().show(widget.supplierId),
       getIt<SupplierRepository>()
           .listProducts(widget.supplierId, forceRefresh: true),
       getIt<ProductRepository>().list(),
     ]);
-    final supplier = results[0] as SupplierData;
-    final links = results[1] as List<SupplierProductData>;
+    List<PurchaseOrderData>? orders;
+    try {
+      final page = await getIt<PurchaseRepository>().list(forceRefresh: true);
+      orders = page.items.where((o) => o.supplierId == widget.supplierId).toList();
+    } catch (_) {
+      orders = null;
+    }
     final products = results[2] as List<ProductData>;
-    final byId = {for (final p in products) p.id: p};
-    return (supplier, links, byId);
+    return _SupplierPage(
+      results[0] as SupplierData,
+      results[1] as List<SupplierProductData>,
+      {for (final p in products) p.id: p},
+      orders,
+    );
   }
 
   Future<void> _refresh() async {
@@ -73,75 +103,143 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: const AppAppBar(title: 'Fournisseur'),
-      body: FutureBuilder(
+      body: FutureBuilder<_SupplierPage>(
         future: _future,
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return const LoadingView();
           }
-           if (snap.hasError) {
+          if (snap.hasError) {
             return ErrorView(
               message: 'Impossible de charger le fournisseur.',
               onRetry: _refresh,
             );
           }
-          if (!snap.hasData) {
-            return const LoadingView();
-          }
-          final (supplier, links, productsById) = snap.data!;
-          if (supplier == null) {
-            return const ErrorView(message: 'Fournisseur introuvable.');
-          }
-          final allProducts = productsById.values.toList();
+          final page = snap.data;
+          if (page == null) return const LoadingView();
+          final supplier = page.supplier;
+          final links = page.links;
+          final orders = page.orders;
+          final stats = orders == null
+              ? null
+              : SupplierOrderStats.bySupplier(orders)[supplier.id] ??
+                  const SupplierOrderStats();
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               children: [
                 AnimatedListItem(
                   index: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundCard,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(color: AppColors.borderLight),
-                    ),
+                  child: AppCard(
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Text(supplier.name, style: AppTypography.sectionTitle),
-                        if (supplier.email != null) ...[
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(supplier.email!, style: AppTypography.caption),
-                        ],
-                        if (supplier.phone != null) ...[
-                          const SizedBox(height: 2),
-                          Text(supplier.phone!, style: AppTypography.caption),
-                        ],
-                        if (supplier.address != null) ...[
-                          const SizedBox(height: 2),
-                          Text(supplier.address!, style: AppTypography.caption),
-                        ],
+                        Row(
+                          children: [
+                            EntityMark.initials(
+                              EntityMark.initialsOf(supplier.name),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'FOURNISSEUR',
+                                    style: AppTypography.eyebrow,
+                                  ),
+                                  Text(
+                                    supplier.name,
+                                    style: AppTypography.sectionTitle,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (canManage)
+                              IconButton(
+                                tooltip: 'Modifier',
+                                icon: const Icon(Icons.edit_outlined),
+                                onPressed: () async {
+                                  final saved = await SupplierFormSheet.show(
+                                    context,
+                                    existing: supplier,
+                                  );
+                                  if (saved == true) await _refresh();
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        ContactActions(
+                          phone: supplier.phone,
+                          email: supplier.email,
+                          address: supplier.address,
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        DetailRow(Icons.call_outlined, 'Téléphone',
+                            _orDash(supplier.phone)),
+                        DetailRow(Icons.mail_outline, 'E-mail',
+                            _orDash(supplier.email)),
+                        DetailRow(Icons.place_outlined, 'Adresse',
+                            _orDash(supplier.address)),
                       ],
                     ),
                   ),
                 ),
+                const SizedBox(height: AppSpacing.md),
+                AnimatedListItem(
+                  index: 1,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _Figure(
+                          label: 'Produits fournis',
+                          value: '${links.length}',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _Figure(
+                          label: 'Commandes en cours',
+                          value: stats == null ? '—' : '${stats.open}',
+                          color: (stats?.open ?? 0) > 0
+                              ? AppColors.warning
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: _Figure(
+                          label: 'Dernière commande',
+                          value: stats?.lastOrderedAt == null
+                              ? '—'
+                              : AppDateFormatter.date(stats!.lastOrderedAt!),
+                          small: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: AppSpacing.lg),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Produits fournis (${links.length})',
-                        style: AppTypography.sectionTitle),
+                    Expanded(
+                      child: Text(
+                        'PRODUITS FOURNIS (${links.length})',
+                        style: AppTypography.eyebrow,
+                      ),
+                    ),
                     if (canManage)
-                      IconButton(
-                        icon: const Icon(Icons.add),
-                        tooltip: 'Lier un produit',
-                        onPressed: () => _addProduct(allProducts),
+                      TextButton.icon(
+                        onPressed: () =>
+                            _addProduct(page.productsById.values.toList()),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Lier un produit'),
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                const SizedBox(height: AppSpacing.xs),
                 if (links.isEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -156,19 +254,75 @@ class _SupplierDetailScreenState extends State<SupplierDetailScreen> {
                 else
                   for (var i = 0; i < links.length; i++)
                     AnimatedListItem(
-                      index: i + 1,
+                      index: i + 2,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: _SupplierProductTile(
                           link: links[i],
-                          product: productsById[links[i].productId],
+                          product: page.productsById[links[i].productId],
                         ),
                       ),
                     ),
+                if (orders != null && orders.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.lg),
+                  const SectionHeader(title: 'Commandes récentes'),
+                  for (final o in orders.take(5))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: _OrderRow(order: o),
+                    ),
+                ],
+                const SizedBox(height: AppSpacing.xl),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  static String _orDash(String? v) =>
+      (v == null || v.trim().isEmpty) ? '—' : v.trim();
+}
+
+class _Figure extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+  final bool small;
+  const _Figure({
+    required this.label,
+    required this.value,
+    this.color,
+    this.small = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AppCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: AppTypography.metric.copyWith(
+                fontSize: small ? 15 : 22,
+                color: color,
+              ),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(fontSize: 11),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -181,35 +335,72 @@ class _SupplierProductTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return EntityCard(
+      mark: const EntityMark.icon(Icons.inventory_2_outlined),
+      eyebrow: link.supplierReference == null
+          ? null
+          : 'RÉF. FOURNISSEUR ${link.supplierReference}',
+      title: product?.name ?? 'Produit inconnu',
+      trailing: link.price == null
+          ? null
+          : Text(
+              AppCurrencyFormatter.eur(link.price!),
+              style: AppTypography.metric.copyWith(
+                fontSize: 17,
+                color: AppColors.brandPrimary,
+              ),
+            ),
+      tags: [
+        InfoTag('Conditionnement ×${link.packSize}',
+            icon: Icons.widgets_outlined),
+        if (product != null) InfoTag('Unité : ${product!.unit}'),
+        if (product != null && product!.reference.isNotEmpty)
+          InfoTag('Réf. ${product!.reference}', icon: Icons.tag),
+      ],
+    );
+  }
+}
+
+class _OrderRow extends StatelessWidget {
+  final PurchaseOrderData order;
+  const _OrderRow({required this.order});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, tone) = switch (order.status) {
+      'ordered' => ('Commandé', BadgeTone.blue),
+      'partially_received' => ('Partiel', BadgeTone.orange),
+      'received' => ('Reçu', BadgeTone.green),
+      'cancelled' => ('Annulé', BadgeTone.gray),
+      'closed' => ('Clôturé', BadgeTone.gray),
+      _ => ('Brouillon', BadgeTone.yellow),
+    };
+    return AppCard(
+      onTap: () => context.openRoute(Routes.purchaseDetail(order.id)),
       padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: AppColors.backgroundCard,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
-      ),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(product?.name ?? 'Produit inconnu',
-                    style: AppTypography.bodyStrong),
-                const SizedBox(height: 2),
+                Text(order.shortId, style: AppTypography.bodyStrong),
                 Text(
-                  [
-                    if (link.supplierReference != null)
-                      'Réf. ${link.supplierReference}',
-                    'Conditionnement ×${link.packSize}',
-                    if (link.price != null)
-                      AppCurrencyFormatter.eur(link.price!),
-                  ].join(' · '),
+                  '${order.lines.length} ligne(s) · '
+                  '${AppDateFormatter.date(order.orderedAt ?? order.createdAt)}',
                   style: AppTypography.caption,
                 ),
               ],
             ),
           ),
+          if (order.totalAmount != null) ...[
+            Text(
+              AppCurrencyFormatter.eur(order.totalAmount!),
+              style: AppTypography.bodyStrong,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+          ],
+          TypeBadge(label: label, tone: tone),
         ],
       ),
     );
@@ -226,13 +417,8 @@ class _AttachProductSheet extends StatefulWidget {
     required String supplierId,
     required List<ProductData> products,
   }) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.backgroundApp,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
+    return showAppSheet<bool>(
+      context,
       builder: (_) =>
           _AttachProductSheet(supplierId: supplierId, products: products),
     );
@@ -277,7 +463,7 @@ class _AttachProductSheetState extends State<_AttachProductSheet> {
         supplierReference:
             _refCtrl.text.trim().isEmpty ? null : _refCtrl.text.trim(),
         packSize: int.tryParse(_packCtrl.text.trim()),
-        price: double.tryParse(_priceCtrl.text.trim().replaceAll(',', '.')),
+        price: DecimalInput.parse(_priceCtrl.text, maxDecimals: 4),
       );
       if (!mounted) return;
       AppSnackbar.show(context, 'Produit lié au fournisseur.',
@@ -330,6 +516,9 @@ class _AttachProductSheetState extends State<_AttachProductSheet> {
               controller: _priceCtrl,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
+              validator: (v) => DecimalInput.isInvalid(v, maxDecimals: 4)
+                  ? DecimalInput.invalidMessage
+                  : null,
             ),
             const SizedBox(height: AppSpacing.lg),
             PrimaryButton(

@@ -29,3 +29,12 @@ class _StockSearchDebounced extends StockLevelListEvent {
   @override
   List<Object?> get props => [query];
 }
+
+/// Narrows the list to one family of rows (all / low / perishable / expired).
+class FilterStockLevels extends StockLevelListEvent {
+  final StockFilter filter;
+  const FilterStockLevels(this.filter);
+
+  @override
+  List<Object?> get props => [filter];
+}

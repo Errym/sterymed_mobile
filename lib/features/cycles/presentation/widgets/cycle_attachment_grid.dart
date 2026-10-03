@@ -8,12 +8,14 @@ class CycleAttachmentGrid extends StatelessWidget {
   final List<CycleAttachmentData> attachments;
   final VoidCallback? onAdd;
   final void Function(CycleAttachmentData)? onDelete;
+  final void Function(CycleAttachmentData)? onOpen;
 
   const CycleAttachmentGrid({
     super.key,
     required this.attachments,
     this.onAdd,
     this.onDelete,
+    this.onOpen,
   });
 
   @override
@@ -28,6 +30,7 @@ class CycleAttachmentGrid extends StatelessWidget {
             height: 100,
             child: _AttachmentTile(
               attachment: a,
+              onOpen: onOpen == null ? null : () => onOpen!(a),
               onDelete: onDelete == null ? null : () => onDelete!(a),
             ),
           ),
@@ -64,8 +67,9 @@ class CycleAttachmentGrid extends StatelessWidget {
 class _AttachmentTile extends StatelessWidget {
   final CycleAttachmentData attachment;
   final VoidCallback? onDelete;
+  final VoidCallback? onOpen;
 
-  const _AttachmentTile({required this.attachment, this.onDelete});
+  const _AttachmentTile({required this.attachment, this.onDelete, this.onOpen});
 
   @override
   Widget build(BuildContext context) {
@@ -76,10 +80,10 @@ class _AttachmentTile extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.backgroundSubtle,
               borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.borderLight),
+              border: Border.all(color: AppColors.hairline),
             ),
             clipBehavior: Clip.antiAlias,
-            child: _preview(),
+            child: InkWell(onTap: onOpen, child: _preview()),
           ),
         ),
         if (onDelete != null)
@@ -94,11 +98,7 @@ class _AttachmentTile extends StatelessWidget {
                 onTap: onDelete,
                 child: const Padding(
                   padding: EdgeInsets.all(4),
-                  child: Icon(
-                    Icons.close,
-                    size: 14,
-                    color: AppColors.danger,
-                  ),
+                  child: Icon(Icons.close, size: 14, color: AppColors.danger),
                 ),
               ),
             ),

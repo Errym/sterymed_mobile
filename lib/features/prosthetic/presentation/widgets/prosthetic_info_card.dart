@@ -13,7 +13,8 @@ class ProstheticInfoCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         children: [
@@ -22,10 +23,15 @@ class ProstheticInfoCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               child: Row(
                 children: [
-                  Expanded(
-                    child: Text(rows[i].$1, style: AppTypography.label),
+                  Expanded(child: Text(rows[i].$1, style: AppTypography.label)),
+                  const SizedBox(width: AppSpacing.sm),
+                  Flexible(
+                    child: Text(
+                      rows[i].$2,
+                      textAlign: TextAlign.end,
+                      style: AppTypography.bodyStrong,
+                    ),
                   ),
-                  Text(rows[i].$2, style: AppTypography.bodyStrong),
                 ],
               ),
             ),

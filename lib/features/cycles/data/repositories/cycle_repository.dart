@@ -161,12 +161,20 @@ class CycleRepository {
     );
   }
 
+  Future<CycleReleaseData?> getRelease(String id) => _remote.getRelease(id);
+
   // ── Items ─────────────────────────────────────────────────────────────
 
   Future<List<CycleItemData>> listItems(String id) => _remote.listItems(id);
 
   Future<CycleItemData> addItem(String id, Map<String, dynamic> p) =>
       _remote.addItem(id, p);
+
+  Future<CycleItemData> updateItem(
+    String id,
+    String itemId,
+    Map<String, dynamic> changes,
+  ) => _remote.updateItem(id, itemId, changes);
 
   Future<void> deleteItem(String id, String itemId) =>
       _remote.deleteItem(id, itemId);
@@ -189,11 +197,13 @@ class CycleRepository {
     required String fileName,
     required Uint8List bytes,
     String? mimeType,
+    void Function(int sent, int total)? onProgress,
   }) => _remote.uploadAttachment(
     cycleId: cycleId,
     fileName: fileName,
     bytes: bytes,
     mimeType: mimeType,
+    onProgress: onProgress,
   );
 
   Future<void> deleteAttachment(String id, String attachmentId) =>

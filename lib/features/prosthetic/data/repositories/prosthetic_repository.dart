@@ -8,6 +8,7 @@ import '../models/prosthetic_case_attachment_data.dart';
 import '../models/prosthetic_case_data.dart';
 import '../models/prosthetic_case_status_history_data.dart';
 import '../models/prosthetic_dashboard_data.dart';
+import '../models/prosthetic_summary_data.dart';
 
 class ProstheticRepository {
   final ProstheticRemoteDatasource _remote;
@@ -33,8 +34,11 @@ class ProstheticRepository {
     String? status,
     String? from,
     String? to,
+    String? scope,
+    String? cursor,
   }) =>
       _remote.list(
+        cursor: cursor,
         patientReference: patientReference,
         practitionerId: practitionerId,
         laboratoryId: laboratoryId,
@@ -42,13 +46,37 @@ class ProstheticRepository {
         status: status,
         from: from,
         to: to,
+        scope: scope,
       );
 
-  Future<CursorPage<ProstheticCaseData>> loadMore(String cursor) =>
-      _remote.list(cursor: cursor);
+  /// Exact server-side total for a filter/scope set (and, for the waiting
+  /// set, the aging buckets). Counted over the whole result.
+  Future<ProstheticSummaryData> summary({
+    String? patientReference,
+    String? practitionerId,
+    String? laboratoryId,
+    String? workType,
+    String? status,
+    String? from,
+    String? to,
+    String? scope,
+  }) =>
+      _remote.summary(
+        patientReference: patientReference,
+        practitionerId: practitionerId,
+        laboratoryId: laboratoryId,
+        workType: workType,
+        status: status,
+        from: from,
+        to: to,
+        scope: scope,
+      );
 
-  Future<CursorPage<ProstheticCaseData>> waitingForPlacement({String? cursor}) =>
-      _remote.waitingForPlacement(cursor: cursor);
+  Future<CursorPage<ProstheticCaseData>> waitingForPlacement({
+    String? cursor,
+    String? aging,
+  }) =>
+      _remote.waitingForPlacement(cursor: cursor, aging: aging);
 
   Future<ProstheticCaseData> show(String id) => _remote.show(id);
 
@@ -68,8 +96,14 @@ class ProstheticRepository {
     String id, {
     required String status,
     String? note,
+    String? plannedPlacementDate,
   }) async {
-    final case_ = await _remote.changeStatus(id, status: status, note: note);
+    final case_ = await _remote.changeStatus(
+      id,
+      status: status,
+      note: note,
+      plannedPlacementDate: plannedPlacementDate,
+    );
     _cache.invalidate('prosthetic_dashboard');
     return case_;
   }
@@ -85,12 +119,14 @@ class ProstheticRepository {
     required String fileName,
     required Uint8List bytes,
     String? mimeType,
+    void Function(int sent, int total)? onProgress,
   }) =>
       _remote.uploadAttachment(
         caseId: caseId,
         fileName: fileName,
         bytes: bytes,
         mimeType: mimeType,
+        onProgress: onProgress,
       );
 
   Future<void> deleteAttachment(String caseId, String attachmentId) =>

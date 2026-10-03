@@ -1,3 +1,6 @@
+import 'package:steriymed_mobile/core/utils/dispose_later.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
+import 'package:intl/intl.dart';
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/feedback/pending_changes_banner.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,6 +16,7 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../data/models/control_test_data.dart';
@@ -27,6 +31,7 @@ import '../widgets/cycle_detail_attachment_tile.dart';
 import '../widgets/cycle_detail_control_test_row.dart';
 import '../widgets/cycle_detail_item_row.dart';
 import '../widgets/cycle_empty_hint.dart';
+import 'attachment_viewer_screen.dart';
 import '../widgets/cycle_info_banner.dart';
 import '../widgets/cycle_info_card.dart';
 import '../widgets/cycle_labels_section.dart';
@@ -79,6 +84,7 @@ class _CycleDetailView extends StatelessWidget {
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
         title: const Text('Détail du cycle'),
+        leading: AppBackButton.maybe(context),
         backgroundColor: AppColors.backgroundApp,
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
@@ -222,7 +228,15 @@ class _CycleDetailView extends StatelessWidget {
                                 : null,
                           ),
                         ),
-                        if (state.items.isEmpty)
+                        if (state.itemsError != null)
+                          CycleLoadFailedHint(
+                            what: 'Instruments',
+                            message: state.itemsError!,
+                            onRetry: () => context
+                                .read<CycleDetailBloc>()
+                                .add(RefreshCycleDetail(cycleId)),
+                          )
+                        else if (state.items.isEmpty)
                           const CycleEmptyHint('Aucun instrument enregistré.')
                         else
                           ...state.items.map((i) => CycleDetailItemRow(
@@ -267,7 +281,15 @@ class _CycleDetailView extends StatelessWidget {
                           ),
                           const SizedBox(height: AppSpacing.sm),
                         ],
-                        if (state.controlTests.isEmpty && canAddTests)
+                        if (state.controlTestsError != null)
+                          CycleLoadFailedHint(
+                            what: 'Contrôles',
+                            message: state.controlTestsError!,
+                            onRetry: () => context
+                                .read<CycleDetailBloc>()
+                                .add(RefreshCycleDetail(cycleId)),
+                          )
+                        else if (state.controlTests.isEmpty && canAddTests)
                           const CycleEmptyHint('Aucun contrôle enregistré.')
                         else ...[
                           if (state.controlTests.isNotEmpty) ...[
@@ -301,11 +323,19 @@ class _CycleDetailView extends StatelessWidget {
                                 : 'Réservé à la stérilisation',
                             onPressed: canManage
                                 ? () => context
-                                    .go(Routes.cyclesAttachments(cycleId))
+                                    .openRoute(Routes.cyclesAttachments(cycleId))
                                 : null,
                           ),
                         ),
-                        if (state.attachments.isEmpty)
+                        if (state.attachmentsError != null)
+                          CycleLoadFailedHint(
+                            what: 'Pièces jointes',
+                            message: state.attachmentsError!,
+                            onRetry: () => context
+                                .read<CycleDetailBloc>()
+                                .add(RefreshCycleDetail(cycleId)),
+                          )
+                        else if (state.attachments.isEmpty)
                           const CycleEmptyHint('Aucune pièce jointe.')
                         else
                           Wrap(
@@ -314,6 +344,11 @@ class _CycleDetailView extends StatelessWidget {
                             children: state.attachments
                                 .map((a) => CycleDetailAttachmentTile(
                                       a: a,
+                                      onOpen: () => AttachmentViewerScreen.open(
+                                        context,
+                                        cycleId: cycleId,
+                                        attachment: a,
+                                      ),
                                       onDelete: canManage
                                           ? () => _deleteAttachment(
                                               context, cycleId, a)
@@ -326,7 +361,7 @@ class _CycleDetailView extends StatelessWidget {
                   ),
 
                   // ── Release info ──
-                  if (state.release != null)
+                  if (state.release != null || state.releaseError != null)
                     AnimatedListItem(
                       index: 6,
                       child: Column(
@@ -334,7 +369,16 @@ class _CycleDetailView extends StatelessWidget {
                         children: [
                           const SizedBox(height: AppSpacing.lg),
                           const SectionHeader(title: 'Libération'),
-                          _releaseCard(state.release!),
+                          if (state.releaseError != null)
+                            CycleLoadFailedHint(
+                              what: 'Décision de libération',
+                              message: state.releaseError!,
+                              onRetry: () => context
+                                  .read<CycleDetailBloc>()
+                                  .add(RefreshCycleDetail(cycleId)),
+                            )
+                          else
+                            _releaseCard(state.release!),
                         ],
                       ),
                     ),
@@ -521,8 +565,9 @@ class _CycleDetailView extends StatelessWidget {
     if (result == null || !context.mounted) return;
 
     try {
-      await getIt<CycleRepository>().deleteItem(cycleId, item.id);
-      await getIt<CycleRepository>().addItem(cycleId, {
+      // In place: the item keeps its id, position and batch link, and a
+      // failure leaves it untouched (no delete-then-create window).
+      await getIt<CycleRepository>().updateItem(cycleId, item.id, {
         'description': result.description,
       });
       if (!context.mounted) return;
@@ -670,7 +715,7 @@ class _CycleDetailView extends StatelessWidget {
         AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
       }
     } finally {
-      notesCtrl.dispose();
+      disposeControllerLater(notesCtrl);
     }
   }
 
@@ -721,7 +766,8 @@ class _CycleDetailView extends StatelessWidget {
           if (release.releasedByName != null) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
-              'Par ${release.releasedByName}',
+              'Par ${release.releasedByName} le '
+              '${DateFormat('dd/MM/yyyy HH:mm').format(release.releasedAt.toLocal())}',
               style: AppTypography.caption.copyWith(
                 color: AppColors.textTertiary,
               ),

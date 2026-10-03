@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:open_filex/open_filex.dart';
 
+import '../../../../core/files/file_export_service.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
@@ -10,10 +10,10 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/feedback/saved_file_sheet.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/export_request_data.dart';
 import '../../data/repositories/export_repository.dart';
-import '../../data/services/export_download_service.dart';
 
 class DataExportRequestScreen extends StatefulWidget {
   const DataExportRequestScreen({super.key});
@@ -52,7 +52,7 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
       await _refresh();
     } catch (e) {
       if (!mounted) return;
-      AppSnackbar.show(context, e.toString(), kind: SnackKind.error);
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
       if (mounted) setState(() => _requesting = false);
     }
@@ -63,18 +63,23 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
       setState(() => _downloadingId = export.id);
       final url = await getIt<ExportRepository>().downloadUrl(export.id);
       if (!mounted) return;
-      final file = await getIt<ExportDownloadService>().download(
-        url: url,
-        suggestedFileName:
-            'steriymed-export-${export.id.substring(0, 8)}.zip',
+      final file = await getIt<FileExportService>().saveFromUrl(
+        url,
+        baseName: 'steriymed-export-${export.id.substring(0, 8)}',
+        extension: 'zip',
       );
       if (!mounted) return;
       AppSnackbar.show(
         context,
         'Téléchargement terminé.',
         kind: SnackKind.success,
-        actionLabel: 'Ouvrir',
-        onAction: () => OpenFilex.open(file.path),
+      );
+      // The download is over: the button must not keep spinning behind the sheet.
+      setState(() => _downloadingId = null);
+      await SavedFileSheet.show(
+        context,
+        file: file,
+        title: 'Archive enregistrée',
       );
     } catch (e) {
       if (!mounted) return;
@@ -100,7 +105,8 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
               decoration: BoxDecoration(
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: AppColors.borderLight),
+                border: Border.all(color: AppColors.hairline),
+                boxShadow: AppShadows.card,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +274,8 @@ class _ExportCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

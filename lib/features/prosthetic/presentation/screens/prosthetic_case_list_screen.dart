@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -20,18 +22,30 @@ import '../../data/models/laboratory_data.dart';
 import '../../data/models/prosthetic_case_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
 import '../bloc/prosthetic_case_list_bloc.dart';
+import '../utils/prosthetic_scopes.dart';
 import '../widgets/prosthetic_case_tile.dart';
 
 class ProstheticCaseListScreen extends StatelessWidget {
   final String? initialStatus;
-  const ProstheticCaseListScreen({super.key, this.initialStatus});
+
+  /// A dashboard card's scope (see [ProstheticScope]): opens the list
+  /// pre-filtered by exactly what that card counted.
+  final String? initialScope;
+  const ProstheticCaseListScreen({
+    super.key,
+    this.initialStatus,
+    this.initialScope,
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) => ProstheticCaseListBloc(getIt<ProstheticRepository>())
         ..add(FilterProstheticCases(
-          ProstheticCaseListFilters(status: initialStatus),
+          ProstheticCaseListFilters(
+            status: initialStatus,
+            scope: initialScope,
+          ),
         )),
       child: const _ProstheticCaseListView(),
     );
@@ -93,19 +107,49 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
     }
   }
 
+  Timer? _searchDebounce;
+
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   void _applyFilters(BuildContext context, ProstheticCaseListFilters filters) {
+    _searchDebounce?.cancel();
     context.read<ProstheticCaseListBloc>().add(FilterProstheticCases(filters));
     // Keep the quick-search box in sync in case the change came from the
     // filter sheet or a chip removal, not the search box itself.
     if (_searchCtrl.text != (filters.patientReference ?? '')) {
       _searchCtrl.text = filters.patientReference ?? '';
     }
+  }
+
+  /// One request per pause in typing, not one per keystroke. (Even without
+  /// this the bloc ignores stale answers; this just spares the server.)
+  void _onSearchChanged(BuildContext context, String v) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), () {
+      if (!mounted) return;
+      final current = context.read<ProstheticCaseListBloc>().state.filters;
+      final text = v.trim();
+      context.read<ProstheticCaseListBloc>().add(FilterProstheticCases(
+            current.copyWith(
+              patientReference: text.isEmpty ? null : text,
+              clearPatientReference: text.isEmpty,
+            ),
+          ));
+    });
+  }
+
+  /// Opens a case, then re-reads the list with the SAME filters: the case
+  /// may have changed status or payment while the user was inside it.
+  Future<void> _openCase(BuildContext context, String id) async {
+    final bloc = context.read<ProstheticCaseListBloc>();
+    await context.push(Routes.prostheticDetail(id));
+    if (!mounted) return;
+    bloc.add(const LoadProstheticCases());
   }
 
   Future<void> _openFilterSheet(BuildContext context) async {
@@ -151,6 +195,12 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
       ));
     }
 
+    if (filters.scope != null) {
+      addChip(
+        ProstheticScope.label(filters.scope!),
+        () => _applyFilters(context, filters.copyWith(clearScope: true)),
+      );
+    }
     if (filters.patientReference != null &&
         filters.patientReference!.isNotEmpty) {
       addChip(
@@ -230,13 +280,7 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
             child: AppSearchField(
               hint: 'Rechercher par référence patient...',
               controller: _searchCtrl,
-              onChanged: (v) => _applyFilters(
-                context,
-                context.read<ProstheticCaseListBloc>().state.filters.copyWith(
-                      patientReference: v.isEmpty ? null : v,
-                      clearPatientReference: v.isEmpty,
-                    ),
-              ),
+              onChanged: (v) => _onSearchChanged(context, v),
             ),
           ),
           BlocBuilder<ProstheticCaseListBloc, ProstheticCaseListState>(
@@ -251,6 +295,31 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
                 ),
                 child: Wrap(
                   children: _activeFilterChips(context, state.filters),
+                ),
+              );
+            },
+          ),
+          // Exact server-side total over the WHOLE result (not the loaded
+          // page): for a dashboard card it is the very number on the card.
+          BlocBuilder<ProstheticCaseListBloc, ProstheticCaseListState>(
+            buildWhen: (a, b) => a.total != b.total,
+            builder: (context, state) {
+              final total = state.total;
+              if (total == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(
+                  top: AppSpacing.sm,
+                  left: AppSpacing.md,
+                  right: AppSpacing.md,
+                ),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    total == 1 ? '1 dossier' : '$total dossiers',
+                    key: const Key('prosthetic-list-total'),
+                    style: AppTypography.caption
+                        .copyWith(color: AppColors.textSecondary),
+                  ),
                 ),
               );
             },
@@ -285,8 +354,7 @@ class _ProstheticCaseListViewState extends State<_ProstheticCaseListView> {
                       index: index,
                       child: ProstheticCaseTile(
                         item: item,
-                        onTap: () =>
-                            context.push(Routes.prostheticDetail(item.id)),
+                        onTap: () => _openCase(context, item.id),
                       ),
                     ),
                   ),
@@ -353,6 +421,9 @@ class _ProstheticFilterSheetState extends State<_ProstheticFilterSheet> {
       status: _status,
       from: _from,
       to: _to,
+      // The dashboard card this list came from is not one of the sheet's
+      // fields; applying the sheet must not silently drop it.
+      scope: widget.initial.scope,
     ));
   }
 

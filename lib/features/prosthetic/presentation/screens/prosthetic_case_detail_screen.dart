@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -12,9 +14,10 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
-import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/layout/section_header.dart';
+import '../../../cycles/data/models/cycle_attachment_data.dart';
+import '../../../cycles/presentation/screens/attachment_viewer_screen.dart';
 import '../../data/models/prosthetic_case_attachment_data.dart';
 import '../../data/models/prosthetic_case_data.dart';
 import '../../data/models/prosthetic_case_status_history_data.dart';
@@ -27,6 +30,7 @@ import '../widgets/prosthetic_history_tile.dart';
 import '../widgets/prosthetic_info_card.dart';
 import '../widgets/prosthetic_note_block.dart';
 import '../widgets/prosthetic_payment_section.dart';
+import '../widgets/prosthetic_status_change_dialog.dart';
 
 class ProstheticCaseDetailScreen extends StatefulWidget {
   final String caseId;
@@ -45,6 +49,12 @@ class _ProstheticCaseDetailScreenState
   bool _loading = true;
   bool _busy = false;
   String? _error;
+
+  /// Photo upload state: progress while sending, and the photo that could not
+  /// be sent (kept, so "Réessayer" does not make the user take it again).
+  bool _uploading = false;
+  double? _uploadProgress;
+  _PendingPhoto? _failedPhoto;
 
   bool get _canManageClinical =>
       getIt<SessionStore>().hasPermission('prosthetic_cases.manage');
@@ -86,85 +96,124 @@ class _ProstheticCaseDetailScreenState
   }
 
   Future<void> _changeStatus(ProstheticCaseStatus to) async {
-    final critical = to == ProstheticCaseStatus.placed ||
-        to == ProstheticCaseStatus.cancelled;
-    String? note;
+    final current = _case;
+    if (current == null || _busy) return;
+    final change = await ProstheticStatusChangeDialog.show(
+      context,
+      current: current,
+      target: to,
+    );
+    if (change == null || !mounted) return;
 
-    final noteCtrl = TextEditingController();
+    setState(() => _busy = true);
     try {
-      if (critical) {
-        final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: Text(to == ProstheticCaseStatus.placed
-                ? 'Confirmer la pose ?'
-                : 'Annuler ce dossier ?'),
-            content: AppTextArea(
-              label: 'Note (optionnel)',
-              controller: noteCtrl,
-              maxLines: 3,
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(dialogContext).pop(false),
-                child: const Text('Annuler'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.of(dialogContext).pop(true),
-                child: const Text('Confirmer'),
-              ),
-            ],
-          ),
-        );
-        if (confirmed != true || !mounted) return;
-        note = noteCtrl.text.trim();
-      }
-
-      setState(() => _busy = true);
-      try {
-        await getIt<ProstheticRepository>().changeStatus(
-          widget.caseId,
-          status: to.wire,
-          note: (note != null && note.isNotEmpty) ? note : null,
-        );
-        if (!mounted) return;
-        AppSnackbar.show(context, 'Statut mis à jour.',
-            kind: SnackKind.success);
-        await _load();
-      } catch (e) {
-        if (!mounted) return;
-        AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
-      } finally {
-        if (mounted) setState(() => _busy = false);
-      }
+      await getIt<ProstheticRepository>().changeStatus(
+        widget.caseId,
+        status: to.wire,
+        note: change.note,
+        plannedPlacementDate: change.plannedPlacementDate == null
+            ? null
+            : DateFormat('yyyy-MM-dd').format(change.plannedPlacementDate!),
+      );
+      if (!mounted) return;
+      AppSnackbar.show(context, 'Statut mis à jour.', kind: SnackKind.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      // The server's reason is already in French (e.g. "Impossible de passer
+      // de « Empreinte réalisée » à « Posé »."); refresh so the buttons match
+      // what the server now says is allowed.
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+      await _load();
     } finally {
-      noteCtrl.dispose();
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _addAttachment() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera);
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final file = await ImagePicker().pickImage(source: source);
     if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    await _sendPhoto(_PendingPhoto(file.name, bytes, file.mimeType));
+  }
 
-    setState(() => _busy = true);
+  Future<void> _sendPhoto(_PendingPhoto photo) async {
+    setState(() {
+      _uploading = true;
+      _failedPhoto = null;
+      _uploadProgress = 0;
+    });
     try {
-      final bytes = await file.readAsBytes();
       await getIt<ProstheticRepository>().uploadAttachment(
         caseId: widget.caseId,
-        fileName: file.name,
-        bytes: bytes,
-        mimeType: file.mimeType,
+        fileName: photo.name,
+        bytes: photo.bytes,
+        mimeType: photo.mimeType,
+        onProgress: (sent, total) {
+          if (mounted && total > 0) {
+            setState(() => _uploadProgress = sent / total);
+          }
+        },
       );
       if (!mounted) return;
       AppSnackbar.show(context, 'Photo ajoutée.', kind: SnackKind.success);
       await _load();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _failedPhoto = photo);
       AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _uploadProgress = null;
+        });
+      }
     }
+  }
+
+  /// Opens an attachment in the shared viewer (zoomable image, or a PDF handed
+  /// to the device's reader). The link is short-lived and signed, so the viewer
+  /// asks for a fresh one through `reload` when it has expired.
+  Future<void> _openAttachment(ProstheticCaseAttachmentData a) {
+    CycleAttachmentData asViewerData(ProstheticCaseAttachmentData x) =>
+        CycleAttachmentData(
+          id: x.id,
+          url: x.url,
+          fileName: x.fileName,
+          mimeType: x.mimeType,
+          size: x.size,
+          createdAt: x.createdAt,
+        );
+    return AttachmentViewerScreen.open(
+      context,
+      attachment: asViewerData(a),
+      reload: () async {
+        final fresh =
+            await getIt<ProstheticRepository>().listAttachments(widget.caseId);
+        return fresh.map(asViewerData).toList();
+      },
+    );
   }
 
   Future<void> _deleteAttachment(ProstheticCaseAttachmentData a) async {
@@ -335,11 +384,39 @@ class _ProstheticCaseDetailScreenState
             title: 'Pièces jointes',
             trailing: _canManageClinical
                 ? IconButton(
+                    key: const Key('prosthetic-add-attachment'),
                     icon: const Icon(Icons.add_a_photo_outlined),
-                    onPressed: _busy ? null : _addAttachment,
+                    tooltip: 'Ajouter une photo',
+                    onPressed: (_busy || _uploading) ? null : _addAttachment,
                   )
                 : null,
           ),
+          if (_uploading)
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: LinearProgressIndicator(
+                key: const Key('prosthetic-upload-progress'),
+                value: _uploadProgress,
+              ),
+            ),
+          if (_failedPhoto != null)
+            MaterialBanner(
+              key: const Key('prosthetic-upload-failed'),
+              content: const Text(
+                'L\'envoi a échoué. La photo est conservée : réessayez.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed:
+                      _uploading ? null : () => _sendPhoto(_failedPhoto!),
+                  child: const Text('Réessayer'),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _failedPhoto = null),
+                  child: const Text('Abandonner'),
+                ),
+              ],
+            ),
           if (_attachments.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -352,6 +429,7 @@ class _ProstheticCaseDetailScreenState
               children: _attachments
                   .map((a) => ProstheticAttachmentChip(
                         attachment: a,
+                        onOpen: () => _openAttachment(a),
                         onDelete: _canManageClinical
                             ? () => _deleteAttachment(a)
                             : null,
@@ -366,4 +444,12 @@ class _ProstheticCaseDetailScreenState
       ),
     );
   }
+}
+
+/// A photo the user picked that has not reached the server yet.
+class _PendingPhoto {
+  final String name;
+  final Uint8List bytes;
+  final String? mimeType;
+  const _PendingPhoto(this.name, this.bytes, this.mimeType);
 }

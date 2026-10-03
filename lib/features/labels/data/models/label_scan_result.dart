@@ -1,13 +1,19 @@
 import 'package:equatable/equatable.dart';
 
 /// Mirrors steriqore's `App\Domain\Labeling\Enums\LabelStatus` exactly —
-/// `created -> printed -> used | expired | recalled | voided`. The
-/// backend's own scan action (`ResolveLabelScanAction`) transitions a
-/// `Printed` label to `Used` synchronously as part of the scan itself, so
-/// a scan response showing `printed` is unusual in practice (it means
-/// the scan matched but didn't trigger that transition for some reason),
-/// not a distinct "please print first" state — `created` is that state.
-enum LabelScanStatus { created, printed, used, expired, recalled, voided, unknown }
+/// `created -> printed -> used | expired | recalled | voided`. A lookup is
+/// PASSIVE: it never changes the label, so a valid, unused pouch is
+/// `printed`. It becomes `used` only when a procedure is linked
+/// (`POST /labels/{id}/usage`), which is the one command that consumes it.
+enum LabelScanStatus {
+  created,
+  printed,
+  used,
+  expired,
+  recalled,
+  voided,
+  unknown,
+}
 
 LabelScanStatus _statusFromString(String? s) {
   switch (s) {
@@ -42,6 +48,9 @@ class LabelScanResult extends Equatable {
   final int sequenceInCycle;
   final String siteName;
 
+  /// A procedure is already linked to this pouch.
+  final bool usageRecorded;
+
   const LabelScanResult({
     required this.labelId,
     required this.status,
@@ -51,12 +60,15 @@ class LabelScanResult extends Equatable {
     required this.useByDate,
     required this.sequenceInCycle,
     required this.siteName,
+    this.usageRecorded = false,
   });
 
-  /// A usage can only be recorded once the scan has put the label in
-  /// `Used` — matches `RecordLabelUsageAction`'s real requirement
-  /// (backend error code `LABEL_NOT_SCANNED` otherwise).
-  bool get canRecordUsage => status == LabelScanStatus.used;
+  /// Recording a usage consumes a printed label. A label an older server
+  /// already marked `used` but never linked can still be linked; the server
+  /// refuses everything else (recalled, expired, already linked).
+  bool get canRecordUsage =>
+      (status == LabelScanStatus.printed || status == LabelScanStatus.used) &&
+      !usageRecorded;
 
   factory LabelScanResult.fromJson(Map<String, dynamic> json) {
     return LabelScanResult(
@@ -66,23 +78,26 @@ class LabelScanResult extends Equatable {
       deviceName: json['device_name']?.toString() ?? '',
       sterilizedAt:
           DateTime.tryParse(json['sterilized_at']?.toString() ?? '') ??
-              DateTime.now(),
-      useByDate: DateTime.tryParse(json['use_by_date']?.toString() ?? '') ??
+          DateTime.now(),
+      useByDate:
+          DateTime.tryParse(json['use_by_date']?.toString() ?? '') ??
           DateTime.now(),
       sequenceInCycle: (json['sequence_in_cycle'] as num?)?.toInt() ?? 0,
       siteName: json['site_name']?.toString() ?? '',
+      usageRecorded: json['usage_recorded'] == true,
     );
   }
 
   @override
   List<Object?> get props => [
-        labelId,
-        status,
-        cycleNumber,
-        deviceName,
-        sterilizedAt,
-        useByDate,
-        sequenceInCycle,
-        siteName,
-      ];
+    labelId,
+    status,
+    cycleNumber,
+    deviceName,
+    sterilizedAt,
+    useByDate,
+    sequenceInCycle,
+    siteName,
+    usageRecorded,
+  ];
 }

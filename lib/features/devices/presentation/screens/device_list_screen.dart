@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/formatters/date_formatter.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -11,6 +13,7 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../../cycles/data/repositories/device_repository.dart';
+import '../../data/site_names.dart';
 import '../../data/models/device_detail.dart';
 import '../../data/repositories/device_detail_repository.dart';
 import '../widgets/device_form_sheet.dart';
@@ -24,6 +27,7 @@ class DeviceListScreen extends StatefulWidget {
 
 class _DeviceListScreenState extends State<DeviceListScreen> {
   late Future<List<DeviceDetail>> _future;
+  Map<String, String> _sites = const {};
 
   @override
   void initState() {
@@ -33,6 +37,9 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
   void _load() {
     _future = getIt<DeviceDetailRepository>().list(forceRefresh: true);
+    loadSiteNames().then((m) {
+      if (mounted) setState(() => _sites = m);
+    });
   }
 
   Future<void> _refresh() async {
@@ -95,7 +102,12 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
               );
             }
             return ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
               itemCount: devices.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppSpacing.sm),
@@ -103,6 +115,7 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
                 index: i,
                 child: _DeviceCard(
                   device: devices[i],
+                  siteName: _sites[devices[i].siteId],
                   onTap: () async {
                     // Reload whatever way the user comes back (Back button,
                     // delete, edit): the detail screen may have changed or
@@ -122,73 +135,47 @@ class _DeviceListScreenState extends State<DeviceListScreen> {
 
 class _DeviceCard extends StatelessWidget {
   final DeviceDetail device;
+  final String? siteName;
   final VoidCallback? onTap;
-  const _DeviceCard({required this.device, this.onTap});
+  const _DeviceCard({required this.device, this.siteName, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundCard,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: AppColors.brandPrimaryLight,
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: const Icon(
-                  Icons.precision_manufacturing_outlined,
-                  size: 20,
-                  color: AppColors.brandPrimary,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(device.name, style: AppTypography.bodyStrong),
-                    if (device.model != null) ...[
-                      const SizedBox(height: 2),
-                      Text(device.model!, style: AppTypography.caption),
-                    ],
-                    if (device.serialNumber != null) ...[
-                      const SizedBox(height: 2),
-                      Text('SN: ${device.serialNumber!}',
-                          style: AppTypography.caption),
-                    ],
-                  ],
-                ),
-              ),
-              if (device.status != null)
-                TypeBadge(
-                  label: device.status!.toUpperCase(),
-                  tone: device.status == 'active'
-                      ? BadgeTone.green
-                      : BadgeTone.gray,
-                ),
-              const SizedBox(width: AppSpacing.xs),
-              const Icon(
-                Icons.chevron_right,
-                size: 20,
-                color: AppColors.textTertiary,
-              ),
-            ],
-          ),
-        ),
+    final d = device;
+    final active = d.isActive;
+    return EntityCard(
+      onTap: onTap,
+      mark: EntityMark.icon(
+        d.kind == 'sealer'
+            ? Icons.local_fire_department_outlined
+            : Icons.precision_manufacturing_outlined,
+        background: active ? AppColors.brandPrimaryLight : AppColors.surfaceWell,
+        foreground: active ? AppColors.brandPrimaryDark : AppColors.textSecondary,
       ),
+      eyebrow: d.kindLabel.toUpperCase(),
+      title: d.name,
+      subtitle: d.makeAndModel,
+      trailing: d.status == null
+          ? null
+          : TypeBadge(
+              label: d.statusLabel,
+              tone: switch (d.status) {
+                'active' => BadgeTone.green,
+                'maintenance' => BadgeTone.orange,
+                _ => BadgeTone.gray,
+              },
+            ),
+      tags: [
+        if ((d.serialNumber ?? '').isNotEmpty)
+          InfoTag('N° ${d.serialNumber}', icon: Icons.tag),
+        if ((siteName ?? '').isNotEmpty)
+          InfoTag(siteName!, icon: Icons.business_outlined),
+        if (d.commissionedAt != null)
+          InfoTag(
+            'En service depuis ${AppDateFormatter.date(d.commissionedAt!)}',
+            icon: Icons.event_available_outlined,
+          ),
+      ],
     );
   }
 }

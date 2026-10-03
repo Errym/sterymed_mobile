@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/router/routes.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
@@ -127,7 +129,12 @@ class _NcViewState extends State<_NcView> {
                       .read<NonConformityListBloc>()
                       .add(const LoadNonConformities()),
                   child: ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.lg,
+                      AppSpacing.xs,
+                      AppSpacing.lg,
+                      AppSpacing.xl,
+                    ),
                     itemCount: state.items.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: AppSpacing.md),
@@ -154,89 +161,145 @@ class _NcCard extends StatelessWidget {
   final bool canManage;
   const _NcCard({required this.item, required this.canManage});
 
+  /// "Ouverte depuis 3 jours", for an incident still waiting for a decision.
+  String? get _age {
+    if (!item.isOpen) return null;
+    final d = DateTime.now().difference(item.raisedAt);
+    if (d.inHours < 1) return 'Ouverte depuis moins d\'une heure';
+    if (d.inHours < 24) return 'Ouverte depuis ${d.inHours} h';
+    return 'Ouverte depuis ${d.inDays} jour${d.inDays > 1 ? 's' : ''}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final statusTone = item.isOpen ? BadgeTone.yellow : BadgeTone.green;
-
+    final accent = item.isOpen ? AppColors.danger : AppColors.success;
+    final age = _age;
+    final isCycle = item.subjectType.toLowerCase().contains('cycle');
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(
-          color: item.isOpen
-              ? AppColors.danger.withValues(alpha: 0.3)
-              : AppColors.borderLight,
-        ),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TypeBadge(label: item.subjectTypeLabel, tone: BadgeTone.blue),
-              const Spacer(),
-              TypeBadge(
-                label: item.isOpen ? 'En cours' : 'Résolu',
-                tone: statusTone,
+              Container(width: 5, color: accent),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          TypeBadge(
+                            label: item.subjectTypeLabel,
+                            tone: BadgeTone.blue,
+                          ),
+                          const Spacer(),
+                          TypeBadge(
+                            label: item.isOpen ? 'En cours' : 'Résolu',
+                            tone: item.isOpen
+                                ? BadgeTone.yellow
+                                : BadgeTone.green,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(item.description, style: AppTypography.cardTitle),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Signalé le '
+                        '${DateFormat('dd/MM/yyyy HH:mm').format(item.raisedAt)}'
+                        '${item.raisedByName != null ? ' par ${item.raisedByName}' : ''}',
+                        style: AppTypography.caption,
+                      ),
+                      if (age != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            age,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.danger,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      if (isCycle || (item.isOpen && canManage)) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Row(
+                          children: [
+                            if (isCycle)
+                              TextButton.icon(
+                                key: const Key('nc-open-cycle'),
+                                onPressed: () => context.openRoute(
+                                  Routes.cyclesDetail(item.subjectId),
+                                ),
+                                icon: const Icon(Icons.autorenew, size: 16),
+                                label: const Text('Voir le cycle'),
+                              ),
+                            const Spacer(),
+                            if (item.isOpen && canManage)
+                              TextButton.icon(
+                                onPressed: () async {
+                                  final ok = await NcResolveDialog.show(
+                                    context,
+                                    ncId: item.id,
+                                  );
+                                  if (ok == true && context.mounted) {
+                                    context
+                                        .read<NonConformityListBloc>()
+                                        .add(const LoadNonConformities());
+                                  }
+                                },
+                                icon: const Icon(Icons.check, size: 16),
+                                label: const Text('Résoudre'),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (item.resolution != null) ...[
+                        const SizedBox(height: AppSpacing.sm),
+                        Container(
+                          padding: const EdgeInsets.all(AppSpacing.sm),
+                          decoration: BoxDecoration(
+                            color: AppColors.successLight,
+                            borderRadius:
+                                BorderRadius.circular(AppRadius.control),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.check_circle,
+                                  size: 16, color: AppColors.success),
+                              const SizedBox(width: AppSpacing.xs),
+                              Expanded(
+                                child: Text(
+                                  'Résolution : ${item.resolution}'
+                                  '${item.resolvedByName != null ? ' (${item.resolvedByName})' : ''}'
+                                  '${item.resolvedAt != null ? ' · ${DateFormat('dd/MM/yyyy').format(item.resolvedAt!)}' : ''}',
+                                  style: AppTypography.caption.copyWith(
+                                    color: AppColors.success,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(item.description, style: AppTypography.bodyStrong),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            'Signalé le ${DateFormat('dd/MM/yyyy HH:mm').format(item.raisedAt)}'
-            '${item.raisedByName != null ? ' par ${item.raisedByName}' : ''}',
-            style: AppTypography.caption,
-          ),
-          if (item.isOpen && canManage) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () async {
-                  final ok = await NcResolveDialog.show(context, ncId: item.id);
-                  if (ok == true && context.mounted) {
-                    context
-                        .read<NonConformityListBloc>()
-                        .add(const LoadNonConformities());
-                  }
-                },
-                icon: const Icon(Icons.check, size: 16),
-                label: const Text('Résoudre'),
-              ),
-            ),
-          ],
-          if (item.resolution != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.sm),
-              decoration: BoxDecoration(
-                color: AppColors.successLight,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Icon(Icons.check_circle,
-                      size: 16, color: AppColors.success),
-                  const SizedBox(width: AppSpacing.xs),
-                  Expanded(
-                    child: Text(
-                      'Résolution : ${item.resolution}'
-                      '${item.resolvedByName != null ? ' (${item.resolvedByName})' : ''}',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.success,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

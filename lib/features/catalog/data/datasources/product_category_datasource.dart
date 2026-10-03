@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
+import '../../../../core/utils/idempotency_key.dart';
 import '../models/product_category_data.dart';
 
 class ProductCategoryDatasource {
@@ -27,6 +28,24 @@ class ProductCategoryDatasource {
             .toList();
       }
       return const [];
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  /// POST /v1/product-categories — replies with the bare created category.
+  Future<ProductCategoryData> create(String name) async {
+    try {
+      final res = await _dio.post(
+        ApiEndpoints.productCategories,
+        data: {'name': name},
+        options: Options(
+          headers: {'Idempotency-Key': generateIdempotencyKey()},
+        ),
+      );
+      return ProductCategoryData.fromJson(
+        (res.data as Map).cast<String, dynamic>(),
+      );
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }

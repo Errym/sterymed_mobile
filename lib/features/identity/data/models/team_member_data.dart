@@ -31,15 +31,15 @@ class TeamMemberData extends Equatable {
   }
 
   factory TeamMemberData.fromJson(Map<String, dynamic> json) => TeamMemberData(
-        id: json['id']?.toString() ?? '',
-        userId: json['user_id']?.toString() ?? '',
-        name: json['name']?.toString() ?? '',
-        email: json['email']?.toString() ?? '',
-        role: json['role']?.toString(),
-        status: json['status']?.toString() ?? 'active',
-        joinedAt: DateTime.tryParse(json['joined_at']?.toString() ?? ''),
-        disabledAt: DateTime.tryParse(json['disabled_at']?.toString() ?? ''),
-      );
+    id: json['id']?.toString() ?? '',
+    userId: json['user_id']?.toString() ?? '',
+    name: json['name']?.toString() ?? '',
+    email: json['email']?.toString() ?? '',
+    role: json['role']?.toString(),
+    status: json['status']?.toString() ?? 'active',
+    joinedAt: DateTime.tryParse(json['joined_at']?.toString() ?? ''),
+    disabledAt: DateTime.tryParse(json['disabled_at']?.toString() ?? ''),
+  );
 
   @override
   List<Object?> get props => [id, userId, role, status];

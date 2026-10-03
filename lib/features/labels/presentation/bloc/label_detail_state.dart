@@ -10,6 +10,9 @@ class LabelDetailState extends Equatable {
   final List<LabelUsageData> history;
   final bool historyLoading;
 
+  /// The history request failed: say so, never render it as "no usage".
+  final bool historyFailed;
+
   const LabelDetailState({
     this.status = LabelDetailStatus.initial,
     this.result,
@@ -17,6 +20,7 @@ class LabelDetailState extends Equatable {
     this.errorCode,
     this.history = const [],
     this.historyLoading = false,
+    this.historyFailed = false,
   });
 
   LabelDetailState copyWith({
@@ -26,6 +30,7 @@ class LabelDetailState extends Equatable {
     String? errorCode,
     List<LabelUsageData>? history,
     bool? historyLoading,
+    bool? historyFailed,
   }) {
     return LabelDetailState(
       status: status ?? this.status,
@@ -34,10 +39,18 @@ class LabelDetailState extends Equatable {
       errorCode: errorCode ?? this.errorCode,
       history: history ?? this.history,
       historyLoading: historyLoading ?? this.historyLoading,
+      historyFailed: historyFailed ?? this.historyFailed,
     );
   }
 
   @override
-  List<Object?> get props =>
-      [status, result, error, errorCode, history, historyLoading];
+  List<Object?> get props => [
+    status,
+    result,
+    error,
+    errorCode,
+    history,
+    historyLoading,
+    historyFailed,
+  ];
 }

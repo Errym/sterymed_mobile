@@ -13,7 +13,11 @@ class AlertRemoteDatasource {
 
   /// GET /v1/alerts
   /// Returns a page of active (unresolved) alerts, newest first.
-  Future<CursorPage<AlertData>> fetchActive({String? cursor}) async {
+  Future<CursorPage<AlertData>> fetchActive({
+    String? cursor,
+    String? type,
+    String? state = 'open',
+  }) async {
     try {
       final response = await _dio.get(
         ApiEndpoints.alerts,
@@ -21,7 +25,8 @@ class AlertRemoteDatasource {
           // The real filter is `state` (open/resolved) — `resolved` was
           // silently ignored by the backend, so this used to also return
           // resolved alerts mixed into the "active" list.
-          'filter[state]': 'open',
+          if (state != null) 'filter[state]': state,
+          if (type != null) 'filter[type]': type,
           'limit': 50,
           if (cursor != null) 'cursor': cursor,
         },

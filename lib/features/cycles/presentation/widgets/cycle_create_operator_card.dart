@@ -13,7 +13,7 @@ class CycleCreateOperatorCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundSubtle,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
       ),
       child: Row(
         children: [

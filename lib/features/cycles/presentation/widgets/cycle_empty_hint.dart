@@ -14,3 +14,38 @@ class CycleEmptyHint extends StatelessWidget {
     );
   }
 }
+
+/// A section whose data could not be loaded. Deliberately different from
+/// [CycleEmptyHint]: "could not load" must never read as "nothing recorded".
+class CycleLoadFailedHint extends StatelessWidget {
+  final String what;
+  final String message;
+  final VoidCallback? onRetry;
+  const CycleLoadFailedHint({
+    super.key,
+    required this.what,
+    required this.message,
+    this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.warning, size: 18),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              '$what : chargement impossible ($message).',
+              style: AppTypography.caption.copyWith(color: AppColors.warning),
+            ),
+          ),
+          if (onRetry != null)
+            TextButton(onPressed: onRetry, child: const Text('Réessayer')),
+        ],
+      ),
+    );
+  }
+}

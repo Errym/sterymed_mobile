@@ -1,25 +1,33 @@
+import 'package:steriymed_mobile/core/utils/dispose_later.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/errors/api_exception.dart';
-import '../../../../core/network/cursor_page.dart';
 import '../../../../core/router/routes.dart';
+import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/cards/kpi_card.dart';
+import '../../../../shared/widgets/feedback/app_snackbar.dart';
+import '../../../../shared/widgets/inputs/app_text_area.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/cursor_paginated_list.dart';
-import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/prosthetic_case_data.dart';
+import '../../data/models/prosthetic_summary_data.dart';
 import '../../data/repositories/prosthetic_repository.dart';
+import '../utils/prosthetic_scopes.dart';
 import '../widgets/prosthetic_case_tile.dart';
 
 /// Brief page 9: "the priority screen specifically requested."
 ///
-/// Aging is computed server-side (`daysWaitingForPlacement`) and rendered
-/// per-row via [ProstheticCaseTile]'s `AgingBadge`. This screen adds a
-/// summary bar (0-7 / 8-14 / 15+ day buckets) that doubles as a
-/// client-side filter over the loaded page.
+/// Everything that decides WHO is on this screen is the server's job:
+/// inclusion (returned from the lab, not placed, not cancelled), the days
+/// elapsed (measured against the server date) and the 0-7 / 8-14 / 15+ day
+/// buckets, which are counted over the whole waiting set — not over the page
+/// that happens to be loaded — and applied as a server filter when tapped.
 class ProstheticWaitingPlacementScreen extends StatefulWidget {
   const ProstheticWaitingPlacementScreen({super.key});
 
@@ -32,35 +40,21 @@ class _ProstheticWaitingPlacementScreenState
     extends State<ProstheticWaitingPlacementScreen> {
   List<ProstheticCaseData> _items = [];
   String? _nextCursor;
+  ProstheticSummaryData? _summary;
   bool _loading = true;
   bool _loadingMore = false;
   String? _error;
 
-  /// Local-only aging filter: null (all) | 'fresh' (0-7) | 'medium' (8-14)
-  /// | 'urgent' (15+). Purely client-side over the already-loaded page;
-  /// the backend query is unchanged.
-  String? _agingFilter;
+  /// null (all) | 'fresh' (0-7) | 'medium' (8-14) | 'urgent' (15+). Sent to
+  /// the server, which filters the whole set.
+  String? _aging;
 
-  int get _freshCount =>
-      _items.where((c) => (c.daysWaitingForPlacement ?? 0) <= 7).length;
+  /// Same idea as the list bloc: a late answer for a previous bucket never
+  /// overwrites the list the user is looking at now.
+  int _generation = 0;
 
-  int get _mediumCount => _items.where((c) {
-        final d = c.daysWaitingForPlacement ?? 0;
-        return d >= 8 && d <= 14;
-      }).length;
-
-  int get _urgentCount =>
-      _items.where((c) => (c.daysWaitingForPlacement ?? 0) >= 15).length;
-
-  List<ProstheticCaseData> get _visibleItems {
-    if (_agingFilter == null) return _items;
-    return _items.where((c) {
-      final d = c.daysWaitingForPlacement ?? 0;
-      if (_agingFilter == 'fresh') return d <= 7;
-      if (_agingFilter == 'medium') return d >= 8 && d <= 14;
-      return d >= 15;
-    }).toList();
-  }
+  bool get _canManage =>
+      getIt<SessionStore>().hasPermission('prosthetic_cases.manage');
 
   @override
   void initState() {
@@ -69,21 +63,27 @@ class _ProstheticWaitingPlacementScreenState
   }
 
   Future<void> _load() async {
+    final generation = ++_generation;
+    final aging = _aging;
     setState(() {
       _loading = true;
       _error = null;
     });
+    final repo = getIt<ProstheticRepository>();
     try {
-      final CursorPage<ProstheticCaseData> page =
-          await getIt<ProstheticRepository>().waitingForPlacement();
-      if (!mounted) return;
+      final pageFuture = repo.waitingForPlacement(aging: aging);
+      final summaryFuture = _loadSummary(repo);
+      final page = await pageFuture;
+      final summary = await summaryFuture;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _items = page.items;
         _nextCursor = page.nextCursor;
+        _summary = summary ?? _summary;
         _loading = false;
       });
     } on ApiException catch (e) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() {
         _error = e.message;
         _loading = false;
@@ -91,31 +91,39 @@ class _ProstheticWaitingPlacementScreenState
     }
   }
 
+  Future<ProstheticSummaryData?> _loadSummary(ProstheticRepository repo) async {
+    try {
+      return await repo.summary(scope: ProstheticScope.waitingForPlacement);
+    } on ApiException {
+      return null;
+    }
+  }
+
   Future<void> _loadMore() async {
     if (_nextCursor == null || _loadingMore) return;
+    final generation = _generation;
     setState(() => _loadingMore = true);
     try {
       final page = await getIt<ProstheticRepository>()
-          .waitingForPlacement(cursor: _nextCursor);
-      if (!mounted) return;
+          .waitingForPlacement(cursor: _nextCursor, aging: _aging);
+      if (!mounted || generation != _generation) return;
       setState(() {
         _items = [..._items, ...page.items];
         _nextCursor = page.nextCursor;
         _loadingMore = false;
       });
     } on ApiException catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _generation) return;
       setState(() => _loadingMore = false);
     }
   }
 
-  void _toggleFilter(String value) {
-    setState(() {
-      _agingFilter = _agingFilter == value ? null : value;
-    });
+  void _toggleAging(String value) {
+    setState(() => _aging = _aging == value ? null : value);
+    _load();
   }
 
-  String _filterLabel(String value) {
+  String _agingLabel(String value) {
     switch (value) {
       case 'fresh':
         return '0-7 jours';
@@ -126,9 +134,141 @@ class _ProstheticWaitingPlacementScreenState
     }
   }
 
+  Future<void> _open(ProstheticCaseData c) async {
+    await context.push(Routes.prostheticDetail(c.id));
+    if (mounted) await _load();
+  }
+
+  // ── Quick actions (one tap from the list, no need to open the case) ──
+
+  Future<void> _schedule(ProstheticCaseData c) async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: c.plannedPlacementDate ?? now.add(const Duration(days: 1)),
+      firstDate: now.subtract(const Duration(days: 1)),
+      lastDate: now.add(const Duration(days: 365)),
+      helpText: 'Date de pose prévue',
+    );
+    if (picked == null || !mounted) return;
+    final wire = DateFormat('yyyy-MM-dd').format(picked);
+    try {
+      final repo = getIt<ProstheticRepository>();
+      if (c.status == ProstheticCaseStatus.receivedAtPractice) {
+        await repo.changeStatus(
+          c.id,
+          status: ProstheticCaseStatus.placementScheduled.wire,
+          plannedPlacementDate: wire,
+        );
+      } else {
+        await repo.update(c.id, {'planned_placement_date': wire});
+      }
+      if (!mounted) return;
+      AppSnackbar.show(context, 'Pose programmée.', kind: SnackKind.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+    }
+  }
+
+  Future<void> _addNote(ProstheticCaseData c) async {
+    final ctrl = TextEditingController();
+    try {
+      final text = await showDialog<String>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Ajouter une note'),
+          content: AppTextArea(
+            label: 'Note',
+            controller: ctrl,
+            maxLines: 4,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Annuler'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(ctrl.text.trim()),
+              child: const Text('Enregistrer'),
+            ),
+          ],
+        ),
+      );
+      if (text == null || text.isEmpty || !mounted) return;
+      final stamp = DateFormat('dd/MM/yyyy').format(DateTime.now());
+      final existing = (c.notes ?? '').trim();
+      final merged = existing.isEmpty ? '$stamp : $text' : '$existing\n$stamp : $text';
+      if (merged.length > 4000) {
+        AppSnackbar.show(
+          context,
+          'Les remarques de ce dossier sont pleines (4000 caractères).',
+          kind: SnackKind.error,
+        );
+        return;
+      }
+      await getIt<ProstheticRepository>().update(c.id, {'notes': merged});
+      if (!mounted) return;
+      AppSnackbar.show(context, 'Note ajoutée.', kind: SnackKind.success);
+      await _load();
+    } catch (e) {
+      if (!mounted) return;
+      AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
+    } finally {
+      disposeControllerLater(ctrl);
+    }
+  }
+
+  Widget _row(ProstheticCaseData item, int index) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: AnimatedListItem(
+        index: index,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ProstheticCaseTile(item: item, onTap: () => _open(item)),
+            // Hidden, not disabled, for people who cannot act on a case.
+            if (_canManage)
+              Wrap(
+                spacing: AppSpacing.xs,
+                children: [
+                  TextButton.icon(
+                    key: Key('waiting-schedule-${item.id}'),
+                    onPressed: () => _schedule(item),
+                    icon: const Icon(Icons.event_outlined, size: 18),
+                    label: Text(
+                      item.plannedPlacementDate == null
+                          ? 'Programmer'
+                          : 'Reprogrammer',
+                    ),
+                  ),
+                  TextButton.icon(
+                    key: Key('waiting-note-${item.id}'),
+                    onPressed: () => _addNote(item),
+                    icon: const Icon(Icons.edit_note_outlined, size: 18),
+                    label: const Text('Note'),
+                  ),
+                  TextButton.icon(
+                    key: Key('waiting-open-${item.id}'),
+                    onPressed: () => _open(item),
+                    icon: const Icon(Icons.open_in_new, size: 18),
+                    label: const Text('Ouvrir'),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final showSummary = !_loading && _error == null && _items.isNotEmpty;
+    final summary = _summary;
+    final showSummary = _error == null && summary != null && summary.total > 0;
 
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
@@ -137,7 +277,7 @@ class _ProstheticWaitingPlacementScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (showSummary) ...[
-            // ── Summary bar: 3 tappable bucket cards ──
+            // ── Summary bar: 3 tappable bucket cards, counted by the server ──
             Padding(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
@@ -152,10 +292,10 @@ class _ProstheticWaitingPlacementScreenState
                       height: 104,
                       child: KpiCard(
                         label: '0-7 jours',
-                        value: '$_freshCount',
+                        value: '${summary.fresh}',
                         icon: Icons.access_time,
                         accentColor: AppColors.agingFresh,
-                        onTap: () => _toggleFilter('fresh'),
+                        onTap: () => _toggleAging('fresh'),
                       ),
                     ),
                   ),
@@ -165,10 +305,10 @@ class _ProstheticWaitingPlacementScreenState
                       height: 104,
                       child: KpiCard(
                         label: '8-14 jours',
-                        value: '$_mediumCount',
+                        value: '${summary.medium}',
                         icon: Icons.warning_amber_outlined,
                         accentColor: AppColors.agingMedium,
-                        onTap: () => _toggleFilter('medium'),
+                        onTap: () => _toggleAging('medium'),
                       ),
                     ),
                   ),
@@ -178,36 +318,37 @@ class _ProstheticWaitingPlacementScreenState
                       height: 104,
                       child: KpiCard(
                         label: '15+ jours',
-                        value: '$_urgentCount',
+                        value: '${summary.urgent}',
                         icon: Icons.error_outline,
                         accentColor: AppColors.agingUrgent,
-                        onTap: () => _toggleFilter('urgent'),
+                        onTap: () => _toggleAging('urgent'),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-
-            // ── Active filter chip with "Effacer" ──
-            if (_agingFilter != null)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.md,
-                  AppSpacing.sm,
-                  AppSpacing.md,
-                  0,
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Filtré : ${_filterLabel(_agingFilter!)}',
-                        style: AppTypography.caption,
-                      ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.sm,
+                AppSpacing.md,
+                0,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _aging == null
+                          ? '${summary.total} dossier${summary.total > 1 ? 's' : ''} en attente'
+                          : 'Filtré : ${_agingLabel(_aging!)}',
+                      key: const Key('waiting-total'),
+                      style: AppTypography.caption,
                     ),
+                  ),
+                  if (_aging != null)
                     GestureDetector(
-                      onTap: () => setState(() => _agingFilter = null),
+                      onTap: () => _toggleAging(_aging!),
                       child: Text(
                         'Effacer',
                         style: AppTypography.caption.copyWith(
@@ -216,14 +357,14 @@ class _ProstheticWaitingPlacementScreenState
                         ),
                       ),
                     ),
-                  ],
-                ),
+                ],
               ),
+            ),
           ],
           const SizedBox(height: AppSpacing.sm),
           Expanded(
             child: CursorPaginatedList<ProstheticCaseData>(
-              items: _visibleItems,
+              items: _items,
               isLoading: _loading,
               isLoadingMore: _loadingMore,
               hasMore: _nextCursor != null,
@@ -231,23 +372,14 @@ class _ProstheticWaitingPlacementScreenState
               onRetry: _load,
               onRefresh: _load,
               onLoadMore: _loadMore,
-              emptyTitle: _agingFilter == null
+              emptyTitle: _aging == null
                   ? 'Aucun dossier en attente'
                   : 'Aucun dossier dans cette tranche',
-              emptyMessage: _agingFilter == null
+              emptyMessage: _aging == null
                   ? 'Aucun travail revenu du laboratoire n\'attend de pose.'
                   : 'Essayez une autre tranche d\'ancienneté.',
               emptyIcon: Icons.hourglass_empty,
-              itemBuilder: (context, item, index) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AnimatedListItem(
-                  index: index,
-                  child: ProstheticCaseTile(
-                    item: item,
-                    onTap: () => context.push(Routes.prostheticDetail(item.id)),
-                  ),
-                ),
-              ),
+              itemBuilder: (context, item, index) => _row(item, index),
             ),
           ),
         ],

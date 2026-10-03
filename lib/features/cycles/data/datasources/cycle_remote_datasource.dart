@@ -2,16 +2,12 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 
 import '../../../../core/config/api_endpoints.dart';
-import '../../../../core/config/env.dart';
 import '../../../../core/errors/api_exception.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/network/cursor_page.dart';
-import '../../../../core/storage/token_storage.dart';
 import '../../../../core/utils/idempotency_key.dart';
-import '../../../../di/di.dart';
 import '../models/control_test_data.dart';
 import '../models/cycle_attachment_data.dart';
 import '../models/cycle_data.dart';
@@ -81,6 +77,20 @@ class CycleRemoteDatasource {
     }
   }
 
+  /// The stored release decision (who, when, why), or null while the cycle
+  /// has none (the server answers 404 until it is released or rejected).
+  Future<CycleReleaseData?> getRelease(String cycleId) async {
+    try {
+      final res = await _dio.get(ApiEndpoints.cycleRelease(cycleId));
+      return CycleReleaseData.fromJson(
+        (res.data as Map).cast<String, dynamic>(),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 404) return null;
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
   Future<CycleReleaseData> release(
     String id, {
     required String decision,
@@ -120,6 +130,24 @@ class CycleRemoteDatasource {
         data: payload,
         options:
             Options(headers: {'Idempotency-Key': generateIdempotencyKey()}),
+      );
+      return CycleItemData.fromJson((res.data as Map).cast<String, dynamic>());
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
+  /// Edits an item in place (PATCH). Only the keys in [changes] are touched:
+  /// an item keeps its id, position and batch link unless told otherwise.
+  Future<CycleItemData> updateItem(
+    String cycleId,
+    String itemId,
+    Map<String, dynamic> changes,
+  ) async {
+    try {
+      final res = await _dio.patch(
+        ApiEndpoints.cycleItem(cycleId, itemId),
+        data: changes,
       );
       return CycleItemData.fromJson((res.data as Map).cast<String, dynamic>());
     } on DioException catch (e) {
@@ -213,53 +241,35 @@ class CycleRemoteDatasource {
   }
 
   // -------------------------------------------------------------------------
-  // Upload — final version
-  //
-  // Web (Dio's multipart is broken through browser fetch):
-  //   - Use package:http's MultipartRequest → goes through XMLHttpRequest
-  //   - Include Idempotency-Key header (backend middleware requires it)
-  //
-  // Native (Dio's multipart works on iOS/Android):
-  //   - Dio's MultipartFile
-  //   - Include Idempotency-Key header
+  // Upload. One path for every platform: a JSON body carrying the file as
+  // base64 (`POST /cycles/{id}/attachments-base64`). The multipart route
+  // answers 500 behind FrankenPHP/Octane workers (BUG-001), and a JSON body
+  // lets the idempotency layer reuse the same key when a lost answer is
+  // retried, so a retry cannot attach the photo twice.
   // -------------------------------------------------------------------------
+  static const maxAttachmentBytes = 10 * 1024 * 1024;
+
   Future<CycleAttachmentData> uploadAttachment({
     required String cycleId,
     required String fileName,
     required Uint8List bytes,
     String? mimeType,
+    void Function(int sent, int total)? onProgress,
   }) async {
-    final effectiveMime = (mimeType != null && mimeType.isNotEmpty)
-        ? mimeType
-        : 'application/octet-stream';
-
-    if (kDebugMode) {
-      debugPrint('attachment upload started');
+    if (bytes.isEmpty) {
+      throw const ApiException(code: 'upload_invalid', message: 'Fichier vide.');
     }
-
-    if (kIsWeb) {
-      return _uploadOnWeb(
-        cycleId: cycleId,
-        fileName: fileName,
-        bytes: bytes,
-        mimeType: effectiveMime,
+    if (bytes.length > maxAttachmentBytes) {
+      throw const ApiException(
+        code: 'upload_invalid',
+        message: 'Fichier trop volumineux (10 Mo maximum).',
       );
     }
-
-    // Native path.
     try {
-      final file = MultipartFile.fromBytes(
-        bytes,
-        filename: fileName,
-        contentType: DioMediaType.parse(effectiveMime),
-      );
-      final form = FormData.fromMap({'file': file});
       final res = await _dio.post(
-        ApiEndpoints.cycleAttachments(cycleId),
-        data: form,
-        options: Options(
-          headers: {'Idempotency-Key': generateIdempotencyKey()},
-        ),
+        ApiEndpoints.cycleAttachmentsBase64(cycleId),
+        data: {'file_name': fileName, 'file_data': base64Encode(bytes)},
+        onSendProgress: onProgress,
       );
       return CycleAttachmentData.fromJson(
         (res.data as Map).cast<String, dynamic>(),
@@ -267,75 +277,6 @@ class CycleRemoteDatasource {
     } on DioException catch (e) {
       throw ErrorMapper.fromDio(e);
     }
-  }
-
-  Future<CycleAttachmentData> _uploadOnWeb({
-    required String cycleId,
-    required String fileName,
-    required Uint8List bytes,
-    required String mimeType,
-  }) async {
-    final token = await getIt<TokenStorage>().read();
-    if (token == null || token.isEmpty) {
-      throw const ApiException(
-        code: 'unauthenticated',
-        message: 'Session expirée. Veuillez vous reconnecter.',
-      );
-    }
-
-    final base = Env.apiBaseUrl.endsWith('/')
-        ? Env.apiBaseUrl.substring(0, Env.apiBaseUrl.length - 1)
-        : Env.apiBaseUrl;
-
-    final uri = Uri.parse('$base${ApiEndpoints.cycleAttachments(cycleId)}');
-
-    final parts = mimeType.split('/');
-    final mediaType = parts.length == 2
-        ? http.MediaType(parts[0], parts[1])
-        : http.MediaType('application', 'octet-stream');
-
-    final req = http.MultipartRequest('POST', uri);
-    req.headers['Accept'] = 'application/json';
-    req.headers['Authorization'] = 'Bearer $token';
-    req.headers['Idempotency-Key'] = generateIdempotencyKey();
-    req.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: fileName,
-      contentType: mediaType,
-    ));
-
-    if (kDebugMode) {
-      debugPrint('attachment upload started');
-    }
-
-    final streamed = await req.send();
-    final body = await streamed.stream.bytesToString();
-
-    if (kDebugMode) {
-      debugPrint('<- HTTP-UPLOAD status=${streamed.statusCode}');
-    }
-
-    if (streamed.statusCode >= 400) {
-      String msg = 'Échec de l\'envoi (HTTP ${streamed.statusCode}).';
-      try {
-        final decoded = jsonDecode(body) as Map<String, dynamic>;
-        final err = decoded['error'];
-        if (err is Map && err['message'] != null) {
-          msg = err['message'].toString();
-        }
-      } catch (_) {
-        // Keep fallback.
-      }
-      throw ApiException(
-        code: 'upload_failed',
-        message: msg,
-        statusCode: streamed.statusCode,
-      );
-    }
-
-    final decoded = jsonDecode(body) as Map<String, dynamic>;
-    return CycleAttachmentData.fromJson(decoded);
   }
 
   Future<void> deleteAttachment(String cycleId, String attachmentId) async {

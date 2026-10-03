@@ -17,6 +17,12 @@ class StockLevelData extends Equatable {
   final bool isExpired;
   final bool isNearExpiry;
 
+  /// `active` or `quarantined`; a quarantined batch cannot leave the stock.
+  final String batchStatus;
+
+  /// An archived location can be emptied but takes no new stock.
+  final bool locationArchived;
+
   const StockLevelData({
     required this.id,
     required this.productId,
@@ -33,7 +39,14 @@ class StockLevelData extends Equatable {
     this.isLow = false,
     this.isExpired = false,
     this.isNearExpiry = false,
+    this.batchStatus = 'active',
+    this.locationArchived = false,
   });
+
+  bool get isQuarantined => batchStatus == 'quarantined';
+
+  /// Identifies the (batch, location) pair this row stands for.
+  String get pairKey => '${batchId ?? ''}|$locationId';
 
   factory StockLevelData.fromJson(Map<String, dynamic> json) {
     final qty = (json['quantity'] as num?)?.toInt() ?? 0;
@@ -43,7 +56,11 @@ class StockLevelData extends Equatable {
     bool expired = false;
     bool near = false;
     if (expiresAt != null) {
-      final days = expiresAt.difference(DateTime.now()).inDays;
+      // Whole calendar days: a batch that expires today is still usable today.
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final expiryDay = DateTime(expiresAt.year, expiresAt.month, expiresAt.day);
+      final days = expiryDay.difference(today).inDays;
       expired = days < 0;
       near = !expired && days <= 30;
     }
@@ -63,9 +80,19 @@ class StockLevelData extends Equatable {
       isLow: min > 0 && qty <= min,
       isExpired: expired,
       isNearExpiry: near,
+      batchStatus: json['batch_status']?.toString() ?? 'active',
+      locationArchived: json['location_archived'] == true,
     );
   }
 
   @override
-  List<Object?> get props => [id, productId, locationId, batchId, qty];
+  List<Object?> get props => [
+    id,
+    productId,
+    locationId,
+    batchId,
+    qty,
+    batchStatus,
+    locationArchived,
+  ];
 }

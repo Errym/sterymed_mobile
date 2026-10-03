@@ -26,12 +26,19 @@ class ShellScreen extends StatelessWidget {
     // the Accueil tab itself allows the real pop (i.e. exits the app),
     // matching standard Android back-navigation conventions.
     final onDashboard = location.startsWith(Routes.dashboard);
+    // A screen pushed on top of a tab (detail, form) must be popped first:
+    // back returns to where the person came from, never straight to Accueil.
+    final hasHistory = context.canPop();
 
     return PopScope<Object?>(
-      canPop: onDashboard,
+      canPop: onDashboard && !hasHistory,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
-        context.go(Routes.dashboard);
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go(Routes.dashboard);
+        }
       },
       child: Scaffold(
         backgroundColor: AppColors.backgroundApp,

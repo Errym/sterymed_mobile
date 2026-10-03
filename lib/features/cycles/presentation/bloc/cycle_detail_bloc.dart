@@ -32,57 +32,88 @@ class CycleDetailBloc extends Bloc<CycleDetailEvent, CycleDetailState> {
     try {
       cycle = await _repository.show(event.cycleId);
     } on ApiException catch (e) {
-      emit(state.copyWith(
-        status: CycleDetailStatus.failure,
-        error: ErrorMessage.from(e),
-      ));
+      emit(
+        state.copyWith(
+          status: CycleDetailStatus.failure,
+          error: ErrorMessage.from(e),
+        ),
+      );
       return;
     } catch (e) {
-      emit(state.copyWith(
-        status: CycleDetailStatus.failure,
-        error: ErrorMessage.from(e),
-      ));
+      emit(
+        state.copyWith(
+          status: CycleDetailStatus.failure,
+          error: ErrorMessage.from(e),
+        ),
+      );
       return;
     }
 
     // Emit the cycle right away so the UI can render immediately.
-    emit(state.copyWith(
-      status: CycleDetailStatus.success,
-      cycle: cycle,
-    ));
+    emit(state.copyWith(status: CycleDetailStatus.success, cycle: cycle));
 
-    // ── 2. Auxiliary data — failures here don't block the screen ──
+    // ── 2. Auxiliary data — failures here don't block the screen, but each
+    // one is remembered per section so it is never shown as "nothing there".
     var items = state.items;
     var controlTests = state.controlTests;
     var attachments = state.attachments;
+    var release = state.release;
+    String? itemsError;
+    String? controlTestsError;
+    String? attachmentsError;
+    String? releaseError;
     String? auxiliaryError;
 
     try {
       items = await _repository.listItems(event.cycleId);
     } catch (e) {
-      auxiliaryError = 'Instruments : ${ErrorMessage.from(e)}';
+      itemsError = ErrorMessage.from(e);
+      auxiliaryError = 'Instruments : $itemsError';
     }
 
     try {
       controlTests = await _repository.listControlTests(event.cycleId);
     } catch (e) {
-      auxiliaryError ??= 'Contrôles : ${ErrorMessage.from(e)}';
+      controlTestsError = ErrorMessage.from(e);
+      auxiliaryError ??= 'Contrôles : $controlTestsError';
     }
 
     try {
       attachments = await _repository.listAttachments(event.cycleId);
     } catch (e) {
-      auxiliaryError ??= 'Pièces jointes : ${ErrorMessage.from(e)}';
+      attachmentsError = ErrorMessage.from(e);
+      auxiliaryError ??= 'Pièces jointes : $attachmentsError';
     }
 
-    emit(state.copyWith(
-      status: CycleDetailStatus.success,
-      cycle: cycle,
-      items: items,
-      controlTests: controlTests,
-      attachments: attachments,
-      error: auxiliaryError,
-    ));
+    // A decision exists only once the cycle is released or rejected; before
+    // that there is nothing to load (and nothing to be "missing").
+    if (cycle.status == 'released' || cycle.status == 'rejected') {
+      try {
+        release = await _repository.getRelease(event.cycleId);
+      } catch (e) {
+        releaseError = ErrorMessage.from(e);
+        auxiliaryError ??= 'Libération : $releaseError';
+      }
+    } else {
+      release = null;
+    }
+
+    emit(
+      state.copyWith(
+        status: CycleDetailStatus.success,
+        cycle: cycle,
+        items: items,
+        controlTests: controlTests,
+        attachments: attachments,
+        release: release,
+        error: auxiliaryError,
+        itemsError: itemsError,
+        controlTestsError: controlTestsError,
+        attachmentsError: attachmentsError,
+        releaseError: releaseError,
+        clearSectionErrors: true,
+      ),
+    );
   }
 
   Future<void> _onRefresh(

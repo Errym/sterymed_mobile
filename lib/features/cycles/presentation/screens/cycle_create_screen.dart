@@ -1,3 +1,5 @@
+import '../../../../core/router/routes.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -74,7 +76,11 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
     try {
       final repo = getIt<DeviceRepository>();
       repo.invalidateCache();
-      final devices = await repo.list(forceRefresh: true);
+      // Only devices that can run a cycle are offered: the server refuses a
+      // cycle on one under maintenance or decommissioned.
+      final devices = (await repo.list(forceRefresh: true))
+          .where((d) => d.status == null || d.status == 'active')
+          .toList();
       if (!mounted) return;
       final selected =
           _deviceId ?? (devices.isNotEmpty ? devices.first.id : null);
@@ -105,7 +111,10 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
     });
     try {
       final repo = getIt<DeviceProgramRepository>();
-      final programs = await repo.list(deviceId, forceRefresh: true);
+      final programs = (await repo.list(
+        deviceId,
+        forceRefresh: true,
+      )).where((p) => p.isActive).toList();
       if (!mounted || _deviceId != deviceId) return;
       setState(() {
         _programs = programs;
@@ -153,11 +162,7 @@ class _CycleCreateScreenState extends State<CycleCreateScreen> {
       if (!mounted) return;
       AppSnackbar.show(context, 'Cycle initialisé.', kind: SnackKind.success);
 
-      if (Navigator.of(context).canPop()) {
-        context.pop();
-      } else {
-        context.go('/app/cycles');
-      }
+      context.popOrGo(Routes.cycles);
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);

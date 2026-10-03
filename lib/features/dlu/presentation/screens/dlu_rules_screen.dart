@@ -8,6 +8,7 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
@@ -109,7 +110,12 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
               );
             }
             return ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.xl,
+              ),
               itemCount: list.length,
               separatorBuilder: (_, __) =>
                   const SizedBox(height: AppSpacing.sm),
@@ -117,76 +123,73 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
                 final r = list[i];
                 return AnimatedListItem(
                   index: i,
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.md),
-                    decoration: BoxDecoration(
-                      color: AppColors.backgroundCard,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                      border: Border.all(color: AppColors.borderLight),
+                  child: EntityCard(
+                    mark: const EntityMark.icon(Icons.timer_outlined),
+                    eyebrow: 'RÈGLE DLU',
+                    title: '${r.packagingType} · ${r.storageCondition}',
+                    trailing: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${r.shelfLifeDays}',
+                          style: AppTypography.kpiNumber.copyWith(
+                            fontSize: 24,
+                            color: AppColors.brandPrimary,
+                          ),
+                        ),
+                        Text(_humanDuration(r.shelfLifeDays),
+                            style: AppTypography.caption),
+                      ],
                     ),
-                    child: Column(
+                    tags: [
+                      InfoTag(
+                        '${r.existingLabelsCount} étiquette'
+                        '${r.existingLabelsCount > 1 ? 's' : ''} concernée'
+                        '${r.existingLabelsCount > 1 ? 's' : ''}',
+                        icon: Icons.label_outline,
+                      ),
+                      if (r.lastUpdatedAt != null)
+                        InfoTag(
+                          'Modifiée le '
+                          '${DateFormat('dd/MM/yyyy').format(r.lastUpdatedAt!)}'
+                          '${r.lastUpdatedBy != null ? ' par ${r.lastUpdatedBy}' : ''}',
+                          icon: Icons.history,
+                        ),
+                    ],
+                    footer: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${r.packagingType} · ${r.storageCondition}',
-                                style: AppTypography.bodyStrong,
-                              ),
-                            ),
-                            if (canManage) ...[
-                              InkWell(
-                                onTap: () async {
+                        if (r.lastReason != null && r.lastReason!.isNotEmpty)
+                          Text(
+                            'Motif : ${r.lastReason!}',
+                            style: AppTypography.caption,
+                          ),
+                        if (canManage)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                onPressed: () async {
                                   final ok = await DluRuleFormSheet.show(
                                     context,
                                     existing: r,
                                   );
                                   if (ok == true) await _refresh();
                                 },
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4),
-                                  child: Icon(Icons.edit_outlined, size: 20),
-                                ),
+                                icon: const Icon(Icons.edit_outlined, size: 16),
+                                label: const Text('Modifier'),
                               ),
-                              const SizedBox(width: AppSpacing.xs),
-                              InkWell(
-                                onTap: () => _delete(r),
-                                child: const Padding(
-                                  padding: EdgeInsets.all(4),
-                                  child: Icon(Icons.delete_outline,
-                                      size: 20, color: AppColors.danger),
+                              TextButton.icon(
+                                onPressed: () => _delete(r),
+                                style: TextButton.styleFrom(
+                                  foregroundColor: AppColors.danger,
                                 ),
+                                icon:
+                                    const Icon(Icons.delete_outline, size: 16),
+                                label: const Text('Supprimer'),
                               ),
                             ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${r.shelfLifeDays} jours',
-                          style: AppTypography.bodyStrong
-                              .copyWith(color: AppColors.brandPrimary),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${r.existingLabelsCount} étiquette(s) utilisent cette règle',
-                          style: AppTypography.caption,
-                        ),
-                        if (r.lastUpdatedAt != null) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            'Modifiée le '
-                            '${DateFormat('dd/MM/yyyy').format(r.lastUpdatedAt!)}'
-                            '${r.lastUpdatedBy != null ? ' par ${r.lastUpdatedBy}' : ''}',
-                            style: AppTypography.caption,
                           ),
-                        ],
-                        if (r.lastReason != null &&
-                            r.lastReason!.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(r.lastReason!, style: AppTypography.caption),
-                        ],
                       ],
                     ),
                   ),
@@ -198,4 +201,14 @@ class _DluRulesScreenState extends State<DluRulesScreen> {
       ),
     );
   }
+}
+
+/// 30 -> "1 mois", 180 -> "6 mois", 365 -> "1 an", 45 -> "45 jours".
+String _humanDuration(int days) {
+  if (days >= 365 && days % 365 == 0) {
+    final y = days ~/ 365;
+    return '$y an${y > 1 ? 's' : ''}';
+  }
+  if (days >= 30 && days % 30 == 0) return '${days ~/ 30} mois';
+  return 'jour${days > 1 ? 's' : ''}';
 }

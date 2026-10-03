@@ -131,7 +131,7 @@ class _CycleNotesSectionState extends State<CycleNotesSection> {
       decoration: BoxDecoration(
         color: AppColors.backgroundSubtle,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

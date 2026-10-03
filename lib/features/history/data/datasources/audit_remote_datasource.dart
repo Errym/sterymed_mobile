@@ -3,6 +3,9 @@ import 'package:dio/dio.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../../../../core/errors/error_mapper.dart';
 import '../../../../core/network/cursor_page.dart';
+import '../../../../core/utils/date_filter.dart';
+
+export '../../../../core/utils/date_filter.dart' show endOfDay;
 import '../models/audit_event_data.dart';
 
 class AuditRemoteDatasource {
@@ -27,8 +30,8 @@ class AuditRemoteDatasource {
             'filter[actor_id]': actorId,
           if (subjectType != null && subjectType.isNotEmpty)
             'filter[subject_type]': subjectType,
-          if (from != null) 'filter[from]': from.toIso8601String(),
-          if (to != null) 'filter[to]': to.toIso8601String(),
+          if (from != null) 'filter[from]': fromParam(from),
+          if (to != null) 'filter[to]': toParam(to),
           'limit': 30,
         },
       );

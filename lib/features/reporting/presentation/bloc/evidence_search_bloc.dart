@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../data/models/evidence_search_result_data.dart';
 import '../../data/repositories/evidence_search_repository.dart';
 
@@ -12,6 +13,9 @@ class EvidenceSearchBloc
     extends Bloc<EvidenceSearchEvent, EvidenceSearchState> {
   final EvidenceSearchRepository _repository;
 
+  /// A slow answer for an older search never replaces the current one.
+  int _generation = 0;
+
   EvidenceSearchBloc(this._repository) : super(const EvidenceSearchState()) {
     on<SearchEvidence>(_onSearch);
     on<LoadMoreEvidence>(_onLoadMore);
@@ -21,8 +25,11 @@ class EvidenceSearchBloc
     SearchEvidence event,
     Emitter<EvidenceSearchState> emit,
   ) async {
+    final generation = ++_generation;
     emit(state.copyWith(
       status: EvidenceSearchStatus.loading,
+      results: const [],
+      clearNextCursor: true,
       error: null,
       patientReference: event.patientReference,
       clearPatientReference: event.patientReference == null,
@@ -43,6 +50,7 @@ class EvidenceSearchBloc
         from: event.from,
         to: event.to,
       );
+      if (generation != _generation) return;
       emit(state.copyWith(
         status: EvidenceSearchStatus.success,
         results: page.items,
@@ -51,8 +59,14 @@ class EvidenceSearchBloc
         hasSearched: true,
       ));
     } on ApiException catch (e) {
+      if (generation != _generation) return;
       emit(state.copyWith(
-          status: EvidenceSearchStatus.failure, error: e.message));
+        status: EvidenceSearchStatus.failure,
+        error: ErrorMessage.from(e),
+        // Even a failed first search counts as "searched": the screen shows
+        // the error with a retry, never the "launch a search" invitation.
+        hasSearched: true,
+      ));
     }
   }
 
@@ -62,6 +76,7 @@ class EvidenceSearchBloc
   ) async {
     final cursor = state.nextCursor;
     if (cursor == null || state.isLoadingMore) return;
+    final generation = _generation;
     emit(state.copyWith(isLoadingMore: true));
     try {
       final page = await _repository.search(
@@ -72,6 +87,7 @@ class EvidenceSearchBloc
         from: state.from,
         to: state.to,
       );
+      if (generation != _generation) return;
       emit(state.copyWith(
         results: [...state.results, ...page.items],
         nextCursor: page.nextCursor,
@@ -79,7 +95,8 @@ class EvidenceSearchBloc
         isLoadingMore: false,
       ));
     } on ApiException catch (e) {
-      emit(state.copyWith(isLoadingMore: false, error: e.message));
+      if (generation != _generation) return;
+      emit(state.copyWith(isLoadingMore: false, error: ErrorMessage.from(e)));
     }
   }
 }

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/role_labels.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_event.dart';
 
@@ -45,7 +46,7 @@ class ProfileMenu extends StatelessWidget {
               Text(email, style: AppTypography.caption),
               const SizedBox(height: 2),
               Text(
-                role,
+                RoleLabels.of(role),
                 style: AppTypography.caption.copyWith(
                   color: AppColors.brandPrimary,
                   fontWeight: FontWeight.w600,
@@ -77,18 +78,22 @@ class ProfileMenu extends StatelessWidget {
         ),
       ],
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
-        ),
-        child: CircleAvatar(
-          radius: 18,
-          backgroundColor: AppColors.brandPrimaryLight,
-          child: Text(
-            _initials(displayName),
-            style: AppTypography.bodyStrong.copyWith(
-              color: AppColors.brandPrimary,
-              fontSize: 13,
+        padding: const EdgeInsets.only(left: AppSpacing.sm),
+        child: Container(
+          padding: const EdgeInsets.all(1.5),
+          decoration: const BoxDecoration(
+            color: AppColors.brandPrimaryLight,
+            shape: BoxShape.circle,
+          ),
+          child: CircleAvatar(
+            radius: 17,
+            backgroundColor: AppColors.backgroundCard,
+            child: Text(
+              _initials(displayName),
+              style: AppTypography.bodyStrong.copyWith(
+                color: AppColors.brandPrimaryDark,
+                fontSize: 13,
+              ),
             ),
           ),
         ),

@@ -11,6 +11,13 @@ class CycleDetailState extends Equatable {
   final CycleReleaseData? release;
   final String? error;
 
+  /// Why a section could not be loaded. A section that failed is NOT the same
+  /// as an empty one: the screen must say "could not load", never "none".
+  final String? itemsError;
+  final String? controlTestsError;
+  final String? attachmentsError;
+  final String? releaseError;
+
   const CycleDetailState({
     this.status = CycleDetailStatus.initial,
     this.cycle,
@@ -19,6 +26,10 @@ class CycleDetailState extends Equatable {
     this.attachments = const [],
     this.release,
     this.error,
+    this.itemsError,
+    this.controlTestsError,
+    this.attachmentsError,
+    this.releaseError,
   });
 
   CycleDetailState copyWith({
@@ -29,6 +40,11 @@ class CycleDetailState extends Equatable {
     List<CycleAttachmentData>? attachments,
     CycleReleaseData? release,
     String? error,
+    String? itemsError,
+    String? controlTestsError,
+    String? attachmentsError,
+    String? releaseError,
+    bool clearSectionErrors = false,
   }) {
     return CycleDetailState(
       status: status ?? this.status,
@@ -38,10 +54,33 @@ class CycleDetailState extends Equatable {
       attachments: attachments ?? this.attachments,
       release: release ?? this.release,
       error: error ?? this.error,
+      itemsError: clearSectionErrors
+          ? itemsError
+          : (itemsError ?? this.itemsError),
+      controlTestsError: clearSectionErrors
+          ? controlTestsError
+          : (controlTestsError ?? this.controlTestsError),
+      attachmentsError: clearSectionErrors
+          ? attachmentsError
+          : (attachmentsError ?? this.attachmentsError),
+      releaseError: clearSectionErrors
+          ? releaseError
+          : (releaseError ?? this.releaseError),
     );
   }
 
   @override
-  List<Object?> get props =>
-      [status, cycle, items, controlTests, attachments, release, error];
+  List<Object?> get props => [
+    status,
+    cycle,
+    items,
+    controlTests,
+    attachments,
+    release,
+    error,
+    itemsError,
+    controlTestsError,
+    attachmentsError,
+    releaseError,
+  ];
 }

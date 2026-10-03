@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/misc/app_logo.dart';
 import '../bloc/auth_bloc.dart';
@@ -37,19 +38,19 @@ class LoginScreen extends StatelessWidget {
               return SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.xl,
-                  vertical: AppSpacing.xxl,
+                  vertical: AppSpacing.lg,
                 ),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
-                    minHeight: constraints.maxHeight - AppSpacing.xxl * 2,
+                    minHeight: constraints.maxHeight - AppSpacing.lg * 2,
                   ),
                   child: IntrinsicHeight(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: AppSpacing.xxxl),
+                        const SizedBox(height: AppSpacing.md),
                         const Center(child: AppLogo(height: 56)),
-                        const SizedBox(height: AppSpacing.xxxl),
+                        const SizedBox(height: AppSpacing.xl),
                         const Text('Bienvenue', style: AppTypography.pageTitle),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
@@ -58,8 +59,10 @@ class LoginScreen extends StatelessWidget {
                             color: AppColors.textSecondary,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xxl),
-                        BlocBuilder<AuthBloc, AuthState>(
+                        const SizedBox(height: AppSpacing.lg),
+                        AppCard(
+                          padding: const EdgeInsets.all(AppSpacing.md),
+                          child: BlocBuilder<AuthBloc, AuthState>(
                           builder: (context, state) {
                             final isLoading = state is AuthLoading;
                             return LoginForm(
@@ -81,10 +84,28 @@ class LoginScreen extends StatelessWidget {
                             );
                           },
                         ),
+                        ),
                         const Spacer(),
-                        const SizedBox(height: AppSpacing.xxl),
-                        Row(
+                        const SizedBox(height: AppSpacing.xl),
+                        const Row(
                           mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.lock_outline,
+                              size: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                            SizedBox(width: 6),
+                            Text(
+                              'Session sécurisée',
+                              style: AppTypography.caption,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             Text(
                               'Pas encore de compte ? ',

@@ -18,6 +18,9 @@ class StockLevelListBloc
     on<LoadStockLevels>(_onLoad);
     on<RefreshStockLevels>(_onRefresh);
     on<SearchStockLevels>(_onSearchQueryChanged);
+    on<FilterStockLevels>(
+      (e, emit) => emit(state.copyWith(filter: e.filter)),
+    );
     on<_StockSearchDebounced>(_onSearch);
   }
 

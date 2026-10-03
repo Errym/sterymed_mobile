@@ -8,11 +8,13 @@ import '../../../../shared/widgets/feedback/confirmation_dialog.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/lists/animated_list_item.dart';
 import '../../../../shared/widgets/lists/list_tile_skeleton.dart';
 import '../../data/models/patient_data.dart';
 import '../../data/repositories/patient_repository.dart';
 import '../bloc/patient_list_bloc.dart';
+import '../widgets/patient_detail_sheet.dart';
 import '../widgets/patient_tile.dart';
 
 class PatientSearchScreen extends StatelessWidget {
@@ -67,6 +69,7 @@ class _PatientView extends StatelessWidget {
       backgroundColor: AppColors.backgroundApp,
       appBar: AppBar(
         title: const Text('Patients'),
+        leading: AppBackButton.maybe(context),
         actions: [
           if (canManage)
             IconButton(
@@ -88,7 +91,12 @@ class _PatientView extends StatelessWidget {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.sm,
+                AppSpacing.lg,
+                AppSpacing.sm,
+              ),
               child: AppSearchField(
                 hint: 'Rechercher par référence...',
                 onChanged: (q) =>
@@ -129,7 +137,12 @@ class _PatientView extends StatelessWidget {
                         .read<PatientListBloc>()
                         .add(const LoadPatients()),
                     child: ListView.separated(
-                      padding: const EdgeInsets.all(AppSpacing.md),
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.lg,
+                        AppSpacing.xs,
+                        AppSpacing.lg,
+                        AppSpacing.xl,
+                      ),
                       itemCount: state.patients.length,
                       separatorBuilder: (_, __) =>
                           const SizedBox(height: AppSpacing.sm),
@@ -160,13 +173,12 @@ class _PatientView extends StatelessWidget {
                             },
                             child: PatientTile(
                               patient: p,
-                              trailing: canManage
-                                  ? IconButton(
-                                      icon: const Icon(Icons.delete_outline,
-                                          size: 18, color: AppColors.danger),
-                                      onPressed: () => _delete(context, p),
-                                    )
-                                  : null,
+                              onTap: () => PatientDetailSheet.show(
+                                context,
+                                patient: p,
+                                canManage: canManage,
+                                onDelete: () => _delete(context, p),
+                              ),
                             ),
                           ),
                         );

@@ -18,6 +18,7 @@ import '../models/prosthetic_case_attachment_data.dart';
 import '../models/prosthetic_case_data.dart';
 import '../models/prosthetic_case_status_history_data.dart';
 import '../models/prosthetic_dashboard_data.dart';
+import '../models/prosthetic_summary_data.dart';
 
 class ProstheticRemoteDatasource {
   final Dio _dio;
@@ -34,6 +35,33 @@ class ProstheticRemoteDatasource {
     }
   }
 
+  /// The query string for a filter set. A server cursor only remembers where
+  /// the previous page ended, NOT which filters produced it, so every page
+  /// (not just the first) must send the same filters again.
+  Map<String, dynamic> _filterParams({
+    String? patientReference,
+    String? practitionerId,
+    String? laboratoryId,
+    String? workType,
+    String? status,
+    String? from,
+    String? to,
+    String? scope,
+    String? aging,
+  }) =>
+      {
+        if (patientReference != null && patientReference.isNotEmpty)
+          'patient_reference': patientReference,
+        if (practitionerId != null) 'practitioner_id': practitionerId,
+        if (laboratoryId != null) 'laboratory_id': laboratoryId,
+        if (workType != null) 'work_type': workType,
+        if (status != null) 'status': status,
+        if (from != null) 'from': from,
+        if (to != null) 'to': to,
+        if (scope != null) 'scope': scope,
+        if (aging != null) 'aging': aging,
+      };
+
   Future<CursorPage<ProstheticCaseData>> list({
     String? cursor,
     String? patientReference,
@@ -43,18 +71,23 @@ class ProstheticRemoteDatasource {
     String? status,
     String? from,
     String? to,
+    String? scope,
+    String? aging,
   }) async {
     try {
       final res = await _dio.get(ApiEndpoints.prostheticCases, queryParameters: {
         if (cursor != null) 'cursor': cursor,
-        if (patientReference != null && patientReference.isNotEmpty)
-          'patient_reference': patientReference,
-        if (practitionerId != null) 'practitioner_id': practitionerId,
-        if (laboratoryId != null) 'laboratory_id': laboratoryId,
-        if (workType != null) 'work_type': workType,
-        if (status != null) 'status': status,
-        if (from != null) 'from': from,
-        if (to != null) 'to': to,
+        ..._filterParams(
+          patientReference: patientReference,
+          practitionerId: practitionerId,
+          laboratoryId: laboratoryId,
+          workType: workType,
+          status: status,
+          from: from,
+          to: to,
+          scope: scope,
+          aging: aging,
+        ),
         'limit': 20,
       });
       return _parsePage(res.data);
@@ -63,14 +96,51 @@ class ProstheticRemoteDatasource {
     }
   }
 
+  /// Exact total (and waiting-set aging buckets) for the same filters.
+  Future<ProstheticSummaryData> summary({
+    String? patientReference,
+    String? practitionerId,
+    String? laboratoryId,
+    String? workType,
+    String? status,
+    String? from,
+    String? to,
+    String? scope,
+    String? aging,
+  }) async {
+    try {
+      final res = await _dio.get(
+        ApiEndpoints.prostheticCasesSummary,
+        queryParameters: _filterParams(
+          patientReference: patientReference,
+          practitionerId: practitionerId,
+          laboratoryId: laboratoryId,
+          workType: workType,
+          status: status,
+          from: from,
+          to: to,
+          scope: scope,
+          aging: aging,
+        ),
+      );
+      return ProstheticSummaryData.fromJson(
+        (res.data as Map).cast<String, dynamic>(),
+      );
+    } on DioException catch (e) {
+      throw ErrorMapper.fromDio(e);
+    }
+  }
+
   Future<CursorPage<ProstheticCaseData>> waitingForPlacement({
     String? cursor,
+    String? aging,
   }) async {
     try {
       final res = await _dio.get(
         ApiEndpoints.prostheticWaitingPlacement,
         queryParameters: {
           if (cursor != null) 'cursor': cursor,
+          if (aging != null) 'aging': aging,
           'limit': 20,
         },
       );
@@ -126,11 +196,17 @@ class ProstheticRemoteDatasource {
     String id, {
     required String status,
     String? note,
+    String? plannedPlacementDate,
   }) async {
     try {
       final res = await _dio.post(
         ApiEndpoints.prostheticCaseStatus(id),
-        data: {'status': status, if (note != null && note.isNotEmpty) 'note': note},
+        data: {
+          'status': status,
+          if (note != null && note.isNotEmpty) 'note': note,
+          if (plannedPlacementDate != null)
+            'planned_placement_date': plannedPlacementDate,
+        },
         options: Options(
           headers: {'Idempotency-Key': generateIdempotencyKey()},
         ),
@@ -181,6 +257,7 @@ class ProstheticRemoteDatasource {
     required String fileName,
     required Uint8List bytes,
     String? mimeType,
+    void Function(int sent, int total)? onProgress,
   }) async {
     final effectiveMime = (mimeType != null && mimeType.isNotEmpty)
         ? mimeType
@@ -204,6 +281,7 @@ class ProstheticRemoteDatasource {
       final res = await _dio.post(
         ApiEndpoints.prostheticCaseAttachments(caseId),
         data: FormData.fromMap({'file': file}),
+        onSendProgress: onProgress,
         // A retried upload of the same file reuses its key, so the server
         // replays the first answer instead of attaching the file twice.
         options: Options(

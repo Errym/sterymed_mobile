@@ -18,4 +18,14 @@ class ProductCategoryRepository {
     _cache.put('product_categories', fresh);
     return fresh;
   }
+
+  /// Creates a family and refreshes the cached list so every form sees it.
+  Future<ProductCategoryData> create(String name) async {
+    final created = await _remote.create(name.trim());
+    final current = await list(forceRefresh: true);
+    if (!current.any((c) => c.id == created.id)) {
+      _cache.put('product_categories', [...current, created]);
+    }
+    return created;
+  }
 }

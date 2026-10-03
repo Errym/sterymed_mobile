@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -14,6 +16,7 @@ import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../data/models/cycle_attachment_data.dart';
 import '../../data/repositories/cycle_repository.dart';
 import '../widgets/cycle_attachment_grid.dart';
+import 'attachment_viewer_screen.dart';
 
 class CycleAttachmentsScreen extends StatefulWidget {
   final String cycleId;
@@ -21,6 +24,13 @@ class CycleAttachmentsScreen extends StatefulWidget {
 
   @override
   State<CycleAttachmentsScreen> createState() => _CycleAttachmentsScreenState();
+}
+
+class _PendingUpload {
+  final String name;
+  final Uint8List bytes;
+  final String? mimeType;
+  const _PendingUpload(this.name, this.bytes, this.mimeType);
 }
 
 class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
@@ -43,8 +53,9 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
       _error = null;
     });
     try {
-      final items =
-          await getIt<CycleRepository>().listAttachments(widget.cycleId);
+      final items = await getIt<CycleRepository>().listAttachments(
+        widget.cycleId,
+      );
       if (!mounted) return;
       setState(() {
         _attachments = items;
@@ -59,28 +70,68 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
     }
   }
 
-  Future<void> _add() async {
-    final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.camera);
-    if (file == null || !mounted) return;
+  /// The photo (or file) that could not be sent, kept so "Réessayer" does not
+  /// ask the user to take it again.
+  _PendingUpload? _failed;
+  double? _progress;
 
-    setState(() => _uploading = true);
+  Future<void> _add() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.photo_camera_outlined),
+              title: const Text('Prendre une photo'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.camera),
+            ),
+            ListTile(
+              leading: const Icon(Icons.photo_library_outlined),
+              title: const Text('Choisir dans la galerie'),
+              onTap: () => Navigator.of(ctx).pop(ImageSource.gallery),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (source == null || !mounted) return;
+    final file = await ImagePicker().pickImage(source: source);
+    if (file == null || !mounted) return;
+    final bytes = await file.readAsBytes();
+    await _send(_PendingUpload(file.name, bytes, file.mimeType));
+  }
+
+  Future<void> _send(_PendingUpload upload) async {
+    setState(() {
+      _uploading = true;
+      _failed = null;
+      _progress = 0;
+    });
     try {
-      final bytes = await file.readAsBytes();
       await getIt<CycleRepository>().uploadAttachment(
         cycleId: widget.cycleId,
-        fileName: file.name,
-        bytes: bytes,
-        mimeType: file.mimeType,
+        fileName: upload.name,
+        bytes: upload.bytes,
+        mimeType: upload.mimeType,
+        onProgress: (sent, total) {
+          if (mounted && total > 0) setState(() => _progress = sent / total);
+        },
       );
       if (!mounted) return;
       AppSnackbar.show(context, 'Photo ajoutée.', kind: SnackKind.success);
       await _load();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _failed = upload);
       AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
     } finally {
-      if (mounted) setState(() => _uploading = false);
+      if (mounted) {
+        setState(() {
+          _uploading = false;
+          _progress = null;
+        });
+      }
     }
   }
 
@@ -96,8 +147,11 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
     try {
       await getIt<CycleRepository>().deleteAttachment(widget.cycleId, a.id);
       if (!mounted) return;
-      AppSnackbar.show(context, 'Pièce jointe supprimée.',
-          kind: SnackKind.success);
+      AppSnackbar.show(
+        context,
+        'Pièce jointe supprimée.',
+        kind: SnackKind.success,
+      );
       await _load();
     } catch (e) {
       if (!mounted) return;
@@ -111,26 +165,28 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
       appBar: const AppAppBar(title: 'Pièces jointes'),
-      body: _loading && _attachments.isEmpty
-          ? const LoadingView()
-          : _error != null && _attachments.isEmpty
-              ? ErrorView(message: _error!, onRetry: _load)
-              : _attachments.isEmpty
-                  ? EmptyView(
-                      title: 'Aucune pièce jointe',
-                      message: canManage
-                          ? 'Ajoutez une photo pour ce cycle.'
-                          : 'Aucune photo n\'a été ajoutée pour ce cycle.',
-                      icon: Icons.attach_file,
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: CycleAttachmentGrid(
-                        attachments: _attachments,
-                        onAdd: canManage && !_uploading ? _add : null,
-                        onDelete: canManage ? _delete : null,
-                      ),
-                    ),
+      body: Column(
+        children: [
+          if (_uploading) LinearProgressIndicator(value: _progress),
+          if (_failed != null)
+            MaterialBanner(
+              content: const Text(
+                'L\'envoi a échoué. La photo est conservée : réessayez.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: _uploading ? null : () => _send(_failed!),
+                  child: const Text('Réessayer'),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _failed = null),
+                  child: const Text('Abandonner'),
+                ),
+              ],
+            ),
+          Expanded(child: _content(canManage)),
+        ],
+      ),
       floatingActionButton: canManage && _attachments.isEmpty
           ? FloatingActionButton.extended(
               onPressed: _uploading ? null : _add,
@@ -139,12 +195,42 @@ class _CycleAttachmentsScreenState extends State<CycleAttachmentsScreen> {
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white),
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
                     )
                   : const Icon(Icons.add_a_photo_outlined),
               label: const Text('Ajouter'),
             )
           : null,
     );
+  }
+
+  Widget _content(bool canManage) {
+    return _loading && _attachments.isEmpty
+        ? const LoadingView()
+        : _error != null && _attachments.isEmpty
+        ? ErrorView(message: _error!, onRetry: _load)
+        : _attachments.isEmpty
+        ? EmptyView(
+            title: 'Aucune pièce jointe',
+            message: canManage
+                ? 'Ajoutez une photo pour ce cycle.'
+                : 'Aucune photo n\'a été ajoutée pour ce cycle.',
+            icon: Icons.attach_file,
+          )
+        : Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: CycleAttachmentGrid(
+              attachments: _attachments,
+              onAdd: canManage && !_uploading ? _add : null,
+              onOpen: (a) => AttachmentViewerScreen.open(
+                context,
+                cycleId: widget.cycleId,
+                attachment: a,
+              ),
+              onDelete: canManage ? _delete : null,
+            ),
+          );
   }
 }

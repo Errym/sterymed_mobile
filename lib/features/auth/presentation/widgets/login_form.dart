@@ -57,6 +57,7 @@ class _LoginFormState extends State<LoginForm> {
             label: 'Identifiant du cabinet',
             hint: 'ex. cabinet-martin',
             controller: _tenantCtrl,
+            prefix: const Icon(Icons.apartment_outlined, size: 20),
             validator: (v) => Validators.required(v, field: 'L\'identifiant'),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -65,6 +66,7 @@ class _LoginFormState extends State<LoginForm> {
             hint: 'vous@cabinet.fr',
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
+            prefix: const Icon(Icons.mail_outline, size: 20),
             validator: Validators.email,
           ),
           const SizedBox(height: AppSpacing.md),
@@ -73,6 +75,7 @@ class _LoginFormState extends State<LoginForm> {
             hint: '••••••••',
             controller: _passwordCtrl,
             obscureText: _obscure,
+            prefix: const Icon(Icons.lock_outline, size: 20),
             validator: Validators.password,
             suffix: IconButton(
               icon: Icon(
@@ -90,7 +93,7 @@ class _LoginFormState extends State<LoginForm> {
               child: const Text('Mot de passe oublié ?'),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: AppSpacing.xs),
           PrimaryButton(
             label: 'Se connecter',
             isLoading: widget.isLoading,

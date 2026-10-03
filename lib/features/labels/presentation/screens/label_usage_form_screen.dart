@@ -6,6 +6,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/debouncer.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -13,6 +14,7 @@ import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../identity/data/models/practitioner_option.dart';
 import '../../../identity/data/repositories/practitioner_repository.dart';
 import '../../../patients/data/models/patient_data.dart';
@@ -161,7 +163,7 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
         actionLabel: wasQueued ? 'Voir la file' : null,
         onAction: wasQueued ? () => context.push(Routes.sync) : null,
       );
-      Navigator.of(context).pop(true);
+      context.popOrGo(Routes.scanner);
     } catch (e) {
       if (!mounted) return;
       AppSnackbar.show(context, ErrorMessage.from(e), kind: SnackKind.error);
@@ -174,7 +176,10 @@ class _LabelUsageFormScreenState extends State<LabelUsageFormScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(title: const Text('Enregistrer utilisation')),
+      appBar: AppBar(
+        title: const Text('Enregistrer utilisation'),
+        leading: AppBackButton.maybe(context),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(

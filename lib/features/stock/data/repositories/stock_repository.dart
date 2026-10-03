@@ -5,6 +5,8 @@ import '../../../../core/sync/connectivity_service.dart';
 import '../../../../core/sync/sync_status_cubit.dart';
 import '../../../../core/config/api_endpoints.dart';
 import '../datasources/stock_remote_datasource.dart';
+import '../models/batch_data.dart';
+import '../models/code_lookup.dart';
 import '../models/stock_level_data.dart';
 import '../models/stock_movement_data.dart';
 import '../models/stock_option.dart';
@@ -30,17 +32,31 @@ class StockRepository {
   Future<List<StockLevelData>> listLevels({
     String? search,
     bool forceRefresh = false,
+    bool inStockOnly = false,
   }) async {
-    if (!forceRefresh && (search == null || search.trim().isEmpty)) {
-      final cached = _cache.get<List<StockLevelData>>('stock_levels');
+    final key = inStockOnly ? 'stock_sources' : 'stock_levels';
+    final plain = search == null || search.trim().isEmpty;
+    if (!forceRefresh && plain) {
+      final cached = _cache.get<List<StockLevelData>>(key);
       if (cached != null) return cached;
     }
-    final fresh = await _remote.listLevels(search: search);
-    if (search == null || search.trim().isEmpty) {
-      _cache.put('stock_levels', fresh);
-    }
+    final fresh = await _remote.listLevels(
+      search: search,
+      inStockOnly: inStockOnly,
+    );
+    if (plain) _cache.put(key, fresh);
     return fresh;
   }
+
+  /// What can actually leave a place right now: rows with stock on the shelf,
+  /// all pages, always fresh (a stale list is how a second operator is told
+  /// "available" for stock the first one already took).
+  Future<List<StockLevelData>> listSources() =>
+      listLevels(inStockOnly: true, forceRefresh: true);
+
+  /// The lots screen's source: always fresh, since what matters on it (what is
+  /// expired, quarantined, or already used up) changes with every movement.
+  Future<List<BatchData>> listBatches() => _remote.listBatches();
 
   Future<({List<StockOption> batches, List<StockOption> locations})>
   listOptions({bool forceRefresh = false}) async {
@@ -54,6 +70,10 @@ class StockRepository {
     _cache.put(key, fresh);
     return fresh;
   }
+
+  /// Always fresh and never cached: the answer is "how much is where right
+  /// now", and it is only ever read, never written.
+  Future<CodeLookup> lookupCode(String code) => _remote.lookupCode(code);
 
   // ─────────────────────────────────────────────────────────────
   // Writes — all route through _submitWrite
@@ -173,6 +193,7 @@ class StockRepository {
 
   void _invalidateStockCaches() {
     _cache.invalidate('stock_levels');
+    _cache.invalidate('stock_sources');
     _cache.invalidate('stock_options');
     _cache.invalidate('dashboard');
   }

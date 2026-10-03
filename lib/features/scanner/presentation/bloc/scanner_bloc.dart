@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/config/app_config.dart';
 import '../../../../core/errors/api_exception.dart';
+import '../../../../core/utils/error_message.dart';
 import '../../../labels/data/models/label_scan_result.dart';
 import '../../../labels/data/repositories/label_repository.dart';
 
@@ -33,28 +34,35 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
         state.status != ScannerStatus.initial) {
       return;
     }
-    emit(state.copyWith(
-      status: ScannerStatus.resolving,
-      lastCode: e.rawValue,
-      clearError: true,
-      clearErrorCode: true,
-    ));
+    emit(
+      state.copyWith(
+        status: ScannerStatus.resolving,
+        lastCode: e.rawValue,
+        clearError: true,
+        clearErrorCode: true,
+      ),
+    );
     try {
       final result = await _labels.getByCode(e.rawValue);
       emit(state.copyWith(status: ScannerStatus.resolved, result: result));
       _startCooldown();
     } on ApiException catch (ex) {
-      emit(state.copyWith(
-        status: ScannerStatus.error,
-        error: ex.message,
-        errorCode: ex.code,
-      ));
+      emit(
+        state.copyWith(
+          status: ScannerStatus.error,
+          // French, by code: never the server's English wording.
+          error: ErrorMessage.from(ex),
+          errorCode: ex.code,
+        ),
+      );
       _startCooldown();
     } catch (ex) {
-      emit(state.copyWith(
-        status: ScannerStatus.error,
-        error: 'Erreur de lecture : ${ex.toString()}',
-      ));
+      emit(
+        state.copyWith(
+          status: ScannerStatus.error,
+          error: ErrorMessage.from(ex),
+        ),
+      );
       _startCooldown();
     }
   }
@@ -66,13 +74,13 @@ class ScannerBloc extends Bloc<ScannerEvent, ScannerState> {
     });
   }
 
-  void _onCooldownExpired(ScannerCooldownExpired e, Emitter<ScannerState> emit) {
+  void _onCooldownExpired(
+    ScannerCooldownExpired e,
+    Emitter<ScannerState> emit,
+  ) {
     if (state.status == ScannerStatus.resolved ||
         state.status == ScannerStatus.error) {
-      emit(state.copyWith(
-        status: ScannerStatus.scanning,
-        clearResult: true,
-      ));
+      emit(state.copyWith(status: ScannerStatus.scanning, clearResult: true));
     }
   }
 

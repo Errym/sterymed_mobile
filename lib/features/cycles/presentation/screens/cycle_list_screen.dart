@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/filter_chip_row.dart';
@@ -36,8 +38,8 @@ class _CycleListView extends StatelessWidget {
     final canManage = getIt<SessionStore>().hasPermission('cycles.manage');
     return Scaffold(
       backgroundColor: AppColors.backgroundApp,
-      appBar: AppBar(
-        title: const Text('Cycles de Stérilisation'),
+      appBar: AppAppBar(
+        title: 'Cycles de stérilisation',
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -49,7 +51,7 @@ class _CycleListView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(right: AppSpacing.sm),
               child: FilledButton.icon(
-                onPressed: () => context.go(Routes.cyclesCreate),
+                onPressed: () => context.openRoute(Routes.cyclesCreate),
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Nouveau Cycle'),
                 style: FilledButton.styleFrom(
@@ -74,18 +76,38 @@ class _CycleListView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.sm),
+          const _Pipeline(),
+          const SizedBox(height: AppSpacing.sm),
           BlocBuilder<CycleListBloc, CycleListState>(
             builder: (context, state) {
+              int count(String s) =>
+                  state.cycles.where((c) => c.status == s).length;
               return FilterChipRow<String?>(
                 selected: state.selectedStatus,
                 onSelected: (v) =>
                     context.read<CycleListBloc>().add(FilterCycles(v)),
-                options: const [
-                  FilterChipOption(value: null, label: 'Tous les cycles'),
-                  FilterChipOption(value: 'in_progress', label: 'En cours'),
+                options: [
                   FilterChipOption(
-                      value: 'awaiting_release', label: 'Attente Libération'),
-                  FilterChipOption(value: 'released', label: 'Conformes'),
+                    value: null,
+                    label: 'Tous les cycles (${state.cycles.length})',
+                  ),
+                  FilterChipOption(
+                    value: 'in_progress',
+                    label: 'En cours (${count('in_progress')})',
+                  ),
+                  FilterChipOption(
+                    value: 'awaiting_release',
+                    label: 'Attente Libération (${count('awaiting_release')})',
+                  ),
+                  FilterChipOption(
+                    value: 'released',
+                    label: 'Conformes (${count('released')})',
+                  ),
+                  if (count('rejected') > 0)
+                    FilterChipOption(
+                      value: 'rejected',
+                      label: 'Rejetés (${count('rejected')})',
+                    ),
                 ],
               );
             },
@@ -118,7 +140,7 @@ class _CycleListView extends StatelessWidget {
                     index: i,
                     child: _CycleCard(
                       cycle: c,
-                      onTap: () => context.go(Routes.cyclesDetail(c.id)),
+                      onTap: () => context.openRoute(Routes.cyclesDetail(c.id)),
                     ),
                   ),
                 );
@@ -131,106 +153,214 @@ class _CycleListView extends StatelessWidget {
   }
 }
 
+/// Where the loaded cycles stand, as the sterilization flow reads: running,
+/// waiting for a decision, released. A tap filters the list to that stage.
+class _Pipeline extends StatelessWidget {
+  const _Pipeline();
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<CycleListBloc, CycleListState>(
+      buildWhen: (a, b) => a.cycles != b.cycles,
+      builder: (context, state) {
+        if (state.cycles.isEmpty) return const SizedBox.shrink();
+        int n(String s) => state.cycles.where((c) => c.status == s).length;
+        final stages = [
+          ('En cours', n('in_progress'), 'in_progress', AppColors.info),
+          (
+            'À libérer',
+            n('awaiting_release') + n('completed'),
+            'awaiting_release',
+            AppColors.warning,
+          ),
+          ('Libérés', n('released'), 'released', AppColors.success),
+        ];
+        return Padding(
+          key: const Key('cycle-pipeline'),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+          child: Row(
+            children: [
+              for (var i = 0; i < stages.length; i++) ...[
+                if (i > 0) const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(AppRadius.control),
+                    onTap: () => context
+                        .read<CycleListBloc>()
+                        .add(FilterCycles(stages[i].$3)),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: stages[i].$4.withValues(alpha: 0.08),
+                        borderRadius:
+                            BorderRadius.circular(AppRadius.control),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '${stages[i].$2}',
+                            style: AppTypography.kpiNumber.copyWith(
+                              color: stages[i].$2 == 0
+                                  ? AppColors.textTertiary
+                                  : stages[i].$4,
+                              fontSize: 22,
+                            ),
+                          ),
+                          Text(
+                            stages[i].$1,
+                            style: AppTypography.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _CycleCard extends StatelessWidget {
   final CycleData cycle;
   final VoidCallback onTap;
 
   const _CycleCard({required this.cycle, required this.onTap});
 
+  /// "il y a 12 min" / "il y a 3 h" / the date, for a cycle that has started.
+  String? _startedAgo() {
+    final s = cycle.startedAt;
+    if (s == null) return null;
+    final d = DateTime.now().difference(s);
+    if (d.inMinutes < 1) return 'Démarré à l\'instant';
+    if (d.inMinutes < 60) return 'Démarré il y a ${d.inMinutes} min';
+    if (d.inHours < 24) return 'Démarré il y a ${d.inHours} h';
+    return 'Démarré le ${DateFormat('dd/MM/yyyy HH:mm').format(s)}';
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundCard,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Column(
+    final params = [
+      if (cycle.programName != null) cycle.programName!,
+      if (cycle.programTemperatureCelsius != null)
+        '${cycle.programTemperatureCelsius} °C',
+      if (cycle.programPlateauMinutes != null)
+        '${cycle.programPlateauMinutes} min',
+    ].join(' · ');
+    final started = _startedAgo();
+
+    return AppCard(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Row 1: cycle number + status ──
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Cycle #${cycle.number}',
-                      style: AppTypography.bodyStrong,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      cycle.deviceName.toUpperCase(),
+                      style: AppTypography.eyebrow,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                  ),
-                  _statusBadgeFor(cycle.status),
-                ],
+                    const SizedBox(height: 2),
+                    Text(
+                      'Cycle #${cycle.number}',
+                      style: AppTypography.cardTitle,
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: AppSpacing.xs),
-
-              // ── Row 2: device + programme ──
-              Row(
+              const SizedBox(width: AppSpacing.sm),
+              _statusBadgeFor(cycle.status),
+            ],
+          ),
+          if (params.isNotEmpty) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceWell,
+                borderRadius: BorderRadius.circular(AppRadius.control),
+              ),
+              child: Row(
                 children: [
                   const Icon(
-                    Icons.precision_manufacturing_outlined,
-                    size: 14,
-                    color: AppColors.textSecondary,
+                    Icons.thermostat_outlined,
+                    size: 16,
+                    color: AppColors.brandPrimary,
                   ),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Expanded(
                     child: Text(
-                      cycle.deviceName,
-                      style: AppTypography.caption,
+                      params,
+                      style: AppTypography.bodyStrong,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (cycle.programName != null) ...[
-                    const SizedBox(width: AppSpacing.xs),
-                    const Icon(
-                      Icons.thermostat_outlined,
-                      size: 14,
-                      color: AppColors.textSecondary,
-                    ),
-                    const SizedBox(width: 4),
-                    Flexible(
-                      child: Text(
-                        cycle.programName!,
-                        style: AppTypography.caption.copyWith(
-                          color: AppColors.brandPrimary,
-                          fontWeight: FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
-
-              // ── Row 3: date + chevron ──
-              Row(
-                children: [
-                  const Icon(
-                    Icons.schedule,
-                    size: 14,
-                    color: AppColors.textSecondary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('dd/MM/yyyy HH:mm').format(cycle.createdAt),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              if (cycle.operatorName != null) ...[
+                const Icon(
+                  Icons.person_outline,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    cycle.operatorName!,
                     style: AppTypography.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const Spacer(),
-                  const Icon(
-                    Icons.chevron_right,
-                    size: 18,
-                    color: AppColors.textTertiary,
-                  ),
-                ],
+                ),
+                const SizedBox(width: AppSpacing.md),
+              ],
+              const Icon(
+                Icons.schedule,
+                size: 14,
+                color: AppColors.textSecondary,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  started ??
+                      DateFormat('dd/MM/yyyy HH:mm').format(cycle.createdAt),
+                  style: AppTypography.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: AppColors.textTertiary,
               ),
             ],
           ),
-        ),
+        ],
       ),
     );
   }

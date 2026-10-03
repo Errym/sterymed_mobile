@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/formatters/date_formatter.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
@@ -19,13 +22,8 @@ class MaintenanceRecordFormSheet extends StatefulWidget {
   const MaintenanceRecordFormSheet({super.key, required this.deviceId});
 
   static Future<bool?> show(BuildContext context, {required String deviceId}) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.backgroundApp,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
+    return showAppSheet<bool>(
+      context,
       builder: (_) => MaintenanceRecordFormSheet(deviceId: deviceId),
     );
   }
@@ -87,67 +85,136 @@ class _MaintenanceRecordFormSheetState
     }
   }
 
+  String get _kindLabel => switch (_kind) {
+        'corrective' => 'Maintenance corrective',
+        'calibration' => 'Étalonnage',
+        _ => 'Maintenance préventive',
+      };
+
+  /// What will be written in the device's history, as it will read.
+  Widget _preview() {
+    final due = _nextDueAt;
+    return PreviewCard(
+      key: const Key('maintenance-preview'),
+      mark: const EntityMark.icon(Icons.build_outlined),
+      eyebrow: 'DOSSIER DE MAINTENANCE',
+      title: _kindLabel,
+      tags: [
+        InfoTag(
+          AppDateFormatter.date(_performedAt),
+          icon: Icons.event_available_outlined,
+        ),
+        if (_technicianCtrl.text.trim().isNotEmpty)
+          InfoTag(_technicianCtrl.text.trim(), icon: Icons.engineering_outlined),
+        if (due != null)
+          InfoTag(
+            'Prochaine : ${AppDateFormatter.date(due)}',
+            icon: Icons.schedule,
+            color: AppColors.brandPrimary,
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Form(
         key: _formKey,
-        child: ListView(
-          shrinkWrap: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'Nouvelle intervention de maintenance',
-              style: AppTypography.sectionTitle,
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
+                children: [
+                  const SheetHandle(),
+                  const SizedBox(height: AppSpacing.md),
+                  const Text(
+                    'Nouvelle intervention de maintenance',
+                    style: AppTypography.sectionTitle,
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Chaque intervention reste dans l\'historique de '
+                    'l\'appareil et sert de preuve en cas de contrôle.',
+                    style: AppTypography.caption,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _preview(),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Intervention',
+                    trailing:
+                        const Text('Requis', style: AppTypography.caption),
+                    children: [
+                      AppDropdown<String>(
+                        label: 'Type *',
+                        value: _kind,
+                        options: const [
+                          AppDropdownOption(
+                              value: 'preventive', label: 'Préventive'),
+                          AppDropdownOption(
+                              value: 'corrective', label: 'Corrective'),
+                          AppDropdownOption(
+                              value: 'calibration', label: 'Étalonnage'),
+                        ],
+                        onChanged: (v) =>
+                            setState(() => _kind = v ?? 'preventive'),
+                      ),
+                      AppDatePicker(
+                        label: 'Date de l\'intervention *',
+                        value: _performedAt,
+                        lastDate: DateTime.now(),
+                        onChanged: (d) => setState(() => _performedAt = d),
+                      ),
+                      AppTextField(
+                        label: 'Technicien',
+                        hint: 'Ex : SAV Melag, technicien interne...',
+                        controller: _technicianCtrl,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Suite',
+                    trailing:
+                        const Text('Facultatif', style: AppTypography.caption),
+                    children: [
+                      AppDatePicker(
+                        label: 'Prochaine échéance (optionnel)',
+                        value: _nextDueAt,
+                        firstDate: _performedAt,
+                        onChanged: (d) => setState(() => _nextDueAt = d),
+                      ),
+                      AppTextArea(
+                        label: 'Description',
+                        hint:
+                            'Pièces remplacées, résultat du test, observations...',
+                        controller: _descriptionCtrl,
+                        maxLines: 3,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppDropdown<String>(
-              label: 'Type *',
-              value: _kind,
-              options: const [
-                AppDropdownOption(value: 'preventive', label: 'Préventive'),
-                AppDropdownOption(value: 'corrective', label: 'Corrective'),
-                AppDropdownOption(value: 'calibration', label: 'Étalonnage'),
-              ],
-              onChanged: (v) => setState(() => _kind = v ?? 'preventive'),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Technicien',
-              hint: 'Ex : SAV Melag, technicien interne...',
-              controller: _technicianCtrl,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppDatePicker(
-              label: 'Date de l\'intervention *',
-              value: _performedAt,
-              lastDate: DateTime.now(),
-              onChanged: (d) => setState(() => _performedAt = d),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppDatePicker(
-              label: 'Prochaine échéance (optionnel)',
-              value: _nextDueAt,
-              firstDate: _performedAt,
-              onChanged: (d) => setState(() => _nextDueAt = d),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextArea(
-              label: 'Description',
-              hint: 'Pièces remplacées, résultat du test, observations...',
-              controller: _descriptionCtrl,
-              maxLines: 3,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            PrimaryButton(
-              label: 'Enregistrer l\'intervention',
-              isLoading: _submitting,
-              onPressed: _submit,
+            PinnedFooter(
+              child: PrimaryButton(
+                label: 'Enregistrer l\'intervention',
+                isLoading: _submitting,
+                onPressed: _submitting ? null : _submit,
+              ),
             ),
           ],
         ),

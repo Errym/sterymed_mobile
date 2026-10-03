@@ -10,6 +10,7 @@ import '../../../../shared/widgets/inputs/app_date_picker.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
 import '../../../../shared/widgets/inputs/app_search_field.dart';
 import '../../../../shared/widgets/inputs/app_text_area.dart';
+import '../../../../shared/widgets/inputs/searchable_picker_field.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../../../../shared/widgets/feedback/error_view.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
@@ -88,8 +89,17 @@ class _ProstheticCaseCreateScreenState
     });
   }
 
-  void _saveDraft() {
-    _draftStore.save(ProstheticCaseDraft(
+  /// Every draft write goes through one chain, in order. Without it a save
+  /// that started a moment before "Créer" could finish AFTER the draft was
+  /// cleared and bring the already-submitted case back as a draft.
+  Future<void> _draftChain = Future<void>.value();
+  bool _draftClosed = false;
+
+  /// Durable on every change (brief §14: "avoid silent data loss"): the form
+  /// survives the app being killed at any moment, not just a clean exit.
+  Future<void> _saveDraft() {
+    if (_draftClosed) return _draftChain;
+    final draft = ProstheticCaseDraft(
       patientId: _patient?.id,
       patientReference: _patient?.reference,
       laboratoryId: _laboratoryId,
@@ -100,7 +110,19 @@ class _ProstheticCaseCreateScreenState
       priority: _priorityCtrl.text,
       notes: _notesCtrl.text,
       internalComments: _internalCommentsCtrl.text,
-    ));
+    );
+    return _draftChain = _draftChain
+        .then((_) => _draftStore.save(draft))
+        .catchError((_) {});
+  }
+
+  /// After a successful submit: wait for any save already in flight, drop the
+  /// draft, and refuse every later save.
+  Future<void> _closeDraft() {
+    _draftClosed = true;
+    return _draftChain = _draftChain
+        .then((_) => _draftStore.clear())
+        .catchError((_) {});
   }
 
   Future<void> _loadLaboratories() async {
@@ -203,7 +225,7 @@ class _ProstheticCaseCreateScreenState
         if (_internalCommentsCtrl.text.trim().isNotEmpty)
           'internal_comments': _internalCommentsCtrl.text.trim(),
       });
-      await _draftStore.clear();
+      await _closeDraft();
       if (!mounted) return;
       AppSnackbar.show(context, 'Dossier prothétique créé.',
           kind: SnackKind.success);
@@ -237,7 +259,7 @@ class _ProstheticCaseCreateScreenState
                 decoration: BoxDecoration(
                   color: AppColors.backgroundCard,
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.borderLight),
+                  border: Border.all(color: AppColors.hairline),
                 ),
                 child: Row(
                   children: [
@@ -265,8 +287,10 @@ class _ProstheticCaseCreateScreenState
                 AppDropdownOption(value: 'digital', label: 'Numérique'),
                 AppDropdownOption(value: 'physical', label: 'Physique'),
               ],
-              onChanged: (v) =>
-                  setState(() => _impressionType = v ?? 'digital'),
+              onChanged: (v) {
+                setState(() => _impressionType = v ?? 'digital');
+                _saveDraft();
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             AppDropdown<String>(
@@ -281,14 +305,20 @@ class _ProstheticCaseCreateScreenState
                 AppDropdownOption(value: 'denture', label: 'Prothèse amovible'),
                 AppDropdownOption(value: 'other', label: 'Autre'),
               ],
-              onChanged: (v) => setState(() => _workType = v ?? 'crown'),
+              onChanged: (v) {
+                setState(() => _workType = v ?? 'crown');
+                _saveDraft();
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             AppDatePicker(
               label: 'Date d\'empreinte *',
               value: _impressionDate,
               lastDate: DateTime.now(),
-              onChanged: (d) => setState(() => _impressionDate = d),
+              onChanged: (d) {
+                setState(() => _impressionDate = d);
+                _saveDraft();
+              },
             ),
             const SizedBox(height: AppSpacing.md),
             _loadingPractitioners
@@ -298,17 +328,14 @@ class _ProstheticCaseCreateScreenState
                         message: _practitionersError!,
                         onRetry: _loadPractitioners,
                       )
-                    : AppDropdown<String?>(
+                    : SearchablePickerField(
+                        key: const Key('prosthetic-practitioner-picker'),
                         label: 'Praticien *',
+                        hint: 'Choisir un praticien',
                         value: _practitionerId,
                         options: [
-                          if (_practitionerId == null)
-                            const AppDropdownOption(
-                              value: null,
-                              label: 'Choisir un praticien',
-                            ),
-                          ..._practitioners.map((p) =>
-                              AppDropdownOption(value: p.id, label: p.name)),
+                          for (final p in _practitioners)
+                            PickerOption(id: p.id, label: p.name),
                         ],
                         onChanged: (v) {
                           setState(() => _practitionerId = v);
@@ -321,15 +348,22 @@ class _ProstheticCaseCreateScreenState
                 : _labsError != null
                     ? ErrorView(
                         message: _labsError!, onRetry: _loadLaboratories)
-                    : AppDropdown<String?>(
+                    : SearchablePickerField(
+                        key: const Key('prosthetic-laboratory-picker'),
                         label: 'Laboratoire',
+                        hint: 'Aucun laboratoire',
+                        clearLabel: 'Aucun laboratoire',
                         value: _laboratoryId,
+                        // Only active laboratories: an archived one is never
+                        // offered for a new case.
                         options: [
-                          const AppDropdownOption(value: null, label: 'Aucun'),
-                          ..._laboratories.map((l) =>
-                              AppDropdownOption(value: l.id, label: l.name)),
+                          for (final l in _laboratories)
+                            PickerOption(id: l.id, label: l.name),
                         ],
-                        onChanged: (v) => setState(() => _laboratoryId = v),
+                        onChanged: (v) {
+                          setState(() => _laboratoryId = v);
+                          _saveDraft();
+                        },
                       ),
             const SizedBox(height: AppSpacing.md),
             AppTextArea(
@@ -373,17 +407,21 @@ class _PatientPickerSheetState extends State<_PatientPickerSheet> {
     _search('');
   }
 
+  int _searchGeneration = 0;
+
   Future<void> _search(String query) async {
+    // A slow answer for "ab" must not replace the list for "abc".
+    final generation = ++_searchGeneration;
     setState(() => _loading = true);
     try {
       final results = await getIt<PatientRepository>().search(query);
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() {
         _results = results;
         _loading = false;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted || generation != _searchGeneration) return;
       setState(() => _loading = false);
     }
   }

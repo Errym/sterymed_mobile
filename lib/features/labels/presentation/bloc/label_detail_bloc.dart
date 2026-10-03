@@ -15,7 +15,7 @@ class LabelDetailBloc extends Bloc<LabelDetailEvent, LabelDetailState> {
   final LabelUsageRepository? _usageRepository;
 
   LabelDetailBloc(this._repository, [this._usageRepository])
-      : super(const LabelDetailState()) {
+    : super(const LabelDetailState()) {
     on<LoadLabel>(_onLoad);
   }
 
@@ -23,28 +23,38 @@ class LabelDetailBloc extends Bloc<LabelDetailEvent, LabelDetailState> {
     emit(state.copyWith(status: LabelDetailStatus.loading));
     try {
       final result = await _repository.getByCode(event.code);
-      emit(state.copyWith(
-        status: LabelDetailStatus.success,
-        result: result,
-      ));
+      emit(state.copyWith(status: LabelDetailStatus.success, result: result));
 
       if (_usageRepository != null && result.labelId.isNotEmpty) {
-        emit(state.copyWith(historyLoading: true));
+        emit(state.copyWith(historyLoading: true, historyFailed: false));
         try {
           final history = await _usageRepository.history(result.labelId);
           emit(state.copyWith(history: history, historyLoading: false));
         } catch (_) {
           // Usage history is a supplementary detail -- don't fail the
-          // whole label view if it can't be fetched.
-          emit(state.copyWith(historyLoading: false));
+          // whole label view if it can't be fetched, but never let the
+          // screen present a failed lookup as "no usage recorded".
+          emit(state.copyWith(historyLoading: false, historyFailed: true));
         }
       }
     } on ApiException catch (e) {
-      emit(state.copyWith(
-        status: LabelDetailStatus.failure,
-        error: e.message,
-        errorCode: e.code,
-      ));
+      emit(
+        state.copyWith(
+          status: LabelDetailStatus.failure,
+          error: e.message,
+          errorCode: e.code,
+        ),
+      );
+    } catch (_) {
+      // Anything that is not an API answer (malformed payload, storage...)
+      // must still end the loading state; a spinner that never stops would
+      // hide the fact that the label could not be read.
+      emit(
+        state.copyWith(
+          status: LabelDetailStatus.failure,
+          error: 'Impossible de lire cette étiquette. Réessayez.',
+        ),
+      );
     }
   }
 }

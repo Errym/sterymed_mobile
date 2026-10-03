@@ -48,13 +48,16 @@ class AboutScreen extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.backgroundCard,
                 borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: AppColors.borderLight),
+                border: Border.all(color: AppColors.hairline),
+                boxShadow: AppShadows.card,
               ),
               child: Column(
                 children: [
                   _Row(label: 'Version', value: BuildInfo.fullVersion),
                   const Divider(
-                      height: AppSpacing.lg, color: AppColors.borderLight),
+                    height: AppSpacing.lg,
+                    color: AppColors.borderLight,
+                  ),
                   const _Row(label: 'Environnement', value: Env.environment),
                 ],
               ),
@@ -65,7 +68,8 @@ class AboutScreen extends StatelessWidget {
             index: 2,
             child: Text(
               'Conçu pour les cabinets dentaires français. '
-              'Les données sont chiffrées et l\'audit est immuable.',
+              'Les échanges avec le serveur sont chiffrés (HTTPS) et chaque '
+              'action est enregistrée dans le journal.',
               textAlign: TextAlign.center,
               style: AppTypography.caption,
             ),

@@ -145,6 +145,11 @@ class ProstheticCaseData extends Equatable {
   final bool depositRequested;
   final bool depositReceived;
   final double? depositAmount;
+
+  /// Optional total price. When present the SERVER derives
+  /// [remainingBalance] from it (total − deposit received); the app only
+  /// previews that arithmetic while typing.
+  final double? totalAmount;
   final bool finalPaymentCompleted;
   final double? remainingBalance;
   final String? administrativeComments;
@@ -173,6 +178,7 @@ class ProstheticCaseData extends Equatable {
     this.depositRequested = false,
     this.depositReceived = false,
     this.depositAmount,
+    this.totalAmount,
     this.finalPaymentCompleted = false,
     this.remainingBalance,
     this.administrativeComments,
@@ -222,6 +228,7 @@ class ProstheticCaseData extends Equatable {
         depositRequested: json['deposit_requested'] as bool? ?? false,
         depositReceived: json['deposit_received'] as bool? ?? false,
         depositAmount: (json['deposit_amount'] as num?)?.toDouble(),
+        totalAmount: (json['total_amount'] as num?)?.toDouble(),
         finalPaymentCompleted:
             json['final_payment_completed'] as bool? ?? false,
         remainingBalance: (json['remaining_balance'] as num?)?.toDouble(),
@@ -236,5 +243,5 @@ class ProstheticCaseData extends Equatable {
   // Cheap change-detection surface for Equatable without listing every
   // field — status + the two dates most likely to change independently.
   String get updatedFingerprint =>
-      '$status|$returnedFromLabDate|$actualPlacementDate|$remainingBalance';
+      '$status|$returnedFromLabDate|$actualPlacementDate|$plannedPlacementDate|$remainingBalance|$totalAmount|$depositReceived|$notes';
 }

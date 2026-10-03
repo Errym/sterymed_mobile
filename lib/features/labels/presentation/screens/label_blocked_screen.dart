@@ -6,6 +6,7 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/loading_view.dart';
+import '../../../../shared/widgets/layout/app_appbar.dart';
 import '../bloc/label_detail_bloc.dart';
 
 class LabelBlockedScreen extends StatelessWidget {
@@ -58,7 +59,7 @@ class _BlockedViewState extends State<_BlockedView>
         title: const Text('Étiquette bloquée'),
         backgroundColor: AppColors.dangerLight,
         foregroundColor: AppColors.danger,
-        automaticallyImplyLeading: false,
+        leading: AppBackButton.maybe(context),
       ),
       body: BlocBuilder<LabelDetailBloc, LabelDetailState>(
         builder: (context, state) {

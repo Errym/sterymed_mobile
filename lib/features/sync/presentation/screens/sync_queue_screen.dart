@@ -196,7 +196,8 @@ class _QueueTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundCard,
         borderRadius: BorderRadius.circular(AppRadius.card),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
+        boxShadow: AppShadows.card,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

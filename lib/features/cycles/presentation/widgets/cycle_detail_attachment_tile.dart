@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/utils/media_url.dart';
+
 import '../../../../core/theme/tokens.dart';
 import '../../data/models/cycle_attachment_data.dart';
 
@@ -10,8 +12,14 @@ import '../../data/models/cycle_attachment_data.dart';
 class CycleDetailAttachmentTile extends StatelessWidget {
   final CycleAttachmentData a;
   final VoidCallback? onDelete;
+  final VoidCallback? onOpen;
 
-  const CycleDetailAttachmentTile({super.key, required this.a, this.onDelete});
+  const CycleDetailAttachmentTile({
+    super.key,
+    required this.a,
+    this.onDelete,
+    this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,13 +29,38 @@ class CycleDetailAttachmentTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.backgroundSubtle,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderLight),
+        border: Border.all(color: AppColors.hairline),
       ),
+      clipBehavior: Clip.antiAlias,
       child: Stack(
         children: [
-          const Center(
-            child: Icon(Icons.image_outlined,
-                color: AppColors.textSecondary, size: 24),
+          Positioned.fill(
+            child: InkWell(
+              onTap: onOpen,
+              child: a.isImage && a.url.isNotEmpty
+                  ? Image.network(
+                      MediaUrl.resolve(a.url),
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => const Center(
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: AppColors.textSecondary,
+                          size: 24,
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Icon(
+                        a.isPdf
+                            ? Icons.picture_as_pdf_outlined
+                            : Icons.insert_drive_file_outlined,
+                        color: a.isPdf
+                            ? AppColors.danger
+                            : AppColors.textSecondary,
+                        size: 24,
+                      ),
+                    ),
+            ),
           ),
           if (onDelete != null)
             Positioned(

@@ -6,6 +6,8 @@ import '../../../../di/di.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_text_field.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
 import '../../data/models/supplier_data.dart';
 import '../../data/repositories/supplier_repository.dart';
 import '../bloc/supplier_list_bloc.dart';
@@ -15,19 +17,27 @@ class SupplierFormSheet extends StatefulWidget {
   final SupplierData? existing;
   const SupplierFormSheet({super.key, this.existing});
 
+  /// Opened from the list (which has a [SupplierListBloc] to refresh) or from a
+  /// supplier's own page (which has none and refreshes itself from the result).
   static Future<bool?> show(BuildContext context, {SupplierData? existing}) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.backgroundApp,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
-      builder: (_) => BlocProvider.value(
-        value: context.read<SupplierListBloc>(),
-        child: SupplierFormSheet(existing: existing),
-      ),
+    final bloc = _listBloc(context);
+    return showAppSheet<bool>(
+      context,
+      builder: (_) => bloc == null
+          ? SupplierFormSheet(existing: existing)
+          : BlocProvider.value(
+              value: bloc,
+              child: SupplierFormSheet(existing: existing),
+            ),
     );
+  }
+
+  static SupplierListBloc? _listBloc(BuildContext context) {
+    try {
+      return BlocProvider.of<SupplierListBloc>(context, listen: false);
+    } catch (_) {
+      return null;
+    }
   }
 
   @override
@@ -88,7 +98,7 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
         );
       }
       if (!mounted) return;
-      context.read<SupplierListBloc>().add(const LoadSuppliers());
+      SupplierFormSheet._listBloc(context)?.add(const LoadSuppliers());
       AppSnackbar.show(context, 'Fournisseur enregistré.',
           kind: SnackKind.success);
       Navigator.of(context).pop(true);
@@ -100,53 +110,135 @@ class _SupplierFormSheetState extends State<SupplierFormSheet> {
     }
   }
 
+  /// The supplier as it will appear in the list, updated as the person types.
+  Widget _preview() {
+    return ListenableBuilder(
+      listenable: Listenable.merge(
+        [_nameCtrl, _emailCtrl, _phoneCtrl, _addressCtrl],
+      ),
+      builder: (context, _) {
+        final name = _nameCtrl.text.trim();
+        final phone = _phoneCtrl.text.trim();
+        final email = _emailCtrl.text.trim();
+        final address = _addressCtrl.text.trim();
+        return PreviewCard(
+          key: const Key('supplier-preview'),
+          mark: EntityMark.initials(
+            name.isEmpty ? '•' : EntityMark.initialsOf(name),
+          ),
+          eyebrow: address.isEmpty ? 'FOURNISSEUR' : address.toUpperCase(),
+          title: name.isEmpty ? 'Nom du fournisseur' : name,
+          titleIsPlaceholder: name.isEmpty,
+          tags: [
+            if (phone.isNotEmpty) InfoTag(phone, icon: Icons.call_outlined),
+            if (email.isNotEmpty) InfoTag(email, icon: Icons.mail_outline),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Form(
         key: _formKey,
-        child: ListView(
-          shrinkWrap: true,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              _isEdit ? 'Modifier le fournisseur' : 'Nouveau fournisseur',
-              style: AppTypography.sectionTitle,
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
+                children: [
+                  const SheetHandle(),
+                  const SizedBox(height: AppSpacing.md),
+                  Text(
+                    _isEdit ? 'Modifier le fournisseur' : 'Nouveau fournisseur',
+                    style: AppTypography.sectionTitle,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _isEdit
+                        ? 'Les commandes déjà passées gardent ce fournisseur.'
+                        : 'Une fois enregistré, vous pourrez lui lier des '
+                            'produits et lui passer commande.',
+                    style: AppTypography.caption,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  _preview(),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Identité',
+                    trailing:
+                        const Text('Requis', style: AppTypography.caption),
+                    children: [
+                      AppTextField(
+                        label: 'Nom *',
+                        controller: _nameCtrl,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Contact',
+                    trailing:
+                        const Text('Facultatif', style: AppTypography.caption),
+                    children: [
+                      AppTextField(
+                        label: 'E-mail',
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (v) {
+                          final text = v?.trim() ?? '';
+                          if (text.isEmpty) return null;
+                          return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+                                  .hasMatch(text)
+                              ? null
+                              : 'Adresse e-mail invalide.';
+                        },
+                      ),
+                      AppTextField(
+                        label: 'Téléphone',
+                        controller: _phoneCtrl,
+                        keyboardType: TextInputType.phone,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Adresse',
+                    trailing:
+                        const Text('Facultatif', style: AppTypography.caption),
+                    children: [
+                      AppTextField(
+                        label: 'Adresse',
+                        controller: _addressCtrl,
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Nom *',
-              controller: _nameCtrl,
-              validator: (v) =>
-                  (v == null || v.trim().isEmpty) ? 'Requis.' : null,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'E-mail',
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-              label: 'Téléphone',
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            AppTextField(
-                label: 'Adresse', controller: _addressCtrl, maxLines: 2),
-            const SizedBox(height: AppSpacing.xl),
-            PrimaryButton(
-              label: _isEdit
-                  ? 'Enregistrer les modifications'
-                  : 'Enregistrer le fournisseur',
-              onPressed: _submit,
-              isLoading: _submitting,
+            PinnedFooter(
+              child: PrimaryButton(
+                label: _isEdit
+                    ? 'Enregistrer les modifications'
+                    : 'Enregistrer le fournisseur',
+                onPressed: _submitting ? null : _submit,
+                isLoading: _submitting,
+              ),
             ),
           ],
         ),

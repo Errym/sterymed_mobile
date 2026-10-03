@@ -75,8 +75,15 @@ class BottomNavBar extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.backgroundApp,
-        border: Border(top: BorderSide(color: AppColors.borderLight)),
+        color: AppColors.backgroundCard,
+        border: Border(top: BorderSide(color: AppColors.hairline)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0F12284B),
+            blurRadius: 16,
+            offset: Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -137,13 +144,32 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(isActive ? tab.activeIcon : tab.icon, size: 22, color: color),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            width: 52,
+            height: 28,
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AppColors.brandPrimaryLight
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+            ),
+            child: Icon(
+              isActive ? tab.activeIcon : tab.icon,
+              size: 22,
+              color: color,
+            ),
+          ),
           const SizedBox(height: 2),
           Text(
             tab.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: AppTypography.caption.copyWith(
               color: color,
-              fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
             ),
           ),
         ],

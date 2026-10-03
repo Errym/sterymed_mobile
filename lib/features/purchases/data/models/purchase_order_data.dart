@@ -10,6 +10,7 @@ class PurchaseOrderData extends Equatable {
   final List<PurchaseOrderLineData> lines;
   final DateTime createdAt;
   final DateTime? orderedAt;
+  final DateTime? expectedAt;
 
   const PurchaseOrderData({
     required this.id,
@@ -19,6 +20,7 @@ class PurchaseOrderData extends Equatable {
     required this.lines,
     required this.createdAt,
     this.orderedAt,
+    this.expectedAt,
   });
 
   /// The backend has no PO reference/number field at all — this is a
@@ -46,6 +48,13 @@ class PurchaseOrderData extends Equatable {
   bool get canCancel => status == 'draft' || status == 'ordered';
   bool get canOrder => status == 'draft';
 
+  /// Only a draft is still a working copy; once ordered it is a commitment to
+  /// the supplier and the way out is to cancel it.
+  bool get canEdit => status == 'draft';
+
+  /// Units still to come across every line.
+  int get qtyRemaining => lines.fold(0, (sum, l) => sum + l.qtyRemaining);
+
   factory PurchaseOrderData.fromJson(Map<String, dynamic> json) {
     final linesJson = json['lines'];
     final lines = linesJson is List
@@ -65,9 +74,10 @@ class PurchaseOrderData extends Equatable {
       createdAt: DateTime.tryParse(json['created_at']?.toString() ?? '') ??
           DateTime.now(),
       orderedAt: DateTime.tryParse(json['ordered_at']?.toString() ?? ''),
+      expectedAt: DateTime.tryParse(json['expected_at']?.toString() ?? ''),
     );
   }
 
   @override
-  List<Object?> get props => [id, status];
+  List<Object?> get props => [id, status, expectedAt, lines];
 }

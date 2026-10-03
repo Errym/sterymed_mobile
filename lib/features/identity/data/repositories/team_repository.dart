@@ -1,5 +1,6 @@
 import '../../../../core/cache/cache.dart';
 import '../datasources/team_remote_datasource.dart';
+import '../models/open_invitation.dart';
 import '../models/team_member_data.dart';
 
 class TeamRepository {
@@ -18,6 +19,11 @@ class TeamRepository {
     return fresh;
   }
 
+  Future<List<OpenInvitation>> invitations() => _remote.listInvitations();
+
+  Future<void> resendInvitation(String id) => _remote.resendInvitation(id);
+
+  Future<void> revokeInvitation(String id) => _remote.revokeInvitation(id);
 
   Future<void> invite({required String email, required String role}) async {
     await _remote.invite(email: email, role: role);

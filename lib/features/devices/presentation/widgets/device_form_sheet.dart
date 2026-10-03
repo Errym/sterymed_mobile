@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/tokens.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
 import '../../../../shared/widgets/buttons/primary_button.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/inputs/app_dropdown.dart';
@@ -19,13 +21,8 @@ class DeviceFormSheet extends StatefulWidget {
   const DeviceFormSheet({super.key, this.existingId});
 
   static Future<bool?> show(BuildContext context, {String? existingId}) {
-    return showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.backgroundApp,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-      ),
+    return showAppSheet<bool>(
+      context,
       builder: (_) => DeviceFormSheet(existingId: existingId),
     );
   }
@@ -166,153 +163,243 @@ class _DeviceFormSheetState extends State<DeviceFormSheet> {
     }
   }
 
+  String get _kindLabel => switch (_kind) {
+        'autoclave' => 'Autoclave',
+        'washer_disinfector' => 'Laveur désinfecteur',
+        'sealer' => 'Thermoscelleuse',
+        _ => 'Autre appareil',
+      };
+
+  /// The device as it will appear in the list, updated as the person types.
+  Widget _preview() {
+    return ListenableBuilder(
+      listenable: Listenable.merge(
+        [_nameCtrl, _serialCtrl, _manufacturerCtrl, _modelCtrl],
+      ),
+      builder: (context, _) {
+        final name = _nameCtrl.text.trim();
+        final serial = _serialCtrl.text.trim();
+        final make = [_manufacturerCtrl.text.trim(), _modelCtrl.text.trim()]
+            .where((s) => s.isNotEmpty)
+            .join(' ');
+        String? site;
+        for (final s in _sites) {
+          if (s.id == _siteId) site = s.name;
+        }
+        return PreviewCard(
+          key: const Key('device-preview'),
+          mark: const EntityMark.icon(Icons.precision_manufacturing_outlined),
+          eyebrow: _kindLabel.toUpperCase(),
+          title: name.isEmpty ? 'Nom de l\'appareil' : name,
+          titleIsPlaceholder: name.isEmpty,
+          tags: [
+            if (make.isNotEmpty) InfoTag(make, icon: Icons.factory_outlined),
+            if (serial.isNotEmpty) InfoTag('N° $serial', icon: Icons.tag),
+            if (site != null) InfoTag(site, icon: Icons.business_outlined),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _centered(Widget child) => SizedBox(
+        height: 240,
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: child,
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return _centered(const Center(child: CircularProgressIndicator()));
+    }
+    if (_loadError != null) {
+      return _centered(
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              _isEdit
+                  ? 'Impossible de charger cet appareil. Rien n\'a été modifié.'
+                  : 'Impossible de charger les sites.',
+              textAlign: TextAlign.center,
+              style: AppTypography.body,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              _loadError!,
+              textAlign: TextAlign.center,
+              style: AppTypography.caption,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            OutlinedButton(onPressed: _load, child: const Text('Réessayer')),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: EdgeInsets.only(
-        left: AppSpacing.md,
-        right: AppSpacing.md,
-        top: AppSpacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + AppSpacing.md,
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: _loading
-          ? const SizedBox(
-              height: 200,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          : _loadError != null
-          ? SizedBox(
-              height: 220,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    _isEdit
-                        ? 'Impossible de charger cet appareil. Rien n\'a été modifié.'
-                        : 'Impossible de charger les sites.',
-                    textAlign: TextAlign.center,
-                    style: AppTypography.body,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    _loadError!,
-                    textAlign: TextAlign.center,
-                    style: AppTypography.caption,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  OutlinedButton(
-                    onPressed: _load,
-                    child: const Text('Réessayer'),
-                  ),
-                ],
-              ),
-            )
-          : Form(
-              key: _formKey,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
               child: ListView(
                 shrinkWrap: true,
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
                 children: [
+                  const SheetHandle(),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
                     _isEdit ? 'Modifier l\'appareil' : 'Nouvel appareil',
                     style: AppTypography.sectionTitle,
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  if (!_isEdit)
-                    _sites.isEmpty
-                        ? Container(
-                            padding: const EdgeInsets.all(AppSpacing.md),
-                            decoration: BoxDecoration(
-                              color: AppColors.warningLight,
-                              borderRadius: BorderRadius.circular(AppRadius.md),
-                            ),
-                            child: const Text(
-                              'Aucun site disponible. Créez d\'abord un site '
-                              'dans Sites & Espaces.',
-                              style: AppTypography.caption,
-                            ),
-                          )
-                        : AppDropdown<String>(
-                            label: 'Site *',
-                            value: _siteId,
-                            options: _sites
-                                .map((s) => AppDropdownOption(
-                                    value: s.id, label: s.name))
-                                .toList(),
-                            onChanged: (v) => setState(() => _siteId = v),
-                          ),
-                  if (!_isEdit) const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                    label: 'Nom *',
-                    hint: 'Melag Vacuklav 40B+',
-                    controller: _nameCtrl,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+                  const SizedBox(height: 2),
+                  Text(
+                    _isEdit
+                        ? 'Passer un appareil en maintenance le retire des '
+                            'cycles possibles.'
+                        : 'Une fois créé, ajoutez ses programmes de '
+                            'stérilisation depuis sa fiche.',
+                    style: AppTypography.caption,
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                    label: 'N° de série *',
-                    hint: 'MEL-001',
-                    controller: _serialCtrl,
-                    validator: (v) =>
-                        (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+                  _preview(),
+                  const SizedBox(height: AppSpacing.md),
+                  FormCard(
+                    title: 'Appareil',
+                    trailing:
+                        const Text('Requis', style: AppTypography.caption),
+                    children: [
+                      if (!_isEdit)
+                        _sites.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.all(AppSpacing.md),
+                                decoration: BoxDecoration(
+                                  color: AppColors.warningLight,
+                                  borderRadius:
+                                      BorderRadius.circular(AppRadius.control),
+                                ),
+                                child: const Text(
+                                  'Aucun site disponible. Créez d\'abord un '
+                                  'site dans Sites & Espaces.',
+                                  style: AppTypography.caption,
+                                ),
+                              )
+                            : AppDropdown<String>(
+                                label: 'Site *',
+                                value: _siteId,
+                                options: _sites
+                                    .map((s) => AppDropdownOption(
+                                        value: s.id, label: s.name))
+                                    .toList(),
+                                onChanged: (v) => setState(() => _siteId = v),
+                              ),
+                      AppTextField(
+                        label: 'Nom *',
+                        hint: 'Melag Vacuklav 40B+',
+                        controller: _nameCtrl,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+                      ),
+                      AppTextField(
+                        label: 'N° de série *',
+                        hint: 'MEL-001',
+                        controller: _serialCtrl,
+                        validator: (v) =>
+                            (v == null || v.trim().isEmpty) ? 'Requis.' : null,
+                      ),
+                      if (!_isEdit)
+                        AppDropdown<String>(
+                          label: 'Type',
+                          value: _kind,
+                          options: const [
+                            AppDropdownOption(
+                                value: 'autoclave', label: 'Autoclave'),
+                            AppDropdownOption(
+                                value: 'washer_disinfector',
+                                label: 'Laveur désinfecteur'),
+                            AppDropdownOption(
+                                value: 'sealer', label: 'Thermoscelleuse'),
+                            AppDropdownOption(value: 'other', label: 'Autre'),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _kind = v ?? 'autoclave'),
+                        )
+                      else
+                        AppDropdown<String>(
+                          label: 'Statut',
+                          value: _status,
+                          options: const [
+                            AppDropdownOption(value: 'active', label: 'Actif'),
+                            AppDropdownOption(
+                                value: 'maintenance',
+                                label: 'En maintenance'),
+                            AppDropdownOption(
+                                value: 'decommissioned',
+                                label: 'Hors service'),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _status = v ?? 'active'),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: AppSpacing.md),
-                  if (!_isEdit)
-                    AppDropdown<String>(
-                      label: 'Type',
-                      value: _kind,
-                      options: const [
-                        AppDropdownOption(
-                            value: 'autoclave', label: 'Autoclave'),
-                        AppDropdownOption(
-                            value: 'washer_disinfector',
-                            label: 'Laveur désinfecteur'),
-                        AppDropdownOption(
-                            value: 'sealer', label: 'Thermoscelleuse'),
-                        AppDropdownOption(value: 'other', label: 'Autre'),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _kind = v ?? 'autoclave'),
-                    )
-                  else
-                    AppDropdown<String>(
-                      label: 'Statut',
-                      value: _status,
-                      options: const [
-                        AppDropdownOption(
-                            value: 'active', label: 'Actif'),
-                        AppDropdownOption(
-                            value: 'maintenance', label: 'En maintenance'),
-                        AppDropdownOption(
-                            value: 'decommissioned', label: 'Hors service'),
-                      ],
-                      onChanged: (v) =>
-                          setState(() => _status = v ?? 'active'),
-                    ),
+                  FormCard(
+                    title: 'Constructeur',
+                    trailing:
+                        const Text('Facultatif', style: AppTypography.caption),
+                    children: [
+                      AppTextField(
+                        label: 'Fabricant',
+                        hint: 'Melag',
+                        controller: _manufacturerCtrl,
+                      ),
+                      AppTextField(
+                        label: 'Modèle',
+                        hint: 'Vacuklav 40B+',
+                        controller: _modelCtrl,
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                      label: 'Fabricant',
-                      hint: 'Melag',
-                      controller: _manufacturerCtrl),
-                  const SizedBox(height: AppSpacing.md),
-                  AppTextField(
-                      label: 'Modèle',
-                      hint: 'Vacuklav 40B+',
-                      controller: _modelCtrl),
-                  const SizedBox(height: AppSpacing.md),
-                  AppTextArea(
-                      label: 'Notes', controller: _notesCtrl, maxLines: 2),
-                  const SizedBox(height: AppSpacing.xl),
-                  PrimaryButton(
-                    label: _isEdit
-                        ? 'Enregistrer les modifications'
-                        : 'Enregistrer l\'appareil',
-                    isLoading: _submitting,
-                    onPressed: _submitting ? null : _submit,
+                  FormCard(
+                    title: 'Notes',
+                    trailing:
+                        const Text('Facultatif', style: AppTypography.caption),
+                    children: [
+                      AppTextArea(
+                        label: 'Notes',
+                        controller: _notesCtrl,
+                        maxLines: 2,
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+            PinnedFooter(
+              child: PrimaryButton(
+                label: _isEdit
+                    ? 'Enregistrer les modifications'
+                    : 'Enregistrer l\'appareil',
+                isLoading: _submitting,
+                onPressed: _submitting ? null : _submit,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

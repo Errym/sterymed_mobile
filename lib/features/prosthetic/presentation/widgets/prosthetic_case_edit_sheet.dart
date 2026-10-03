@@ -76,8 +76,9 @@ class _ProstheticCaseEditSheetState extends State<ProstheticCaseEditSheet> {
     final c = widget.caseData;
     _priorityCtrl = TextEditingController(text: c.priority ?? '');
     _notesCtrl = TextEditingController(text: c.notes ?? '');
-    _internalCommentsCtrl =
-        TextEditingController(text: c.internalComments ?? '');
+    _internalCommentsCtrl = TextEditingController(
+      text: c.internalComments ?? '',
+    );
     _laboratoryId = c.laboratoryId;
     _impressionType = c.impressionType;
     _workType = c.workType;
@@ -101,7 +102,11 @@ class _ProstheticCaseEditSheetState extends State<ProstheticCaseEditSheet> {
       final labs = await getIt<ProstheticRepository>().listLaboratories();
       if (!mounted) return;
       setState(() {
-        _laboratories = labs.where((l) => !l.archived).toList();
+        // The case's current laboratory stays selectable even once archived:
+        // dropping it would blank the field and silently unassign it on save.
+        _laboratories = labs
+            .where((l) => !l.archived || l.id == _laboratoryId)
+            .toList();
         _loadingLabs = false;
       });
     } catch (_) {
@@ -118,12 +123,15 @@ class _ProstheticCaseEditSheetState extends State<ProstheticCaseEditSheet> {
         'impression_type': _impressionType.wire,
         'work_type': _workType.wire,
         'impression_date': _impressionDate.toIso8601String().split('T').first,
-        'sent_to_lab_date':
-            _sentToLabDate?.toIso8601String().split('T').first,
-        'returned_from_lab_date':
-            _returnedFromLabDate?.toIso8601String().split('T').first,
-        'planned_placement_date':
-            _plannedPlacementDate?.toIso8601String().split('T').first,
+        'sent_to_lab_date': _sentToLabDate?.toIso8601String().split('T').first,
+        'returned_from_lab_date': _returnedFromLabDate
+            ?.toIso8601String()
+            .split('T')
+            .first,
+        'planned_placement_date': _plannedPlacementDate
+            ?.toIso8601String()
+            .split('T')
+            .first,
         'priority': _priorityCtrl.text.trim().isEmpty
             ? null
             : _priorityCtrl.text.trim(),
@@ -155,7 +163,10 @@ class _ProstheticCaseEditSheetState extends State<ProstheticCaseEditSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Modifier le dossier', style: AppTypography.sectionTitle),
+            const Text(
+              'Modifier le dossier',
+              style: AppTypography.sectionTitle,
+            ),
             const SizedBox(height: AppSpacing.md),
             AppDropdown<ProstheticImpressionType>(
               label: 'Type d\'empreinte',
@@ -201,8 +212,12 @@ class _ProstheticCaseEditSheetState extends State<ProstheticCaseEditSheet> {
                     value: _laboratoryId,
                     options: [
                       const AppDropdownOption(value: null, label: 'Aucun'),
-                      ..._laboratories
-                          .map((l) => AppDropdownOption(value: l.id, label: l.name)),
+                      ..._laboratories.map(
+                        (l) => AppDropdownOption(
+                          value: l.id,
+                          label: l.archived ? '${l.name} (archivé)' : l.name,
+                        ),
+                      ),
                     ],
                     onChanged: (v) => setState(() => _laboratoryId = v),
                   ),

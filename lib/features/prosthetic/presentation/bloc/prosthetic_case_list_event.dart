@@ -1,5 +1,9 @@
 part of 'prosthetic_case_list_bloc.dart';
 
+/// The six user filters of brief §10 (patient, practitioner, laboratory, work
+/// type, status, period) plus [scope], the dashboard card the list was opened
+/// from. All of it lives in the bloc state, so it survives paging, refresh and
+/// opening a case and coming back.
 class ProstheticCaseListFilters extends Equatable {
   final String? patientReference;
   final String? practitionerId;
@@ -9,6 +13,11 @@ class ProstheticCaseListFilters extends Equatable {
   final DateTime? from;
   final DateTime? to;
 
+  /// One of the server's dashboard scopes (`waiting_for_placement`,
+  /// `payments_due`, ...). The server applies it, so the list total always
+  /// equals the number on the card that opened it.
+  final String? scope;
+
   const ProstheticCaseListFilters({
     this.patientReference,
     this.practitionerId,
@@ -17,6 +26,7 @@ class ProstheticCaseListFilters extends Equatable {
     this.status,
     this.from,
     this.to,
+    this.scope,
   });
 
   bool get isEmpty =>
@@ -26,7 +36,8 @@ class ProstheticCaseListFilters extends Equatable {
       workType == null &&
       status == null &&
       from == null &&
-      to == null;
+      to == null &&
+      scope == null;
 
   /// Explicit `clearX` flags rather than relying on `x ?? this.x`, since
   /// that pattern can never set a field back to null — needed for
@@ -46,6 +57,8 @@ class ProstheticCaseListFilters extends Equatable {
     bool clearFrom = false,
     DateTime? to,
     bool clearTo = false,
+    String? scope,
+    bool clearScope = false,
   }) {
     return ProstheticCaseListFilters(
       patientReference: clearPatientReference
@@ -60,6 +73,7 @@ class ProstheticCaseListFilters extends Equatable {
       status: clearStatus ? null : (status ?? this.status),
       from: clearFrom ? null : (from ?? this.from),
       to: clearTo ? null : (to ?? this.to),
+      scope: clearScope ? null : (scope ?? this.scope),
     );
   }
 
@@ -72,6 +86,7 @@ class ProstheticCaseListFilters extends Equatable {
         status,
         from,
         to,
+        scope,
       ];
 }
 
@@ -81,6 +96,8 @@ abstract class ProstheticCaseListEvent extends Equatable {
   List<Object?> get props => [];
 }
 
+/// Re-fetch with the filters already in state (pull-to-refresh, retry, coming
+/// back from a case that may have changed).
 class LoadProstheticCases extends ProstheticCaseListEvent {
   const LoadProstheticCases();
 }

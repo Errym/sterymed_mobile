@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/router/routes.dart';
 import '../../../../core/storage/session_store.dart';
 import '../../../../core/theme/tokens.dart';
+import '../../../../core/utils/extensions/context_ext.dart';
 import '../../../../core/utils/formatters/currency_formatter.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
 import '../../../../shared/widgets/layout/app_appbar.dart';
@@ -118,57 +119,128 @@ class _PoTile extends StatelessWidget {
   final PurchaseOrderData order;
   const _PoTile({required this.order});
 
+  /// "50 × Gants nitrile · 20 × Lames de bistouri · +2" — what is in the box.
+  String get _contents {
+    if (order.lines.isEmpty) return 'Aucune ligne';
+    final shown = order.lines
+        .take(2)
+        .map((l) => '${l.qtyOrdered} × ${l.productName}')
+        .join('  ·  ');
+    final more = order.lines.length - 2;
+    return more > 0 ? '$shown  ·  +$more' : shown;
+  }
+
+  /// Units received over units ordered, 0-1. Null before anything is ordered.
+  double? get _received {
+    final ordered = order.lines.fold<int>(0, (s, l) => s + l.qtyOrdered);
+    if (ordered == 0) return null;
+    final got = order.lines.fold<int>(0, (s, l) => s + l.qtyReceived);
+    return (got / ordered).clamp(0.0, 1.0);
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.go(Routes.purchaseDetail(order.id)),
-        borderRadius: BorderRadius.circular(AppRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            color: AppColors.backgroundCard,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-            border: Border.all(color: AppColors.borderLight),
-          ),
-          child: Column(
+    final received = _received;
+    final showProgress = received != null &&
+        (order.status == 'ordered' ||
+            order.status == 'partially_received' ||
+            order.status == 'received');
+    return AppCard(
+      onTap: () => context.openRoute(Routes.purchaseDetail(order.id)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(order.supplierName,
-                        style: AppTypography.bodyStrong),
-                  ),
-                  TypeBadge(
-                    label: _statusLabel(order.status),
-                    tone: _statusTone(order.status),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Text(order.shortId, style: AppTypography.caption),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                children: [
-                  Text('${order.lines.length} ligne(s)',
-                      style: AppTypography.caption),
-                  const Spacer(),
-                  if (order.totalAmount != null)
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      AppCurrencyFormatter.eur(order.totalAmount!),
-                      style: AppTypography.bodyStrong
-                          .copyWith(color: AppColors.brandPrimary),
+                      '${order.shortId}  ·  '
+                      '${DateFormat('dd/MM/yyyy').format(order.createdAt)}',
+                      style: AppTypography.eyebrow,
                     ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(DateFormat('dd/MM/yy').format(order.createdAt),
-                      style: AppTypography.caption),
-                ],
+                    const SizedBox(height: 2),
+                    Text(order.supplierName, style: AppTypography.cardTitle),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              TypeBadge(
+                label: _statusLabel(order.status),
+                tone: _statusTone(order.status),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            _contents,
+            style: AppTypography.body.copyWith(color: AppColors.textSecondary),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (showProgress) ...[
+            const SizedBox(height: AppSpacing.sm),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.pill),
+              child: LinearProgressIndicator(
+                value: received,
+                minHeight: 6,
+                backgroundColor: AppColors.backgroundMuted,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  received >= 1 ? AppColors.success : AppColors.warning,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              received >= 1
+                  ? 'Tout est reçu'
+                  : '${order.qtyRemaining} unité(s) restant à recevoir',
+              style: AppTypography.caption,
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              if (order.expectedAt != null &&
+                  order.status != 'received' &&
+                  order.status != 'cancelled') ...[
+                const Icon(
+                  Icons.local_shipping_outlined,
+                  size: 14,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    'Livraison ${DateFormat('dd/MM/yyyy').format(order.expectedAt!)}',
+                    style: AppTypography.caption,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              const Spacer(),
+              if (order.totalAmount != null)
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      AppCurrencyFormatter.eur(order.totalAmount!),
+                      style: AppTypography.metric.copyWith(
+                        fontSize: 18,
+                        color: AppColors.brandPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }
