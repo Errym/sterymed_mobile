@@ -55,6 +55,7 @@ class _NcViewState extends State<_NcView> {
         actions: [
           if (canManage)
             IconButton(
+              tooltip: 'Nouvelle non-conformité',
               icon: const Icon(Icons.add),
               onPressed: () async {
                 final ok = await NcCreateSheet.show(context);

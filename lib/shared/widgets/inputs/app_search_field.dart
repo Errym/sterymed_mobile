@@ -51,6 +51,7 @@ class AppSearchField extends StatelessWidget {
           focusedBorder: InputBorder.none,
           suffixIcon: (controller?.text.isNotEmpty ?? false) && onClear != null
               ? IconButton(
+                tooltip: 'Effacer la recherche',
                   icon: const Icon(Icons.close, size: 18),
                   onPressed: onClear,
                 )

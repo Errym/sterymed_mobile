@@ -78,6 +78,7 @@ class _LoginFormState extends State<LoginForm> {
             prefix: const Icon(Icons.lock_outline, size: 20),
             validator: Validators.password,
             suffix: IconButton(
+              tooltip: _obscure ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
               icon: Icon(
                 _obscure
                     ? Icons.visibility_outlined

@@ -74,6 +74,7 @@ class _PatientPickerSheetState extends State<PatientPickerSheet> {
                     ),
                   ),
                   IconButton(
+                    tooltip: 'Fermer',
                     icon: const Icon(Icons.close),
                     onPressed: () => Navigator.of(context).pop(),
                   ),

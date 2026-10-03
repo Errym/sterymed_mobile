@@ -44,6 +44,7 @@ class RegisterScreen extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
+                      tooltip: "Retour",
                       onPressed: () => context.go(Routes.login),
                       icon: const Icon(Icons.arrow_back),
                       color: AppColors.textPrimary,

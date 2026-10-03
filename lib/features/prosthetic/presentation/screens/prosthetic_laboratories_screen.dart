@@ -95,6 +95,7 @@ class _ProstheticLaboratoriesScreenState
         title: 'Laboratoires',
         actions: [
           IconButton(
+            tooltip: 'Nouveau laboratoire',
             icon: const Icon(Icons.add),
             onPressed: () => _createOrEdit(),
           ),

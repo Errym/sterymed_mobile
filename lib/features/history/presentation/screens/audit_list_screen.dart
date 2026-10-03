@@ -75,6 +75,7 @@ class _AuditListView extends StatelessWidget {
             },
           ),
           IconButton(
+            tooltip: 'Actualiser',
             icon: const Icon(Icons.refresh),
             onPressed: () =>
                 context.read<AuditListBloc>().add(const RefreshAuditEvents()),

@@ -40,6 +40,7 @@ class _SiteListView extends StatelessWidget {
         title: 'Sites & Espaces',
         actions: [
           IconButton(
+            tooltip: 'Actualiser',
             icon: const Icon(Icons.refresh),
             onPressed: () =>
                 context.read<SiteListBloc>().add(const LoadSites()),

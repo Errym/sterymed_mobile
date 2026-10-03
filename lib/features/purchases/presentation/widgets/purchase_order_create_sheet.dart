@@ -543,6 +543,7 @@ class _LineEditor extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(top: 22),
                   child: IconButton(
+                    tooltip: 'Retirer la ligne',
                     icon: const Icon(Icons.delete_outline,
                         color: AppColors.danger, size: 20),
                     onPressed: onRemove,

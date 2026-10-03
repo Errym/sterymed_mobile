@@ -35,6 +35,7 @@ class ImagePreviewDialog extends StatelessWidget {
               color: AppColors.backgroundCard,
               shape: const CircleBorder(),
               child: IconButton(
+                tooltip: 'Fermer',
                 icon: const Icon(Icons.close),
                 onPressed: () => Navigator.of(context).pop(),
               ),

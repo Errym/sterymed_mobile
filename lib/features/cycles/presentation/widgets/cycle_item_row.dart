@@ -39,6 +39,7 @@ class CycleItemRow extends StatelessWidget {
           ),
           if (onDelete != null)
             IconButton(
+              tooltip: 'Supprimer l\'instrument',
               icon: const Icon(Icons.delete_outline,
                   color: AppColors.danger, size: 20),
               onPressed: onDelete,

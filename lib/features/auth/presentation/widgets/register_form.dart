@@ -113,6 +113,7 @@ class _RegisterFormState extends State<RegisterForm> {
             obscureText: _obscure,
             validator: Validators.password,
             suffix: IconButton(
+              tooltip: _obscure ? 'Afficher le mot de passe' : 'Masquer le mot de passe',
               icon: Icon(
                 _obscure
                     ? Icons.visibility_outlined
