@@ -67,9 +67,18 @@ Each entry: date, tester, build/commit, scenario, steps, result.
 
 ## Entries
 
-*(none yet — every offline-queue scenario in `docs/OFFLINE_MATRIX.md` and
-the app-kill-and-relaunch scenario remain unverified on a real device; this is real, tracked debt, not
-fabricated as done)*
+### 2026-10-03 — first run on a real phone (debug build, dev backend over `adb reverse`)
+- Device: Samsung Galaxy S928B, Android 16, USB. App: debug APK built from the repository head of that day.
+- Driven with `scripts/device_ui.py` (the app hides its content from screenshots on purpose; its accessibility tree is read instead). Device log checked for Flutter errors after each screen: none.
+- **Worked on the device:** launch; sign-in as owner; dashboard with live figures; all six bottom tabs; cycle list and cycle detail (new header and timeline); label lookup by typed code ("Étiquette valide", cycle, autoclave, site, sterilization date); camera opens in the scanner (state OPEN); usage form opens with the practitioner pre-filled; stock issue (Gants nitrile, Réserve 11 → 10; the server shows 10; the form displayed "Nouveau stock restant 10" before saving); Plus hub; Appareils, Équipe, Sites, Laboratoires.
+- **Found on the device (fixed in code afterwards, re-verification below):**
+  1. Android 16 warns the app is not 16 KB page-size compatible: `libbarhopper_v3.so` and `libimage_processing_util_jni.so` (from the scanner package) are 4 KB aligned. A Play Store requirement. Fix: upgrade `mobile_scanner`.
+  2. The dashboard said "12 cycles en cours" while the Cycles tab said "En cours (0)": the 12 were drafts, which had no stage. The dashboard figure is now "Cycles ouverts" and drafts have their own stage.
+  3. Cycles showed a "Créé" time that changed on every refresh: the server sends no creation time for cycles and the app invented "now". Now shown as absent.
+  4. The patient picker of the usage form opened blank until something was typed. It now loads patients at once.
+- **Not yet done on the device:** a real QR/DataMatrix scan with a printed label, usage save, goods receipt with photo, prosthetic case (timed), file opening (photo/PDF/export), airplane mode, kill-and-relaunch, lock after background, large-text walk, other five roles.
+- USB tethering (`rndis`) was on during the run and was not switched off by `svc usb`; no adb drop occurred.
+
 
 ## Device steps owed for Phase 6 and Phase 7 (no phone was attached on 2026-10-02)
 

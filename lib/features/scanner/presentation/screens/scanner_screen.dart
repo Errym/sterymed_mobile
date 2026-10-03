@@ -260,7 +260,7 @@ class _ScannerViewState extends State<_ScannerView>
             MobileScanner(
               controller: _controller,
               onDetect: _onDetect,
-              errorBuilder: (context, error, _) => _CameraUnavailable(
+              errorBuilder: (context, error) => _CameraUnavailable(
                 denied:
                     error.errorCode == MobileScannerErrorCode.permissionDenied,
                 onManualEntry: _enterCodeManually,

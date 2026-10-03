@@ -25,7 +25,10 @@ class PatientPickerSheet extends StatefulWidget {
             BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
       ),
       builder: (_) => BlocProvider(
-        create: (_) => PatientSearchBloc(getIt<PatientRepository>()),
+        // Load the first page straight away: a picker that opens blank makes
+        // people type a reference they may not know before seeing anyone.
+        create: (_) => PatientSearchBloc(getIt<PatientRepository>())
+          ..add(const PatientSearchSubmitted('')),
         child: const PatientPickerSheet(),
       ),
     );
