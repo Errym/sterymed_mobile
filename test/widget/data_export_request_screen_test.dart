@@ -71,7 +71,7 @@ void main() {
     when(() => handoff.open(any()))
         .thenAnswer((_) async => HandoffResult.opened);
 
-    await pumpApp(tester, const DataExportRequestScreen());
+    await pumpAppTall(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Télécharger l\'archive ZIP'));
     await tester.pumpAndSettle();
@@ -102,7 +102,7 @@ void main() {
     when(() => handoff.open(any()))
         .thenAnswer((_) async => HandoffResult.noViewer);
 
-    await pumpApp(tester, const DataExportRequestScreen());
+    await pumpAppTall(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Télécharger l\'archive ZIP'));
     await tester.pumpAndSettle();
@@ -125,7 +125,7 @@ void main() {
       message: 'Ce fichier n\'est plus disponible (lien expiré). Redemandez-le.',
     ));
 
-    await pumpApp(tester, const DataExportRequestScreen());
+    await pumpAppTall(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Télécharger l\'archive ZIP'));
     await tester.pumpAndSettle();
@@ -137,7 +137,7 @@ void main() {
   testWidgets('an expired export offers no download', (tester) async {
     when(() => repo.list(forceRefresh: any(named: 'forceRefresh')))
         .thenAnswer((_) async => [export('expired')]);
-    await pumpApp(tester, const DataExportRequestScreen());
+    await pumpAppTall(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
     expect(find.text('EXPIRÉ'), findsOneWidget);
     expect(find.text('Télécharger l\'archive ZIP'), findsNothing);
@@ -152,7 +152,7 @@ void main() {
       message: 'Action non autorisée.',
       statusCode: 403,
     ));
-    await pumpApp(tester, const DataExportRequestScreen());
+    await pumpAppTall(tester, const DataExportRequestScreen());
     await tester.pumpAndSettle();
     await tester.tap(find.text('Demander un Export Complet (ZIP)'));
     await tester.pumpAndSettle();

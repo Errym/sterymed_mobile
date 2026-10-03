@@ -159,7 +159,7 @@ void main() {
         when(() => session.hasPermission(any()))
             .thenAnswer((i) => perms.contains(i.positionalArguments.first));
 
-        await pumpApp(
+        await pumpAppTall(
           tester,
           const Scaffold(body: BottomNavBar(currentLocation: Routes.dashboard)),
         );
@@ -196,7 +196,7 @@ void main() {
         when(() => session.hasPermission(any()))
             .thenAnswer((i) => perms.contains(i.positionalArguments.first));
 
-        await pumpApp(
+        await pumpAppTall(
           tester,
           const Scaffold(body: BottomNavBar(currentLocation: Routes.dashboard)),
         );
@@ -242,7 +242,7 @@ void main() {
       'prosthetic_payments.manage (no "Enregistrer le paiement" button, '
       'read-only payment card instead)',
       (tester) async {
-        await pumpApp(
+        await pumpAppTall(
           tester,
           const ProstheticCaseDetailScreen(caseId: 'case-1'),
         );
@@ -322,7 +322,7 @@ void main() {
       'not cycles.release — sees the read-only banner instead of '
       '"Prendre la décision de libération" on an awaiting_release cycle',
       (tester) async {
-        await pumpApp(
+        await pumpAppTall(
           tester,
           RepositoryProvider<CycleRepository>.value(
             value: cycleRepo,
@@ -414,7 +414,7 @@ void main() {
 
     testWidgets('cycle detail: no start button, read-only banner instead',
         (tester) async {
-      await pumpApp(
+      await pumpAppTall(
         tester,
         RepositoryProvider<CycleRepository>.value(
           value: cycleRepo,
@@ -437,7 +437,7 @@ void main() {
       'prosthetic case detail: no Quick Edit icon, no status-change '
       'buttons, payment section read-only',
       (tester) async {
-        await pumpApp(
+        await pumpAppTall(
           tester,
           const ProstheticCaseDetailScreen(caseId: 'case-1'),
         );
