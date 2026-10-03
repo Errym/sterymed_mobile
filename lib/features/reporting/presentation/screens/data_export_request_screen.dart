@@ -5,6 +5,9 @@ import '../../../../core/files/file_export_service.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/utils/error_message.dart';
 import '../../../../di/di.dart';
+import '../../../../shared/widgets/layout/form_card.dart';
+import '../../../../shared/widgets/layout/detail_kit.dart';
+import '../../../../shared/widgets/cards/app_card.dart';
 import '../../../../shared/widgets/badges/type_badge.dart';
 import '../../../../shared/widgets/feedback/app_snackbar.dart';
 import '../../../../shared/widgets/feedback/empty_view.dart';
@@ -100,48 +103,61 @@ class _DataExportRequestScreenState extends State<DataExportRequestScreen> {
           padding: const EdgeInsets.all(AppSpacing.md),
           children: [
             // Main archive card
-            Container(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              decoration: BoxDecoration(
-                color: AppColors.backgroundCard,
-                borderRadius: BorderRadius.circular(AppRadius.card),
-                border: Border.all(color: AppColors.hairline),
-                boxShadow: AppShadows.card,
-              ),
+            AppCard(
+              key: const Key('export-request-card'),
+              padding: const EdgeInsets.all(AppSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  const Row(
                     children: [
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: AppColors.brandPrimaryLight,
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: const Icon(
-                          Icons.download_outlined,
-                          size: 18,
-                          color: AppColors.brandPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      const Expanded(
-                        child: Text(
-                          'Archive Réglementaire Complète',
-                          style: AppTypography.bodyStrong,
+                      EntityMark.icon(Icons.folder_zip_outlined),
+                      SizedBox(width: AppSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('ARCHIVE COMPLÈTE', style: AppTypography.eyebrow),
+                            Text('Export du cabinet', style: AppTypography.cardTitle),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.md),
                   const Text(
-                    'Conformément aux exigences de traçabilité ARS et RGPD, '
-                    'cet export compile l\'intégralité des cycles d\'autoclaves, '
-                    'fiches de traçabilité patients, mouvements de stocks et '
-                    'justificatifs scannés dans une archive ZIP sécurisée.',
-                    style: AppTypography.caption,
+                    'Pour un contrôle (ARS), une demande de portabilité ou une '
+                    'sauvegarde : tout ce que le cabinet a enregistré, dans une '
+                    'archive ZIP.',
+                    style: AppTypography.body,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    key: const Key('export-contents'),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceWell,
+                      borderRadius: BorderRadius.circular(AppRadius.control),
+                    ),
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('CONTENU', style: AppTypography.eyebrow),
+                        SizedBox(height: AppSpacing.xs),
+                        DetailRow(Icons.autorenew, 'Cycles', 'et leurs contrôles'),
+                        DetailRow(Icons.qr_code_2, 'Étiquettes', 'et utilisations'),
+                        DetailRow(Icons.swap_vert, 'Stock', 'mouvements et lots'),
+                        DetailRow(Icons.attach_file, 'Pièces jointes', 'avec empreinte SHA-256'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
+                  const NoteStrip(
+                    key: Key('export-rules'),
+                    text: 'Un export à la fois, 5 par semaine au maximum. '
+                        'Chaque archive reste disponible 7 jours.',
+                    icon: Icons.info_outline,
                   ),
                   const SizedBox(height: AppSpacing.md),
                   FilledButton.icon(

@@ -214,6 +214,9 @@ void main() {
                 ]);
         _register<ExportRepository>(repo);
         await check(tester, vp.value, const DataExportRequestScreen());
+        // The person is told what the archive holds and its limits.
+        expect(find.byKey(const Key('export-contents')), findsOneWidget);
+        expect(find.byKey(const Key('export-rules')), findsOneWidget);
       });
 
       testWidgets('main dashboard', (tester) async {

@@ -40,7 +40,8 @@ class PatientListBloc extends Bloc<PatientListEvent, PatientListState> {
 
   Future<void> _onCreate(CreatePatient e, Emitter<PatientListState> emit) async {
     try {
-      await _repository.create();
+      final created = await _repository.create();
+      emit(state.copyWith(lastCreated: created));
       add(const LoadPatients());
     } on ApiException catch (ex) {
       emit(state.copyWith(error: ex.message));
